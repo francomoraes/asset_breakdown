@@ -4,6 +4,13 @@ import { Asset } from "../models/Asset";
 import { recalculatePortfolio } from "../utils/recalculatePortfolio";
 import { getMarketPriceCents } from "../utils/getMarketPrice";
 import { calculateDerivedFields } from "../utils/calculateDerivedFields";
+import {
+  buyAssetSchema,
+  updateAssetSchema,
+  assetIdParamsSchema,
+  sellAssetSchema,
+  tickerParamsSchema,
+} from "../schemas/asset.schema";
 
 export const getAssets = async (req: Request, res: Response) => {
   try {
@@ -16,67 +23,87 @@ export const getAssets = async (req: Request, res: Response) => {
   }
 };
 
-export const createAsset = async (
-  req: Request,
-  res: Response,
-): Promise<void> => {
-  try {
-    const { type, ticker, quantity, averagePriceCents, institution, currency } =
-      req.body;
+// export const createAsset = async (
+//   req: Request,
+//   res: Response,
+// ): Promise<void> => {
+//   try {
+//     const { type, ticker, quantity, averagePriceCents, institution, currency } =
+//       req.body;
 
-    let currentPriceCents = 0;
+//     let currentPriceCents = 0;
 
-    try {
-      currentPriceCents = await getMarketPriceCents(ticker);
-    } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : String(error);
-      res.status(500).json({ error: errorMessage });
-      return;
-    }
+//     try {
+//       currentPriceCents = await getMarketPriceCents(ticker);
+//     } catch (error) {
+//       const errorMessage =
+//         error instanceof Error ? error.message : String(error);
+//       res.status(500).json({ error: errorMessage });
+//       return;
+//     }
 
-    const {
-      investedValueCents,
-      currentValueCents,
-      resultCents,
-      returnPercentage,
-    } = calculateDerivedFields(quantity, averagePriceCents, currentPriceCents);
+//     const {
+//       investedValueCents,
+//       currentValueCents,
+//       resultCents,
+//       returnPercentage,
+//     } = calculateDerivedFields(quantity, averagePriceCents, currentPriceCents);
 
-    const asset = AppDataSource.getRepository(Asset).create({
-      type,
-      ticker,
-      quantity,
-      averagePriceCents,
-      currentPriceCents,
-      investedValueCents,
-      currentValueCents,
-      resultCents,
-      returnPercentage,
-      portfolioPercentage: 0,
-      institution,
-      currency,
-    });
+//     const asset = AppDataSource.getRepository(Asset).create({
+//       type,
+//       ticker,
+//       quantity,
+//       averagePriceCents,
+//       currentPriceCents,
+//       investedValueCents,
+//       currentValueCents,
+//       resultCents,
+//       returnPercentage,
+//       portfolioPercentage: 0,
+//       institution,
+//       currency,
+//     });
 
-    await AppDataSource.getRepository(Asset).save(asset);
+//     await AppDataSource.getRepository(Asset).save(asset);
 
-    await recalculatePortfolio();
+//     await recalculatePortfolio();
 
-    res.status(201).json(asset);
-  } catch (error) {
-    console.error("Erro ao criar ativo:", error);
-    res.status(500).json({ error: "Erro ao criar ativo" });
-  }
-};
+//     res.status(201).json(asset);
+//   } catch (error) {
+//     console.error("Erro ao criar ativo:", error);
+//     res.status(500).json({ error: "Erro ao criar ativo" });
+//   }
+// };
 
 export const updateAsset = async (
   req: Request,
   res: Response,
 ): Promise<void> => {
-  try {
-    const { id } = req.params;
-    const { type, ticker, quantity, averagePriceCents, institution, currency } =
-      req.body;
+  const paramCheck = assetIdParamsSchema.safeParse(req.params);
+  if (!paramCheck.success) {
+    res.status(400).json({
+      error: "Erro ao validar o ID do ativo",
+      issues: paramCheck.error.format(),
+    });
+    return;
+  }
 
+  const { id } = paramCheck.data;
+
+  const parsed = updateAssetSchema.safeParse(req.body);
+
+  if (!parsed.success) {
+    res.status(400).json({
+      error: "Erro ao validar os dados do ativo",
+      issues: parsed.error.format(),
+    });
+    return;
+  }
+
+  const { type, ticker, quantity, averagePriceCents, institution, currency } =
+    parsed.data;
+
+  try {
     const assetRepository = AppDataSource.getRepository(Asset);
     const asset = await assetRepository.findOneBy({ id: Number(id) });
 
@@ -133,9 +160,18 @@ export const deleteAsset = async (
   req: Request,
   res: Response,
 ): Promise<void> => {
-  try {
-    const { id } = req.params;
+  const paramCheck = assetIdParamsSchema.safeParse(req.params);
+  if (!paramCheck.success) {
+    res.status(400).json({
+      error: "Erro ao validar o ID do ativo",
+      issues: paramCheck.error.format(),
+    });
+    return;
+  }
 
+  const { id } = paramCheck.data;
+
+  try {
     const assetRepository = AppDataSource.getRepository(Asset);
     const asset = await assetRepository.findOneBy({ id: Number(id) });
 
@@ -156,15 +192,26 @@ export const deleteAsset = async (
 };
 
 export const buyAsset = async (req: Request, res: Response): Promise<void> => {
+  const parsed = buyAssetSchema.safeParse(req.body);
+
+  if (!parsed.success) {
+    res.status(400).json({
+      error: "Erro ao validar os dados de compra do ativo",
+      issues: parsed.error.issues,
+    });
+    return;
+  }
+
+  const {
+    quantity: newQuantity,
+    priceCents: newPriceCents,
+    type,
+    institution,
+    currency,
+  } = parsed.data;
+
   try {
     const { ticker } = req.params;
-    const {
-      quantity: newQuantity,
-      priceCents: newPriceCents,
-      type,
-      institution,
-      currency,
-    } = req.body;
 
     const assetRepository = AppDataSource.getRepository(Asset);
     let asset = await assetRepository.findOneBy({ ticker });
@@ -249,11 +296,7 @@ export const buyAsset = async (req: Request, res: Response): Promise<void> => {
     asset.returnPercentage = returnPercentage;
     asset.portfolioPercentage = 0;
 
-    // console.log("Asset after buy:", asset);
-
     await assetRepository.save(asset);
-
-    // console.log("Asset saved after buy:", asset);
 
     await recalculatePortfolio();
 
@@ -261,5 +304,103 @@ export const buyAsset = async (req: Request, res: Response): Promise<void> => {
   } catch (error) {
     console.error("Erro ao comprar ativo:", error);
     res.status(500).json({ error: "Erro ao comprar ativo" });
+  }
+};
+
+export const sellAsset = async (req: Request, res: Response): Promise<void> => {
+  const { ticker } = req.params;
+  const paramCheck = tickerParamsSchema.safeParse({ ticker });
+  if (!paramCheck.success) {
+    res.status(400).json({
+      error: "Erro ao validar o ID do ativo",
+      issues: paramCheck.error.format(),
+    });
+    return;
+  }
+  const parsed = sellAssetSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({
+      error: "Erro ao validar os dados de venda do ativo",
+      issues: parsed.error.format(),
+    });
+    return;
+  }
+
+  // Por enquanto, sellPriceCents não é usado, mas será necessário
+  // quando implementarmos histórico ou cálculo de lucro consolid
+  const {
+    quantity: sellQuantity,
+    // priceCents: sellPriceCents
+  } = parsed.data;
+
+  try {
+    const assetRepository = AppDataSource.getRepository(Asset);
+    const asset = await assetRepository.findOneBy({ ticker });
+
+    if (!asset) {
+      res.status(404).json({ error: "Ativo não encontrado" });
+      return;
+    }
+
+    if (sellQuantity > asset.quantity) {
+      res.status(400).json({
+        error:
+          "Quantidade vendida não pode ser maior que a quantidade do ativo",
+      });
+      return;
+    }
+
+    const totalQuantity = Math.round(asset.quantity - sellQuantity);
+
+    if (totalQuantity === 0) {
+      await assetRepository.remove(asset);
+      await recalculatePortfolio();
+      res
+        .status(200)
+        .json({ message: "Ativo vendido e removido do portfólio", ticker });
+      return;
+    }
+
+    asset.quantity = totalQuantity;
+    let currentPriceCents = 0;
+
+    try {
+      currentPriceCents = await getMarketPriceCents(ticker);
+      asset.currentPriceCents = currentPriceCents;
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+      res.status(500).json({ error: errorMessage });
+      return;
+    }
+
+    const {
+      investedValueCents,
+      currentValueCents,
+      resultCents,
+      returnPercentage,
+    } = calculateDerivedFields(
+      totalQuantity,
+      asset.averagePriceCents,
+      currentPriceCents,
+    );
+
+    asset.investedValueCents = investedValueCents;
+    asset.currentValueCents = currentValueCents;
+    asset.resultCents = resultCents;
+    asset.returnPercentage = returnPercentage;
+    asset.portfolioPercentage = 0;
+
+    await assetRepository.save(asset);
+
+    await recalculatePortfolio();
+
+    res.status(200).json({
+      message: "Ativo vendido com sucesso",
+      asset,
+    });
+  } catch (error) {
+    console.error("Erro ao vender ativo:", error);
+    res.status(500).json({ error: "Erro ao vender ativo" });
   }
 };

@@ -4,9 +4,10 @@ import { parse } from "fast-csv";
 import yahooFinance from "yahoo-finance2";
 import { AppDataSource } from "../config/data-source";
 import fs from "fs";
+import { csvAssetSchema } from "../schemas/asset.schema";
 
 function toCents(value: number): number {
-  return value * 100;
+  return Math.round(value * 100);
 }
 
 export const uploadCsv = async (req: Request, res: Response): Promise<void> => {
@@ -31,28 +32,49 @@ export const uploadCsv = async (req: Request, res: Response): Promise<void> => {
     .on("end", async () => {
       try {
         for (const row of rows) {
-          const quantity = row.quantity;
-          const averagePrice = toCents(row.averagePrice);
+          const validation = csvAssetSchema.safeParse(row);
+
+          if (!validation.success) {
+            return res.status(400).json({
+              error: "Erro ao validar linhas do CSV",
+              row,
+              issues: validation.error.format(),
+            });
+          }
+
+          const {
+            type,
+            ticker,
+            quantity: quantityStr,
+            averagePrice: averagePriceStr,
+            institution,
+            currency,
+          } = validation.data;
+
+          const quantity = Number(quantityStr);
+          const averagePrice = toCents(
+            Number(averagePriceStr.replace(",", ".")),
+          );
           const investedValue = Math.round(quantity * averagePrice);
 
           let currentPrice = 0;
 
           try {
-            const quote: any = await yahooFinance.quote(row.ticker);
+            const quote: any = await yahooFinance.quote(ticker);
             const marketPrice = Array.isArray(quote)
               ? quote[0]?.regularMarketPrice
               : quote?.regularMarketPrice;
             currentPrice = toCents(marketPrice);
           } catch (error) {
-            console.error(`Error fetching data for ticker ${row.ticker}`);
+            console.error(`Error fetching data for ticker ${ticker}`);
           }
 
           const currentValue = Math.round(quantity * currentPrice);
           const result = currentValue - investedValue;
 
           const asset = assetRepository.create({
-            type: row.type,
-            ticker: row.ticker,
+            type: type,
+            ticker: ticker,
             quantity,
             averagePriceCents: averagePrice,
             currentPriceCents: currentPrice,
@@ -62,8 +84,8 @@ export const uploadCsv = async (req: Request, res: Response): Promise<void> => {
             returnPercentage: Number(
               ((result / investedValue) * 100).toFixed(2),
             ),
-            institution: row.institution,
-            currency: row.currency,
+            institution: institution,
+            currency: currency,
             portfolioPercentage: 0,
           });
 
@@ -79,7 +101,12 @@ export const uploadCsv = async (req: Request, res: Response): Promise<void> => {
 
         await assetRepository.save(assets);
 
-        fs.unlinkSync(file.path);
+        try {
+          fs.unlinkSync(file.path);
+        } catch (error) {
+          console.error("Error deleting temporary file:", error);
+        }
+
         res
           .status(201)
           .json({ message: "CSV file processed successfully", assets });

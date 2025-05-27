@@ -2,16 +2,18 @@ import {
   Column,
   CreateDateColumn,
   Entity,
+  ManyToOne,
   PrimaryGeneratedColumn,
 } from "typeorm";
+import { AssetType } from "./AssetType";
 
 @Entity("asset")
 export class Asset {
   @PrimaryGeneratedColumn()
   id!: number;
 
-  @Column("text")
-  type!: string;
+  @ManyToOne(() => AssetType, (type) => type.assets, { eager: true })
+  type!: AssetType;
 
   @Column("text")
   ticker!: string;
