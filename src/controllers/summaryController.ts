@@ -11,11 +11,11 @@ export async function getSummary(req: Request, res: Response) {
       .leftJoin("asset.type", "type")
       .leftJoin("type.assetClass", "class")
       .select([
-        "class.name AS assetClassName",
-        "type.name AS assetTypeName",
-        "asset.currency AS currency",
-        "SUM(asset.currentValueCents) AS totalValueCents",
-        "type.targetPercentage AS targetPercentage",
+        `class.name AS "assetClassName"`,
+        `type.name AS "assetTypeName"`,
+        `asset.currency AS "currency"`,
+        `SUM(asset.currentValueCents) AS "totalValueCents"`,
+        `type.targetPercentage AS "targetPercentage"`,
       ])
       .where("asset.userId = :userId", { userId })
       .groupBy("class.name, type.name, asset.currency, type.targetPercentage")
@@ -29,7 +29,7 @@ export async function getSummary(req: Request, res: Response) {
     const summary = rawSummary.map((item) => {
       const actualPercentage =
         total > 0
-          ? Number(((Number(item.totalValueCents) / total) * 100).toFixed(2))
+          ? Number((Number(item.totalValueCents) / total).toFixed(4))
           : 0;
 
       return {
