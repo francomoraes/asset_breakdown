@@ -3,11 +3,13 @@ import { Asset } from "models/Asset";
 import { getBRLtoUSDRate } from "./getBRLtoUSDRate";
 import { ensureDataSource } from "utils/ensureDataSource";
 
-export async function recalculatePortfolio() {
+export async function recalculatePortfolio(userId?: string) {
   await ensureDataSource();
 
   const assetRepository = AppDataSource.getRepository(Asset);
-  const allAssets = await assetRepository.find();
+  const allAssets = userId
+    ? await assetRepository.findBy({ userId })
+    : await assetRepository.find();
 
   const brlToUsdRate = await getBRLtoUSDRate();
 

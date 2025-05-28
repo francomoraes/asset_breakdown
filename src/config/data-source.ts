@@ -6,6 +6,8 @@ import { AssetClass } from "models/AssetClass";
 import { PriceCache } from "models/PriceCache";
 dotenv.config();
 
+const shouldDropSchema = process.argv.includes("--drop-schema");
+
 export const AppDataSource = new DataSource({
   type: "postgres",
   host: process.env.DB_HOST,
@@ -15,5 +17,6 @@ export const AppDataSource = new DataSource({
   database: process.env.DB_NAME,
   synchronize: true,
   logging: false,
+  dropSchema: shouldDropSchema,
   entities: [Asset, AssetType, AssetClass, PriceCache],
 });

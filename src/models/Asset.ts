@@ -12,6 +12,9 @@ export class Asset {
   @PrimaryGeneratedColumn()
   id!: number;
 
+  @Column("text")
+  userId!: string;
+
   @ManyToOne(() => AssetType, (type) => type.assets, { eager: true })
   type!: AssetType;
 

@@ -9,6 +9,9 @@ export class AssetClass {
   @Column("text")
   name!: string;
 
+  @Column("text")
+  userId!: string;
+
   @OneToMany(() => AssetType, (type) => type.assetClass)
   types!: AssetType[];
 }

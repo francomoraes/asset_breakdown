@@ -6,12 +6,13 @@ import { getMarketPriceCents } from "utils/getMarketPrice";
 import { calculateDerivedFields } from "utils/calculateDerivedFields";
 import { recalculatePortfolio } from "utils/recalculatePortfolio";
 import { ensureDataSource } from "utils/ensureDataSource";
+import { PriceCache } from "models/PriceCache";
 
 AppDataSource.initialize()
   .then(async () => {
     await ensureDataSource();
 
-    console.log("Data Source has been initialized!");
+    const userId = "default-user-id";
 
     const shouldReset = process.argv.includes("--reset");
     const shouldClearPriceCache = process.argv.includes("--clear-price-cache");
@@ -34,7 +35,7 @@ AppDataSource.initialize()
     if (shouldClearPriceCache) {
       console.log("🧨 Limpando cache de preços...");
 
-      await AppDataSource.getRepository("PriceCache").clear();
+      await AppDataSource.getRepository(PriceCache).clear();
     }
 
     const assetClassRespository = AppDataSource.getRepository(AssetClass);
@@ -47,9 +48,9 @@ AppDataSource.initialize()
     ];
 
     for (const name of assetClasses) {
-      const existing = await assetClassRespository.findOneBy({ name });
+      const existing = await assetClassRespository.findOneBy({ name, userId });
       if (!existing) {
-        const newClass = assetClassRespository.create({ name });
+        const newClass = assetClassRespository.create({ name, userId });
         await assetClassRespository.save(newClass);
         console.log(`Asset Class created: ${name}`);
       } else {
@@ -86,6 +87,7 @@ AppDataSource.initialize()
     for (const { name, class: className, targetPercentage } of assetTypes) {
       const assetClass = await assetClassRespository.findOneBy({
         name: className,
+        userId,
       });
 
       if (!assetClass) {
@@ -93,13 +95,14 @@ AppDataSource.initialize()
         continue;
       }
 
-      const existing = await assetTypeRepository.findOneBy({ name });
+      const existing = await assetTypeRepository.findOneBy({ name, userId });
 
       if (!existing) {
         const newType = assetTypeRepository.create({
           name,
           targetPercentage,
           assetClass,
+          userId,
         });
         await assetTypeRepository.save(newType);
         console.log(`Asset type created: ${name}`);
@@ -157,7 +160,10 @@ AppDataSource.initialize()
     ];
 
     for (const { ticker, type, quantity, averagePrice } of seedAssets) {
-      const assetType = await assetTypeRepository.findOneBy({ name: type });
+      const assetType = await assetTypeRepository.findOneBy({
+        name: type,
+        userId,
+      });
 
       if (!assetType) {
         console.warn(`Asset type ${type} not found for ticker ${ticker}`);
@@ -178,7 +184,7 @@ AppDataSource.initialize()
         currentPriceCents,
       );
 
-      const existing = await assetRepository.findOneBy({ ticker });
+      const existing = await assetRepository.findOneBy({ ticker, userId });
 
       if (!existing) {
         const asset = assetRepository.create({
@@ -194,6 +200,7 @@ AppDataSource.initialize()
           institution: "Teste",
           currency: "USD",
           type: assetType,
+          userId,
         });
 
         await assetRepository.save(asset);
@@ -203,7 +210,7 @@ AppDataSource.initialize()
       }
     }
 
-    await recalculatePortfolio();
+    await recalculatePortfolio(userId);
     await AppDataSource.destroy();
   })
   .catch((err) => {

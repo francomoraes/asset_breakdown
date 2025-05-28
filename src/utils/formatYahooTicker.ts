@@ -1,4 +1,6 @@
 export function formatYahooTicker(ticker: string): string {
+  if (!ticker) throw new Error("Ticker inválido");
+
   ticker = ticker.toUpperCase();
 
   if (/^[A-Z]{4}\d{1,2}$/.test(ticker)) {

@@ -6,7 +6,9 @@
     "dev": "tsx watch src/server.ts",
     "build": "tsc",
     "start": "node dist/server.js",
-    "seed": "ts-node -r tsconfig-paths/register src/seed/seed.ts"
+    "seed": "ts-node -r tsconfig-paths/register src/seed/seed.ts",
+    "reset": "npm run seed -- --drop-schema --reset --clear-price-cache",
+    "update:prices": "ts-node -r tsconfig-paths/register src/scripts/updatePrices.ts"
   },
   "keywords": [],
   "author": "",

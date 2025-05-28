@@ -19,6 +19,9 @@ export class AssetType {
   @Column("decimal", { precision: 5, scale: 2 })
   targetPercentage!: number;
 
+  @Column("text")
+  userId!: string;
+
   @ManyToOne(() => AssetClass, (assetClass) => assetClass.types, {
     eager: true,
   })

@@ -2,7 +2,7 @@ import { Column, Entity, PrimaryColumn, UpdateDateColumn } from "typeorm";
 
 @Entity("price_cache")
 export class PriceCache {
-  @PrimaryColumn()
+  @PrimaryColumn("text")
   ticker!: string;
 
   @Column("int")
