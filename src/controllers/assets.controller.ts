@@ -11,6 +11,7 @@ import {
   sellAssetSchema,
   tickerParamsSchema,
 } from "schemas/asset.schema";
+import { Parser } from "json2csv";
 
 export const getAssets = async (req: Request, res: Response) => {
   try {
@@ -23,57 +24,39 @@ export const getAssets = async (req: Request, res: Response) => {
   }
 };
 
-// export const createAsset = async (
-//   req: Request,
-//   res: Response,
-// ): Promise<void> => {
-//   try {
-//     const { type, ticker, quantity, averagePriceCents, institution, currency } =
-//       req.body;
+export const getAssetsByUser = async (
+  req: Request,
+  res: Response,
+): Promise<void> => {
+  const { userId } = req.params;
 
-//     let currentPriceCents = 0;
+  try {
+    const assetRepository = AppDataSource.getRepository(Asset);
+    const assets = await assetRepository.find({
+      where: { userId },
+      relations: {
+        type: {
+          assetClass: true,
+        },
+      },
+      order: {
+        id: "ASC",
+      },
+    });
 
-//     try {
-//       currentPriceCents = await getMarketPriceCents(ticker);
-//     } catch (error) {
-//       const errorMessage =
-//         error instanceof Error ? error.message : String(error);
-//       res.status(500).json({ error: errorMessage });
-//       return;
-//     }
+    if (assets.length === 0) {
+      res
+        .status(404)
+        .json({ error: "Nenhum ativo encontrado para este usuário" });
+      return;
+    }
 
-//     const {
-//       investedValueCents,
-//       currentValueCents,
-//       resultCents,
-//       returnPercentage,
-//     } = calculateDerivedFields(quantity, averagePriceCents, currentPriceCents);
-
-//     const asset = AppDataSource.getRepository(Asset).create({
-//       type,
-//       ticker,
-//       quantity,
-//       averagePriceCents,
-//       currentPriceCents,
-//       investedValueCents,
-//       currentValueCents,
-//       resultCents,
-//       returnPercentage,
-//       portfolioPercentage: 0,
-//       institution,
-//       currency,
-//     });
-
-//     await AppDataSource.getRepository(Asset).save(asset);
-
-//     await recalculatePortfolio();
-
-//     res.status(201).json(asset);
-//   } catch (error) {
-//     console.error("Erro ao criar ativo:", error);
-//     res.status(500).json({ error: "Erro ao criar ativo" });
-//   }
-// };
+    res.status(200).json(assets);
+  } catch (error) {
+    console.error("Erro ao buscar ativos do usuário:", error);
+    res.status(500).json({ error: "Erro ao buscar ativos do usuário" });
+  }
+};
 
 export const updateAsset = async (
   req: Request,
@@ -412,5 +395,49 @@ export const sellAsset = async (req: Request, res: Response): Promise<void> => {
   } catch (error) {
     console.error("Erro ao vender ativo:", error);
     res.status(500).json({ error: "Erro ao vender ativo" });
+  }
+};
+
+export const exportAssetCsv = async (
+  req: Request,
+  res: Response,
+): Promise<void> => {
+  const { userId } = req.params;
+
+  try {
+    const assets = await AppDataSource.getRepository(Asset).find({
+      where: { userId },
+      relations: {
+        type: {
+          assetClass: true,
+        },
+      },
+      order: { id: "ASC" },
+    });
+
+    const data = assets.map((asset) => ({
+      ticker: asset.ticker,
+      quantity: asset.quantity,
+      averagePriceCents: asset.averagePriceCents,
+      currentPriceCents: asset.currentPriceCents,
+      investedValueCents: asset.investedValueCents,
+      currentValueCents: asset.currentValueCents,
+      resultCents: asset.resultCents,
+      returnPercentage: asset.returnPercentage,
+      institution: asset.institution,
+      currency: asset.currency,
+      type: asset.type.name,
+      class: asset.type.assetClass.name,
+    }));
+
+    const parser = new Parser();
+    const csv = parser.parse(data);
+
+    res.header("Content-Type", "text/csv");
+    res.attachment("assets.csv");
+    res.send(csv);
+  } catch (error) {
+    console.error("Erro ao exportar ativos para CSV:", error);
+    res.status(500).json({ error: "Erro ao exportar ativos para CSV" });
   }
 };

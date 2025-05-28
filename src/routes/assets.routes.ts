@@ -1,16 +1,18 @@
 import express from "express";
 import {
   buyAsset,
-  // createAsset,
   deleteAsset,
+  exportAssetCsv,
   getAssets,
+  getAssetsByUser,
   sellAsset,
   updateAsset,
 } from "controllers/assets.controller";
 
 const router = express.Router();
 router.get("/assets", getAssets);
-// router.post("/assets", createAsset); // Removido pois a função buyAsset já cria o ativo
+router.get("/assets/:userId", getAssetsByUser);
+router.get("/assets/:userId/export", exportAssetCsv);
 router.put("/assets/:id", updateAsset);
 router.delete("/assets/:id", deleteAsset);
 router.post("/assets/:ticker/buy", buyAsset);
