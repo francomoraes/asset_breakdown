@@ -1,16 +1,16 @@
 import { Request, Response } from "express";
-import { AppDataSource } from "../config/data-source";
-import { Asset } from "../models/Asset";
-import { recalculatePortfolio } from "../utils/recalculatePortfolio";
-import { getMarketPriceCents } from "../utils/getMarketPrice";
-import { calculateDerivedFields } from "../utils/calculateDerivedFields";
+import { AppDataSource } from "config/data-source";
+import { Asset } from "models/Asset";
+import { recalculatePortfolio } from "utils/recalculatePortfolio";
+import { getMarketPriceCents } from "utils/getMarketPrice";
+import { calculateDerivedFields } from "utils/calculateDerivedFields";
 import {
   buyAssetSchema,
   updateAssetSchema,
   assetIdParamsSchema,
   sellAssetSchema,
   tickerParamsSchema,
-} from "../schemas/asset.schema";
+} from "schemas/asset.schema";
 
 export const getAssets = async (req: Request, res: Response) => {
   try {
@@ -215,6 +215,7 @@ export const buyAsset = async (req: Request, res: Response): Promise<void> => {
 
     const assetRepository = AppDataSource.getRepository(Asset);
     let asset = await assetRepository.findOneBy({ ticker });
+    const assetTypeRepository = AppDataSource.getRepository("AssetType");
 
     if (!asset) {
       try {
@@ -231,8 +232,17 @@ export const buyAsset = async (req: Request, res: Response): Promise<void> => {
           currentPriceCents,
         );
 
+        const assetType = await assetTypeRepository.findOneBy({ name: type });
+
+        if (!assetType) {
+          res
+            .status(400)
+            .json({ error: `Tipo de ativo '${type}' não encontrado.` });
+          return;
+        }
+
         asset = assetRepository.create({
-          type,
+          type: assetType,
           ticker,
           quantity: newQuantity,
           averagePriceCents: newPriceCents,

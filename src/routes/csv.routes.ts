@@ -1,7 +1,7 @@
 import express from "express";
 import multer from "multer";
 
-import { uploadCsv } from "../controllers/csv.controller";
+import { uploadCsv } from "controllers/csv.controller";
 import { fileURLToPath } from "url";
 import path from "path";
 

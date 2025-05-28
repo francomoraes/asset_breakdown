@@ -1,8 +1,11 @@
-import { AppDataSource } from "../config/data-source.js";
-import { Asset } from "../models/Asset.js";
-import { getBRLtoUSDRate } from "./getBRLtoUSDRate.js";
+import { AppDataSource } from "config/data-source";
+import { Asset } from "models/Asset";
+import { getBRLtoUSDRate } from "./getBRLtoUSDRate";
+import { ensureDataSource } from "utils/ensureDataSource";
 
 export async function recalculatePortfolio() {
+  await ensureDataSource();
+
   const assetRepository = AppDataSource.getRepository(Asset);
   const allAssets = await assetRepository.find();
 

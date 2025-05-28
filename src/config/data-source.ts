@@ -1,6 +1,9 @@
 import dotenv from "dotenv";
 import { DataSource } from "typeorm";
-import { Asset } from "../models/Asset";
+import { Asset } from "models/Asset";
+import { AssetType } from "models/AssetType";
+import { AssetClass } from "models/AssetClass";
+import { PriceCache } from "models/PriceCache";
 dotenv.config();
 
 export const AppDataSource = new DataSource({
@@ -12,5 +15,5 @@ export const AppDataSource = new DataSource({
   database: process.env.DB_NAME,
   synchronize: true,
   logging: false,
-  entities: [Asset],
+  entities: [Asset, AssetType, AssetClass, PriceCache],
 });

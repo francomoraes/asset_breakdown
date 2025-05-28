@@ -1,10 +1,10 @@
 import { Request, Response } from "express";
-import { Asset } from "../models/Asset";
+import { Asset } from "models/Asset";
 import { parse } from "fast-csv";
 import yahooFinance from "yahoo-finance2";
-import { AppDataSource } from "../config/data-source";
+import { AppDataSource } from "config/data-source";
 import fs from "fs";
-import { csvAssetSchema } from "../schemas/asset.schema";
+import { csvAssetSchema } from "schemas/asset.schema";
 
 function toCents(value: number): number {
   return Math.round(value * 100);
@@ -20,6 +20,8 @@ export const uploadCsv = async (req: Request, res: Response): Promise<void> => {
 
   const assetRepository = AppDataSource.getRepository(Asset);
   await assetRepository.clear();
+
+  const assetTypeRepository = AppDataSource.getRepository("AssetType");
 
   const assets: Asset[] = [];
   let totalCurrentValue = 0;
@@ -72,9 +74,17 @@ export const uploadCsv = async (req: Request, res: Response): Promise<void> => {
           const currentValue = Math.round(quantity * currentPrice);
           const result = currentValue - investedValue;
 
+          const assetType = await assetTypeRepository.findOneBy({ name: type });
+
+          if (!assetType) {
+            return res.status(400).json({
+              error: `Asset type "${type}" not found`,
+            });
+          }
+
           const asset = assetRepository.create({
-            type: type,
-            ticker: ticker,
+            type: assetType,
+            ticker,
             quantity,
             averagePriceCents: averagePrice,
             currentPriceCents: currentPrice,
