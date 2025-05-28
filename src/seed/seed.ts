@@ -61,27 +61,27 @@ AppDataSource.initialize()
     const assetTypeRepository = AppDataSource.getRepository(AssetType);
     const assetTypes = [
       // Renda Fixa
-      { name: "Pós-fixado", class: "Renda Fixa", targetPercentage: 0 },
-      { name: "Inflação", class: "Renda Fixa", targetPercentage: 0 },
-      { name: "Pré-fixado", class: "Renda Fixa", targetPercentage: 0 },
-      { name: "Bonds Curtos", class: "Renda Fixa", targetPercentage: 0 },
-      { name: "Caixa BRL", class: "Renda Fixa", targetPercentage: 0 },
+      { name: "Pós-fixado", class: "Renda Fixa", targetPercentage: 0.05 },
+      { name: "Inflação", class: "Renda Fixa", targetPercentage: 0.05 },
+      { name: "Pré-fixado", class: "Renda Fixa", targetPercentage: 0.05 },
+      { name: "Bonds Curtos", class: "Renda Fixa", targetPercentage: 0.05 },
+      { name: "Caixa BRL", class: "Renda Fixa", targetPercentage: 0.05 },
 
       // Mercado Imobiliário
-      { name: "Reits", class: "Mercado Imobiliário", targetPercentage: 0 },
-      { name: "FIIs", class: "Mercado Imobiliário", targetPercentage: 0 },
+      { name: "Reits", class: "Mercado Imobiliário", targetPercentage: 0.05 },
+      { name: "FIIs", class: "Mercado Imobiliário", targetPercentage: 0.05 },
 
       // Ações
-      { name: "Stocks", class: "Stocks", targetPercentage: 0 },
+      { name: "Stocks", class: "Stocks", targetPercentage: 0.05 },
 
       // Metais / Commodities
-      { name: "Ouro", class: "Metais / Commodities", targetPercentage: 0 },
-      { name: "Prata", class: "Metais / Commodities", targetPercentage: 0 },
+      { name: "Ouro", class: "Metais / Commodities", targetPercentage: 0.05 },
+      { name: "Prata", class: "Metais / Commodities", targetPercentage: 0.05 },
 
       // Criptomoedas
-      { name: "Caixa Cripto", class: "Criptomoedas", targetPercentage: 0 },
-      { name: "Bitcoin", class: "Criptomoedas", targetPercentage: 0 },
-      { name: "Altcoin", class: "Criptomoedas", targetPercentage: 0 },
+      { name: "Caixa Cripto", class: "Criptomoedas", targetPercentage: 0.05 },
+      { name: "Bitcoin", class: "Criptomoedas", targetPercentage: 0.05 },
+      { name: "Altcoin", class: "Criptomoedas", targetPercentage: 0.4 },
     ];
 
     for (const { name, class: className, targetPercentage } of assetTypes) {
@@ -144,15 +144,15 @@ AppDataSource.initialize()
       },
       {
         type: "Altcoin",
-        ticker: "ETH",
+        ticker: "ETH-USD",
         quantity: 0.36,
-        averagePrice: 10485.73,
+        averagePrice: 2485.73,
       },
       {
         type: "Bitcoin",
-        ticker: "BTC",
+        ticker: "BTC-USD",
         quantity: 0.04,
-        averagePrice: 220930.03,
+        averagePrice: 40930.03,
       },
       { type: "FIIs", ticker: "TRXF11", quantity: 10.0, averagePrice: 97.62 },
       { type: "FIIs", ticker: "RECR11", quantity: 15.0, averagePrice: 84.46 },
