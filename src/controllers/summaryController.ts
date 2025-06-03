@@ -67,7 +67,7 @@ export async function getOverviewByCurrency(req: Request, res: Response) {
       const currency = row.currency;
 
       const totalInUSD =
-        currency === "USD" ? totalCents : totalCents * brlToUsdRate;
+        currency === "USD" ? totalCents : Math.round(totalCents * brlToUsdRate);
 
       return {
         currency,
@@ -85,6 +85,7 @@ export async function getOverviewByCurrency(req: Request, res: Response) {
       currency: row.currency,
       totalCents: row.totalCents,
       percentage: Number((row.totalInUSD / totalPortfolioInUSD).toFixed(4)),
+      totalInUSD: row.totalInUSD,
     }));
 
     res.json(withPercentages);
