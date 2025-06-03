@@ -4,6 +4,7 @@ import { AppDataSource } from "./config/data-source";
 import csvRoutes from "./routes/csv.routes";
 import assetRoutes from "./routes/assets.routes";
 import summaryRoutes from "./routes/summary.routes";
+import assetTypeRoutes from "./routes/assetType.routes";
 
 dotenv.config();
 
@@ -16,6 +17,7 @@ app.use(express.json());
 app.use("/api", csvRoutes);
 app.use("/api", assetRoutes);
 app.use("/api", summaryRoutes);
+app.use("/api", assetTypeRoutes);
 
 // Inicializa conexão com o banco
 AppDataSource.initialize()
