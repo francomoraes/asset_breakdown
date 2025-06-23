@@ -1,11 +1,23 @@
 import { AppDataSource } from "config/data-source";
 import { Request, Response } from "express";
 import { AssetType } from "models/AssetType";
+import {
+  assetTypeIdParamSchema,
+  updateAssetTypeSchema,
+} from "schemas/assetType.schema";
 
 export const updateAssetType = async (
   req: Request,
   res: Response,
 ): Promise<void> => {
+  const parsedParams = assetTypeIdParamSchema.safeParse(req.params);
+  const parseBody = updateAssetTypeSchema.safeParse(req.body);
+
+  if (!parsedParams.success || !parseBody.success) {
+    res.status(400).json({ error: "Invalid input" });
+    return;
+  }
+
   const { id } = req.params;
   const { name, targetPercentage } = req.body;
 
