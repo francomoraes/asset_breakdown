@@ -6,7 +6,7 @@ import { Router } from "express";
 
 const router = Router();
 
-router.get("/asset-type", listAssetTypes);
+router.get("/asset-type/:userId", listAssetTypes);
 router.patch("/asset-type/:id", updateAssetType);
 
 export default router;

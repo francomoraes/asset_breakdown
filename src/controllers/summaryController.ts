@@ -1,10 +1,16 @@
 import { AppDataSource } from "config/data-source";
 import { Request, Response } from "express";
 import { Asset } from "models/Asset";
+import { userIdParamsSchema } from "schemas/asset.schema";
 import { getBRLtoUSDRate } from "utils/getBRLtoUSDRate";
+import { handleZodError } from "utils/handleZodError";
 
 export const getSummary = async (req: Request, res: Response) => {
-  const userId = req.params.userId;
+  const paramsCheck = userIdParamsSchema.safeParse(req.params);
+  if (!paramsCheck.success)
+    return handleZodError(res, paramsCheck.error, "Invalid user ID");
+
+  const { userId } = paramsCheck.data;
 
   try {
     const rawSummary = await AppDataSource.getRepository(Asset)
@@ -49,7 +55,10 @@ export const getSummary = async (req: Request, res: Response) => {
 };
 
 export async function getOverviewByCurrency(req: Request, res: Response) {
-  const { userId } = req.params;
+  const paramCheck = userIdParamsSchema.safeParse(req.params);
+  if (!paramCheck.success)
+    return handleZodError(res, paramCheck.error, "Invalid user ID");
+  const { userId } = paramCheck.data;
 
   try {
     const rawResult = await AppDataSource.getRepository(Asset)
@@ -84,7 +93,10 @@ export async function getOverviewByCurrency(req: Request, res: Response) {
     const withPercentages = converted.map((row) => ({
       currency: row.currency,
       totalCents: row.totalCents,
-      percentage: Number((row.totalInUSD / totalPortfolioInUSD).toFixed(4)),
+      percentage:
+        totalPortfolioInUSD > 0
+          ? Number((row.totalInUSD / totalPortfolioInUSD).toFixed(4))
+          : 0,
       totalInUSD: row.totalInUSD,
     }));
 

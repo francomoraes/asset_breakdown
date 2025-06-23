@@ -1,10 +1,12 @@
 import { AppDataSource } from "config/data-source";
 import { Request, Response } from "express";
 import { AssetType } from "models/AssetType";
+import { userIdParamsSchema } from "schemas/asset.schema";
 import {
   assetTypeIdParamSchema,
   updateAssetTypeSchema,
 } from "schemas/assetType.schema";
+import { handleZodError } from "utils/handleZodError";
 
 export const updateAssetType = async (
   req: Request,
@@ -47,9 +49,17 @@ export const listAssetTypes = async (
   req: Request,
   res: Response,
 ): Promise<void> => {
+  const paramsCheck = userIdParamsSchema.safeParse(req.params);
+  if (!paramsCheck.success)
+    return handleZodError(res, paramsCheck.error, "Invalid user ID");
+  const { userId } = paramsCheck.data;
+
   try {
     const repo = AppDataSource.getRepository(AssetType);
-    const assetTypes = await repo.find();
+    const assetTypes = await repo.find({
+      where: { userId },
+      order: { id: "ASC" },
+    });
 
     res.json(assetTypes);
   } catch (error) {
