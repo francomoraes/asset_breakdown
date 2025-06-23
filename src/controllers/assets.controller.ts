@@ -10,8 +10,10 @@ import {
   assetIdParamsSchema,
   sellAssetSchema,
   tickerParamsSchema,
+  userIdParamsSchema,
 } from "schemas/asset.schema";
 import { Parser } from "json2csv";
+import { handleZodError } from "utils/handleZodError";
 
 export const getAssets = async (req: Request, res: Response) => {
   try {
@@ -28,7 +30,12 @@ export const getAssetsByUser = async (
   req: Request,
   res: Response,
 ): Promise<void> => {
-  const { userId } = req.params;
+  const parsed = userIdParamsSchema.safeParse(req.params);
+
+  if (!parsed.success)
+    return handleZodError(res, parsed.error, "Erro ao validar o ID do usuário");
+
+  const { userId } = parsed.data;
 
   try {
     const assetRepository = AppDataSource.getRepository(Asset);
@@ -45,15 +52,14 @@ export const getAssetsByUser = async (
     });
 
     if (assets.length === 0) {
-      res
-        .status(404)
-        .json({ error: "Nenhum ativo encontrado para este usuário" });
+      res.status(404).json({
+        error: "Nenhum ativo encontrado para este usuário",
+      });
       return;
     }
 
     res.status(200).json(assets);
   } catch (error) {
-    console.error("Erro ao buscar ativos do usuário:", error);
     res.status(500).json({ error: "Erro ao buscar ativos do usuário" });
   }
 };
@@ -63,25 +69,24 @@ export const updateAsset = async (
   res: Response,
 ): Promise<void> => {
   const paramCheck = assetIdParamsSchema.safeParse(req.params);
-  if (!paramCheck.success) {
-    res.status(400).json({
-      error: "Erro ao validar o ID do ativo",
-      issues: paramCheck.error.format(),
-    });
-    return;
-  }
+
+  if (!paramCheck.success)
+    return handleZodError(
+      res,
+      paramCheck.error,
+      "Erro ao validar o ID do ativo",
+    );
 
   const { id } = paramCheck.data;
 
   const parsed = updateAssetSchema.safeParse(req.body);
 
-  if (!parsed.success) {
-    res.status(400).json({
-      error: "Erro ao validar os dados do ativo",
-      issues: parsed.error.format(),
-    });
-    return;
-  }
+  if (!parsed.success)
+    return handleZodError(
+      res,
+      parsed.error,
+      "Erro ao validar os dados do ativo",
+    );
 
   const { type, ticker, quantity, averagePriceCents, institution, currency } =
     parsed.data;
@@ -144,13 +149,12 @@ export const deleteAsset = async (
   res: Response,
 ): Promise<void> => {
   const paramCheck = assetIdParamsSchema.safeParse(req.params);
-  if (!paramCheck.success) {
-    res.status(400).json({
-      error: "Erro ao validar o ID do ativo",
-      issues: paramCheck.error.format(),
-    });
-    return;
-  }
+  if (!paramCheck.success)
+    return handleZodError(
+      res,
+      paramCheck.error,
+      "Erro ao validar o ID do ativo",
+    );
 
   const { id } = paramCheck.data;
 
@@ -175,15 +179,23 @@ export const deleteAsset = async (
 };
 
 export const buyAsset = async (req: Request, res: Response): Promise<void> => {
+  const paramCheck = tickerParamsSchema.safeParse(req.params);
+  if (!paramCheck.success)
+    return handleZodError(
+      res,
+      paramCheck.error,
+      "Erro ao validar o ticker do ativo",
+    );
+  const { ticker } = paramCheck.data;
+
   const parsed = buyAssetSchema.safeParse(req.body);
 
-  if (!parsed.success) {
-    res.status(400).json({
-      error: "Erro ao validar os dados de compra do ativo",
-      issues: parsed.error.issues,
-    });
-    return;
-  }
+  if (!parsed.success)
+    return handleZodError(
+      res,
+      parsed.error,
+      "Erro ao validar os dados de compra do ativo",
+    );
 
   const {
     quantity: newQuantity,
@@ -194,8 +206,6 @@ export const buyAsset = async (req: Request, res: Response): Promise<void> => {
   } = parsed.data;
 
   try {
-    const { ticker } = req.params;
-
     const assetRepository = AppDataSource.getRepository(Asset);
     let asset = await assetRepository.findOneBy({ ticker });
     const assetTypeRepository = AppDataSource.getRepository("AssetType");
@@ -301,26 +311,26 @@ export const buyAsset = async (req: Request, res: Response): Promise<void> => {
 };
 
 export const sellAsset = async (req: Request, res: Response): Promise<void> => {
-  const { ticker } = req.params;
-  const paramCheck = tickerParamsSchema.safeParse({ ticker });
-  if (!paramCheck.success) {
-    res.status(400).json({
-      error: "Erro ao validar o ID do ativo",
-      issues: paramCheck.error.format(),
-    });
-    return;
-  }
+  const paramCheck = tickerParamsSchema.safeParse(req.params);
+  if (!paramCheck.success)
+    return handleZodError(
+      res,
+      paramCheck.error,
+      "Erro ao validar o ID do ativo",
+    );
+
+  const { ticker } = paramCheck.data;
+
   const parsed = sellAssetSchema.safeParse(req.body);
-  if (!parsed.success) {
-    res.status(400).json({
-      error: "Erro ao validar os dados de venda do ativo",
-      issues: parsed.error.format(),
-    });
-    return;
-  }
+  if (!parsed.success)
+    return handleZodError(
+      res,
+      parsed.error,
+      "Erro ao validar os dados de venda do ativo",
+    );
 
   // Por enquanto, sellPriceCents não é usado, mas será necessário
-  // quando implementarmos histórico ou cálculo de lucro consolid
+  // quando implementarmos histórico ou cálculo de lucro consolidado
   const {
     quantity: sellQuantity,
     // priceCents: sellPriceCents
@@ -402,7 +412,15 @@ export const exportAssetCsv = async (
   req: Request,
   res: Response,
 ): Promise<void> => {
-  const { userId } = req.params;
+  const paramsCheck = userIdParamsSchema.safeParse(req.params);
+  if (!paramsCheck.success)
+    return handleZodError(
+      res,
+      paramsCheck.error,
+      "Erro ao validar o ID do usuário",
+    );
+
+  const { userId } = paramsCheck.data;
 
   try {
     const assets = await AppDataSource.getRepository(Asset).find({

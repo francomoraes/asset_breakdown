@@ -61,3 +61,7 @@ export const tickerParamsSchema = z.object({
     .string({ required_error: "O ticker é obrigatório" })
     .min(3, "O ticker deve ter pelo menos 3 caracteres"),
 });
+
+export const userIdParamsSchema = z.object({
+  userId: z.string().min(1, "O ID do usuário é obrigatório"),
+});
