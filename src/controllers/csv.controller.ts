@@ -4,13 +4,19 @@ import { parse } from "fast-csv";
 import yahooFinance from "yahoo-finance2";
 import { AppDataSource } from "config/data-source";
 import fs from "fs";
-import { csvAssetSchema } from "schemas/asset.schema";
+import { csvAssetSchema, userIdParamsSchema } from "schemas/asset.schema";
+import { handleZodError } from "utils/handleZodError";
 
 function toCents(value: number): number {
   return Math.round(value * 100);
 }
 
 export const uploadCsv = async (req: Request, res: Response): Promise<void> => {
+  const paramCheck = userIdParamsSchema.safeParse(req.params);
+  if (!paramCheck.success)
+    return handleZodError(res, paramCheck.error, "Invalid user ID");
+  const { userId } = paramCheck.data;
+
   const file = req.file;
 
   if (!file) {
@@ -19,7 +25,7 @@ export const uploadCsv = async (req: Request, res: Response): Promise<void> => {
   }
 
   const assetRepository = AppDataSource.getRepository(Asset);
-  await assetRepository.clear();
+  await assetRepository.delete({ userId });
 
   const assetTypeRepository = AppDataSource.getRepository("AssetType");
 
@@ -83,6 +89,7 @@ export const uploadCsv = async (req: Request, res: Response): Promise<void> => {
           }
 
           const asset = assetRepository.create({
+            userId,
             type: assetType,
             ticker,
             quantity,
@@ -104,9 +111,15 @@ export const uploadCsv = async (req: Request, res: Response): Promise<void> => {
         }
 
         for (const asset of assets) {
-          asset.portfolioPercentage = Number(
-            ((asset.currentValueCents / totalCurrentValue) * 100).toFixed(2),
-          );
+          if (totalCurrentValue === 0) {
+            asset.portfolioPercentage = 0;
+          } else if (asset.currentValueCents === 0) {
+            asset.portfolioPercentage = 0;
+          } else {
+            asset.portfolioPercentage = Number(
+              ((asset.currentValueCents / totalCurrentValue) * 100).toFixed(2),
+            );
+          }
         }
 
         await assetRepository.save(assets);
