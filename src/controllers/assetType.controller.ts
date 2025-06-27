@@ -14,7 +14,9 @@ export const updateAssetType = async (
   req: Request,
   res: Response,
 ): Promise<void> => {
-  const parsedParams = assetTypeIdParamSchema.safeParse(req.params);
+  const parsedParams = assetTypeIdParamSchema
+    .merge(userIdParamsSchema)
+    .safeParse(req.params);
   const parseBody = updateAssetTypeSchema.safeParse(req.body);
 
   if (!parsedParams.success || !parseBody.success) {
@@ -22,12 +24,12 @@ export const updateAssetType = async (
     return;
   }
 
-  const { id } = req.params;
+  const { id, userId } = req.params;
   const { name, targetPercentage } = req.body;
 
   try {
     const repo = AppDataSource.getRepository(AssetType);
-    const assetType = await repo.findOne({ where: { id: Number(id) } });
+    const assetType = await repo.findOne({ where: { id: Number(id), userId } });
 
     if (!assetType) {
       res.status(404).json({ error: "Asset type not found" });
@@ -75,15 +77,15 @@ export const createAssetType = async (
   res: Response,
 ): Promise<void> => {
   const paramsCheck = userIdParamsSchema.safeParse(req.params);
+  const bodyCheck = assetTypeCreateSchema.safeParse(req.body);
+
   if (!paramsCheck.success)
     return handleZodError(res, paramsCheck.error, "Invalid user ID");
 
-  const { userId } = paramsCheck.data;
-
-  const bodyCheck = assetTypeCreateSchema.safeParse(req.body);
   if (!bodyCheck.success)
     return handleZodError(res, bodyCheck.error, "Invalid asset type data");
 
+  const { userId } = paramsCheck.data;
   const { targetPercentage, assetClassId } = bodyCheck.data;
 
   const name = bodyCheck.data.name.trim();
@@ -132,17 +134,14 @@ export const deleteAssetType = async (
   req: Request,
   res: Response,
 ): Promise<void> => {
-  const paramsCheck = assetTypeIdParamSchema.safeParse(req.params);
+  const paramsCheck = assetTypeIdParamSchema
+    .merge(userIdParamsSchema)
+    .safeParse(req.params);
+
   if (!paramsCheck.success)
     return handleZodError(res, paramsCheck.error, "Invalid asset type ID");
 
-  const { id } = paramsCheck.data;
-
-  const userCheck = userIdParamsSchema.safeParse(req.params);
-  if (!userCheck.success)
-    return handleZodError(res, userCheck.error, "Invalid user ID");
-
-  const { userId } = userCheck.data;
+  const { id, userId } = paramsCheck.data;
 
   try {
     const repo = AppDataSource.getRepository(AssetType);
