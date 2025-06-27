@@ -1,8 +1,10 @@
 import { AppDataSource } from "config/data-source";
 import { Request, Response } from "express";
+import { AssetClass } from "models/AssetClass";
 import { AssetType } from "models/AssetType";
 import { userIdParamsSchema } from "schemas/asset.schema";
 import {
+  assetTypeCreateSchema,
   assetTypeIdParamSchema,
   updateAssetTypeSchema,
 } from "schemas/assetType.schema";
@@ -64,6 +66,101 @@ export const listAssetTypes = async (
     res.json(assetTypes);
   } catch (error) {
     console.error("Error fetching asset types:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+};
+
+export const createAssetType = async (
+  req: Request,
+  res: Response,
+): Promise<void> => {
+  const paramsCheck = userIdParamsSchema.safeParse(req.params);
+  if (!paramsCheck.success)
+    return handleZodError(res, paramsCheck.error, "Invalid user ID");
+
+  const { userId } = paramsCheck.data;
+
+  const bodyCheck = assetTypeCreateSchema.safeParse(req.body);
+  if (!bodyCheck.success)
+    return handleZodError(res, bodyCheck.error, "Invalid asset type data");
+
+  const { targetPercentage, assetClassId } = bodyCheck.data;
+
+  const name = bodyCheck.data.name.trim();
+
+  try {
+    const repo = AppDataSource.getRepository(AssetType);
+
+    const existingAssetType = await repo.findOne({
+      where: { name, userId },
+    });
+
+    if (existingAssetType) {
+      res.status(400).json({ error: "Asset type already exists" });
+      return;
+    }
+
+    const assetClassRepo = AppDataSource.getRepository(AssetClass);
+    const assetClass = await assetClassRepo.findOne({
+      where: { id: Number(assetClassId), userId },
+    });
+
+    if (!assetClass) {
+      res.status(404).json({ error: "Asset class not found" });
+      return;
+    }
+
+    const type = repo.create({
+      name,
+      targetPercentage,
+      assetClass,
+      userId,
+    });
+
+    await repo.save(type);
+
+    res
+      .status(201)
+      .json({ message: "Asset type created successfully", assetType: type });
+  } catch (error) {
+    console.error("Error creating asset type:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+};
+
+export const deleteAssetType = async (
+  req: Request,
+  res: Response,
+): Promise<void> => {
+  const paramsCheck = assetTypeIdParamSchema.safeParse(req.params);
+  if (!paramsCheck.success)
+    return handleZodError(res, paramsCheck.error, "Invalid asset type ID");
+
+  const { id } = paramsCheck.data;
+
+  const userCheck = userIdParamsSchema.safeParse(req.params);
+  if (!userCheck.success)
+    return handleZodError(res, userCheck.error, "Invalid user ID");
+
+  const { userId } = userCheck.data;
+
+  try {
+    const repo = AppDataSource.getRepository(AssetType);
+    const assetType = await repo.findOne({ where: { id: Number(id), userId } });
+
+    if (!assetType) {
+      res.status(404).json({ error: "Asset type not found" });
+      return;
+    }
+
+    await repo.delete({
+      id: Number(id),
+      userId,
+    });
+
+    res.json({ message: `Asset type ${assetType.name} deleted successfully` });
+  } catch (error) {
+    console.error("Error deleting asset type:", error);
     res.status(500).json({ error: "Internal server error" });
   }
 };

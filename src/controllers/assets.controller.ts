@@ -118,8 +118,18 @@ export const updateAsset = async (
       returnPercentage,
     } = calculateDerivedFields(quantity, averagePriceCents, currentPriceCents);
 
+    const assetTypeRepository = AppDataSource.getRepository("AssetType");
+    const assetType = await assetTypeRepository.findOneBy({ name: type });
+
+    if (!assetType) {
+      res
+        .status(400)
+        .json({ error: `Tipo de ativo '${type}' não encontrado.` });
+      return;
+    }
+
     Object.assign(asset, {
-      type,
+      type: assetType,
       ticker,
       quantity,
       averagePriceCents,
