@@ -1,5 +1,6 @@
 import { AppDataSource } from "config/data-source";
 import { Request, Response } from "express";
+import { Asset } from "models/Asset";
 import { AssetClass } from "models/AssetClass";
 import { AssetType } from "models/AssetType";
 import { userIdParamsSchema } from "schemas/asset.schema";
@@ -98,7 +99,7 @@ export const createAssetType = async (
     });
 
     if (existingAssetType) {
-      res.status(400).json({ error: "Asset type already exists" });
+      res.status(409).json({ error: "Asset type already exists" });
       return;
     }
 
@@ -149,6 +150,18 @@ export const deleteAssetType = async (
 
     if (!assetType) {
       res.status(404).json({ error: "Asset type not found" });
+      return;
+    }
+
+    const assetsRepo = AppDataSource.getRepository(Asset);
+    const assets = await assetsRepo.find({
+      where: { type: assetType, userId },
+    });
+
+    if (assets.length > 0) {
+      res.status(400).json({
+        error: "Cannot delete asset type with associated assets",
+      });
       return;
     }
 

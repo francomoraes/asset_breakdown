@@ -5,6 +5,7 @@ import csvRoutes from "./routes/csv.routes";
 import assetRoutes from "./routes/assets.routes";
 import summaryRoutes from "./routes/summary.routes";
 import assetTypeRoutes from "./routes/assetType.routes";
+import { errorHandler } from "./middlewares/errorHandler";
 
 dotenv.config();
 
@@ -18,6 +19,8 @@ app.use("/api", csvRoutes);
 app.use("/api", assetRoutes);
 app.use("/api", summaryRoutes);
 app.use("/api", assetTypeRoutes);
+// Error handler
+app.use(errorHandler);
 
 // Inicializa conexão com o banco
 AppDataSource.initialize()
