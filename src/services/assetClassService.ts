@@ -5,10 +5,7 @@ import { AssetType } from "models/AssetType";
 import { Repository } from "typeorm";
 
 export class AssetClassService {
-  constructor(
-    private assetClassRepo: Repository<AssetClass>,
-    private assetTypeRepo: Repository<AssetType>,
-  ) {}
+  constructor(private assetClassRepo: Repository<AssetClass>) {}
 
   async createAssetClass({ userId, name }: { userId: string; name: string }) {
     const existingAssetClass = await this.assetClassRepo.findOne({
@@ -92,5 +89,4 @@ export class AssetClassService {
 
 export const assetClassService = new AssetClassService(
   AppDataSource.getRepository(AssetClass),
-  AppDataSource.getRepository(AssetType),
 );

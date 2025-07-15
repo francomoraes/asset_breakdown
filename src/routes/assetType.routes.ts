@@ -1,14 +1,14 @@
 import {
   createAssetType,
   deleteAssetType,
-  listAssetTypes,
+  getAssetTypes,
   updateAssetType,
 } from "controllers/assetType.controller";
 import { Router } from "express";
 
 const router = Router();
 
-router.get("/asset-type/:userId", listAssetTypes);
+router.get("/asset-type/:userId", getAssetTypes);
 router.post("/asset-type/:userId", createAssetType);
 router.patch("/asset-type/:userId/:id", updateAssetType);
 router.delete("/asset-type/:userId/:id", deleteAssetType);
