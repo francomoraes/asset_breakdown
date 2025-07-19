@@ -1,8 +1,4 @@
-import { AppDataSource } from "config/data-source";
 import { Request, Response } from "express";
-import { Asset } from "models/Asset";
-import { AssetClass } from "models/AssetClass";
-import { AssetType } from "models/AssetType";
 import { userIdParamsSchema } from "schemas/asset.schema";
 import {
   assetTypeCreateSchema,
