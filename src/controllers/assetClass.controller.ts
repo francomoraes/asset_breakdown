@@ -1,10 +1,10 @@
-import { ConflictError, NotFoundError } from "errors/AppError";
-import { Request, Response } from "express";
-import { userIdParamsSchema } from "schemas/asset.schema";
 import {
-  assetClassCreateSchema,
-  assetClassIdParamSchema,
-} from "schemas/assetClass.schema";
+  CreateAssetClassDto,
+  DeleteAssetClassDto,
+  UpdateAssetClassDto,
+} from "dtos/assetClass.dto";
+import { UserIdParamDto } from "dtos/params.dto";
+import { Request, Response } from "express";
 import { assetClassService } from "services/assetClassService";
 import { handleZodError } from "utils/handleZodError";
 
@@ -12,17 +12,17 @@ export const createAssetClass = async (
   req: Request,
   res: Response,
 ): Promise<void> => {
-  const paramsCheck = userIdParamsSchema.safeParse(req.params);
-  const bodyCheck = assetClassCreateSchema.safeParse(req.body);
+  const dtoData = {
+    name: req.body.name,
+    userId: req.params.userId,
+  };
+  const result = CreateAssetClassDto.safeParse(dtoData);
 
-  if (!paramsCheck.success)
-    return handleZodError(res, paramsCheck.error, "Invalid user ID");
+  if (!result.success) {
+    return handleZodError(res, result.error);
+  }
 
-  if (!bodyCheck.success)
-    return handleZodError(res, bodyCheck.error, "Invalid asset class data");
-
-  const { userId } = paramsCheck.data;
-  const { name } = bodyCheck.data;
+  const { userId, name } = result.data;
 
   const assetClass = await assetClassService.createAssetClass({
     userId,
@@ -38,10 +38,10 @@ export const getAssetClasses = async (
   req: Request,
   res: Response,
 ): Promise<void> => {
-  const paramsCheck = userIdParamsSchema.safeParse(req.params);
+  const paramsCheck = UserIdParamDto.safeParse(req.params);
 
   if (!paramsCheck.success) {
-    return handleZodError(res, paramsCheck.error, "Invalid user ID");
+    return handleZodError(res, paramsCheck.error);
   }
 
   const { userId } = paramsCheck.data;
@@ -55,20 +55,19 @@ export const updateAssetClass = async (
   req: Request,
   res: Response,
 ): Promise<void> => {
-  const parsedParams = assetClassIdParamSchema
-    .merge(userIdParamsSchema)
-    .safeParse(req.params);
-  const parsedBody = assetClassCreateSchema.safeParse(req.body);
+  const dtoData = {
+    id: req.params.id,
+    userId: req.params.userId,
+    name: req.body.name,
+  };
 
-  if (!parsedParams.success || !parsedBody.success) {
-    res.status(400).json({
-      error: "Invalid parameters or body",
-    });
-    return;
+  const result = UpdateAssetClassDto.safeParse(dtoData);
+
+  if (!result.success) {
+    return handleZodError(res, result.error);
   }
 
-  const { id, userId } = parsedParams.data;
-  const { name } = parsedBody.data;
+  const { id, userId, name } = result.data;
 
   const assetClass = await assetClassService.updateAssetClass({
     id,
@@ -83,9 +82,12 @@ export const deleteAssetClass = async (
   req: Request,
   res: Response,
 ): Promise<void> => {
-  const parsedParams = assetClassIdParamSchema
-    .merge(userIdParamsSchema)
-    .safeParse(req.params);
+  const dtoData = {
+    id: req.params.id,
+    userId: req.params.userId,
+  };
+
+  const parsedParams = DeleteAssetClassDto.safeParse(dtoData);
 
   if (!parsedParams.success) {
     res.status(400).json({ error: "Invalid parameters" });
