@@ -1,9 +1,4 @@
 import { Request, Response } from "express";
-import { AppDataSource } from "../config/data-source";
-import { Asset } from "../models/Asset";
-import { recalculatePortfolio } from "../utils/recalculatePortfolio";
-import { getMarketPriceCents } from "../utils/getMarketPrice";
-import { calculateDerivedFields } from "../utils/calculateDerivedFields";
 import {
   buyAssetSchema,
   updateAssetSchema,
@@ -12,9 +7,10 @@ import {
   tickerParamsSchema,
   userIdParamsSchema,
 } from "../schemas/asset.schema";
-import { Parser } from "json2csv";
 import { handleZodError } from "../utils/handleZodError";
 import { assetService } from "../services/assetService";
+import { UserIdParamDto } from "dtos/params.dto";
+import { BuyAssetDto, SellAssetDto, UpdateAssetDto } from "dtos/asset.dto";
 
 export const getAssets = async (req: Request, res: Response) => {
   const assets = await assetService.getAsset();
@@ -25,13 +21,16 @@ export const getAssetsByUser = async (
   req: Request,
   res: Response,
 ): Promise<void> => {
-  const parsed = userIdParamsSchema.safeParse(req.params);
+  const paramsCheck = UserIdParamDto.safeParse(req.params);
 
-  if (!parsed.success) return handleZodError(res, parsed.error, 409);
+  if (!paramsCheck.success) {
+    return handleZodError(res, paramsCheck.error);
+  }
 
-  const { userId } = parsed.data;
+  const { userId } = paramsCheck.data;
 
   const assets = await assetService.getAssetsByUser({ userId });
+
   res.json(assets);
 };
 
@@ -39,18 +38,28 @@ export const updateAsset = async (
   req: Request,
   res: Response,
 ): Promise<void> => {
-  const paramCheck = assetIdParamsSchema.safeParse(req.params);
+  const dtoData = {
+    id: req.params.id,
+    type: req.params.type,
+    ticker: req.params.ticker,
+    quantity: req.params.quantity,
+    averagePriceCents: req.params.averagePriceCents,
+    institution: req.params.institution,
+    currency: req.params.currency,
+  };
 
-  if (!paramCheck.success) return handleZodError(res, paramCheck.error, 409);
+  const result = UpdateAssetDto.safeParse(dtoData);
+  if (!result.success) return handleZodError(res, result.error, 409);
 
-  const { id } = paramCheck.data;
-
-  const parsed = updateAssetSchema.safeParse(req.body);
-
-  if (!parsed.success) return handleZodError(res, parsed.error, 409);
-
-  const { type, ticker, quantity, averagePriceCents, institution, currency } =
-    parsed.data;
+  const {
+    id,
+    type,
+    ticker,
+    quantity,
+    averagePriceCents,
+    institution,
+    currency,
+  } = result.data;
 
   const asset = await assetService.updateAsset({
     id: Number(id),
@@ -80,21 +89,27 @@ export const deleteAsset = async (
 };
 
 export const buyAsset = async (req: Request, res: Response): Promise<void> => {
-  const paramCheck = tickerParamsSchema.safeParse(req.params);
-  if (!paramCheck.success) return handleZodError(res, paramCheck.error, 409);
-  const { ticker } = paramCheck.data;
+  const dtoData = {
+    ticker: req.params.ticker,
+    quantity: req.body.quantity,
+    priceCents: req.body.priceCents,
+    type: req.body.type,
+    institution: req.body.institution,
+    currency: req.body.currency,
+  };
 
-  const parsed = buyAssetSchema.safeParse(req.body);
+  const result = BuyAssetDto.safeParse(dtoData);
 
-  if (!parsed.success) return handleZodError(res, parsed.error, 409);
+  if (!result.success) return handleZodError(res, result.error, 409);
 
   const {
+    ticker,
     quantity: newQuantity,
     priceCents: newPriceCents,
     type,
     institution,
     currency,
-  } = parsed.data;
+  } = result.data;
 
   const asset = await assetService.buyAsset({
     ticker,
@@ -109,20 +124,23 @@ export const buyAsset = async (req: Request, res: Response): Promise<void> => {
 };
 
 export const sellAsset = async (req: Request, res: Response): Promise<void> => {
-  const paramCheck = tickerParamsSchema.safeParse(req.params);
-  if (!paramCheck.success) return handleZodError(res, paramCheck.error, 409);
+  const dtoData = {
+    ticker: req.params.ticker,
+    quantity: req.body.quantity,
+    priceCents: req.body.priceCents,
+  };
 
-  const { ticker } = paramCheck.data;
+  const result = SellAssetDto.safeParse(dtoData);
 
-  const parsed = sellAssetSchema.safeParse(req.body);
-  if (!parsed.success) return handleZodError(res, parsed.error, 409);
+  if (!result.success) return handleZodError(res, result.error, 409);
 
   // Por enquanto, sellPriceCents não é usado, mas será necessário
   // quando implementarmos histórico ou cálculo de lucro consolidado
   const {
+    ticker,
     quantity: sellQuantity,
     // priceCents: sellPriceCents
-  } = parsed.data;
+  } = result.data;
 
   const asset = await assetService.sellAsset({
     ticker,
@@ -139,8 +157,11 @@ export const exportAssetCsv = async (
   req: Request,
   res: Response,
 ): Promise<void> => {
-  const paramsCheck = userIdParamsSchema.safeParse(req.params);
-  if (!paramsCheck.success) return handleZodError(res, paramsCheck.error, 409);
+  const paramsCheck = UserIdParamDto.safeParse(req.params);
+
+  if (!paramsCheck.success) {
+    return handleZodError(res, paramsCheck.error);
+  }
 
   const { userId } = paramsCheck.data;
 
