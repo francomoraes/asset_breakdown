@@ -1,12 +1,12 @@
-import { AppDataSource } from "config/data-source";
-import { ConflictError, NotFoundError } from "errors/AppError";
+import { AppDataSource } from "../config/data-source";
+import { ConflictError, NotFoundError } from "../errors/AppError";
 import { Parser } from "json2csv";
-import { Asset } from "models/Asset";
-import { AssetType } from "models/AssetType";
+import { Asset } from "../models/Asset";
+import { AssetType } from "../models/AssetType";
 import { Repository } from "typeorm";
-import { calculateDerivedFields } from "utils/calculateDerivedFields";
-import { getMarketPriceCents } from "utils/getMarketPrice";
-import { recalculatePortfolio } from "utils/recalculatePortfolio";
+import { calculateDerivedFields } from "../utils/calculateDerivedFields";
+import { getMarketPriceCents } from "../utils/getMarketPrice";
+import { recalculatePortfolio } from "../utils/recalculatePortfolio";
 
 export class AssetService {
   constructor(

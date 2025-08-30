@@ -1,12 +1,12 @@
 import { Request, Response } from "express";
-import { userIdParamsSchema } from "schemas/asset.schema";
+import { userIdParamsSchema } from "../schemas/asset.schema";
 import {
   assetTypeCreateSchema,
   assetTypeIdParamSchema,
   updateAssetTypeSchema,
-} from "schemas/assetType.schema";
-import { assetTypeService } from "services/assetTypeService";
-import { handleZodError } from "utils/handleZodError";
+} from "../schemas/assetType.schema";
+import { assetTypeService } from "../services/assetTypeService";
+import { handleZodError } from "../utils/handleZodError";
 
 export const createAssetType = async (
   req: Request,
@@ -15,11 +15,9 @@ export const createAssetType = async (
   const paramsCheck = userIdParamsSchema.safeParse(req.params);
   const bodyCheck = assetTypeCreateSchema.safeParse(req.body);
 
-  if (!paramsCheck.success)
-    return handleZodError(res, paramsCheck.error, "Invalid user ID");
+  if (!paramsCheck.success) return handleZodError(res, paramsCheck.error, 409);
 
-  if (!bodyCheck.success)
-    return handleZodError(res, bodyCheck.error, "Invalid asset type data");
+  if (!bodyCheck.success) return handleZodError(res, bodyCheck.error, 409);
 
   const { userId } = paramsCheck.data;
   const { targetPercentage, assetClassId } = bodyCheck.data;
@@ -44,8 +42,7 @@ export const getAssetTypes = async (
   res: Response,
 ): Promise<void> => {
   const paramsCheck = userIdParamsSchema.safeParse(req.params);
-  if (!paramsCheck.success)
-    return handleZodError(res, paramsCheck.error, "Invalid user ID");
+  if (!paramsCheck.success) return handleZodError(res, paramsCheck.error, 409);
   const { userId } = paramsCheck.data;
 
   const assetTypes = await assetTypeService.getAssetTypes({ userId });
@@ -87,8 +84,7 @@ export const deleteAssetType = async (
     .merge(userIdParamsSchema)
     .safeParse(req.params);
 
-  if (!paramsCheck.success)
-    return handleZodError(res, paramsCheck.error, "Invalid asset type ID");
+  if (!paramsCheck.success) return handleZodError(res, paramsCheck.error, 409);
 
   const { id, userId } = paramsCheck.data;
 

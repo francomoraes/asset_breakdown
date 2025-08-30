@@ -7,7 +7,7 @@ import {
   getAssetsByUser,
   sellAsset,
   updateAsset,
-} from "controllers/assets.controller";
+} from "../controllers/assets.controller";
 
 const router = express.Router();
 router.get("/assets", getAssets);

@@ -2,11 +2,11 @@ import {
   CreateAssetClassDto,
   DeleteAssetClassDto,
   UpdateAssetClassDto,
-} from "dtos/assetClass.dto";
-import { UserIdParamDto } from "dtos/params.dto";
+} from "../dtos/assetClass.dto";
+import { UserIdParamDto } from "../dtos/params.dto";
 import { Request, Response } from "express";
-import { assetClassService } from "services/assetClassService";
-import { handleZodError } from "utils/handleZodError";
+import { assetClassService } from "../services/assetClassService";
+import { handleZodError } from "../utils/handleZodError";
 
 export const createAssetClass = async (
   req: Request,

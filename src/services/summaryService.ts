@@ -1,7 +1,7 @@
-import { AppDataSource } from "config/data-source";
-import { Asset } from "models/Asset";
+import { AppDataSource } from "../config/data-source";
+import { Asset } from "../models/Asset";
 import { Repository } from "typeorm";
-import { getBRLtoUSDRate } from "utils/getBRLtoUSDRate";
+import { getBRLtoUSDRate } from "../utils/getBRLtoUSDRate";
 
 export class SummaryService {
   constructor(private assetRepo: Repository<Asset>) {}

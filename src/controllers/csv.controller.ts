@@ -1,11 +1,12 @@
 import { Request, Response } from "express";
-import { Asset } from "models/Asset";
 import { parse } from "fast-csv";
 import yahooFinance from "yahoo-finance2";
-import { AppDataSource } from "config/data-source";
 import fs from "fs";
-import { csvAssetSchema, userIdParamsSchema } from "schemas/asset.schema";
-import { handleZodError } from "utils/handleZodError";
+
+import { Asset } from "../models/Asset";
+import { AppDataSource } from "../config/data-source";
+import { csvAssetSchema, userIdParamsSchema } from "../schemas/asset.schema";
+import { handleZodError } from "../utils/handleZodError";
 
 function toCents(value: number): number {
   return Math.round(value * 100);
@@ -13,8 +14,7 @@ function toCents(value: number): number {
 
 export const uploadCsv = async (req: Request, res: Response): Promise<void> => {
   const paramCheck = userIdParamsSchema.safeParse(req.params);
-  if (!paramCheck.success)
-    return handleZodError(res, paramCheck.error, "Invalid user ID");
+  if (!paramCheck.success) return handleZodError(res, paramCheck.error, 409);
   const { userId } = paramCheck.data;
 
   const file = req.file;

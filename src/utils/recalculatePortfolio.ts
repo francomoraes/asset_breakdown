@@ -1,7 +1,7 @@
-import { AppDataSource } from "config/data-source";
-import { Asset } from "models/Asset";
+import { AppDataSource } from "../config/data-source";
+import { Asset } from "../models/Asset";
 import { getBRLtoUSDRate } from "./getBRLtoUSDRate";
-import { ensureDataSource } from "utils/ensureDataSource";
+import { ensureDataSource } from "../utils/ensureDataSource";
 
 export async function recalculatePortfolio(userId?: string) {
   await ensureDataSource();

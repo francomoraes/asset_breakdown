@@ -1,17 +1,13 @@
 import express from "express";
 import multer from "multer";
 
-import { uploadCsv } from "controllers/csv.controller";
-import { fileURLToPath } from "url";
+import { uploadCsv } from "../controllers/csv.controller";
 import path from "path";
 
 const upload = multer({ dest: "src/uploads/" });
 const router = express.Router();
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
-router.get("/csv-template", (req, res) => {
+router.get("/csv-template", (_req, res) => {
   const filePath = path.join(__dirname, "..", "static", "asset-template.csv");
   res.download(filePath, "modelo-carteira.csv");
 });

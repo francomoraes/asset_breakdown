@@ -1,9 +1,9 @@
 import { Request, Response } from "express";
-import { AppDataSource } from "config/data-source";
-import { Asset } from "models/Asset";
-import { recalculatePortfolio } from "utils/recalculatePortfolio";
-import { getMarketPriceCents } from "utils/getMarketPrice";
-import { calculateDerivedFields } from "utils/calculateDerivedFields";
+import { AppDataSource } from "../config/data-source";
+import { Asset } from "../models/Asset";
+import { recalculatePortfolio } from "../utils/recalculatePortfolio";
+import { getMarketPriceCents } from "../utils/getMarketPrice";
+import { calculateDerivedFields } from "../utils/calculateDerivedFields";
 import {
   buyAssetSchema,
   updateAssetSchema,
@@ -11,10 +11,10 @@ import {
   sellAssetSchema,
   tickerParamsSchema,
   userIdParamsSchema,
-} from "schemas/asset.schema";
+} from "../schemas/asset.schema";
 import { Parser } from "json2csv";
-import { handleZodError } from "utils/handleZodError";
-import { assetService } from "services/assetService";
+import { handleZodError } from "../utils/handleZodError";
+import { assetService } from "../services/assetService";
 
 export const getAssets = async (req: Request, res: Response) => {
   const assets = await assetService.getAsset();
@@ -27,8 +27,7 @@ export const getAssetsByUser = async (
 ): Promise<void> => {
   const parsed = userIdParamsSchema.safeParse(req.params);
 
-  if (!parsed.success)
-    return handleZodError(res, parsed.error, "Erro ao validar o ID do usuário");
+  if (!parsed.success) return handleZodError(res, parsed.error, 409);
 
   const { userId } = parsed.data;
 
@@ -42,23 +41,13 @@ export const updateAsset = async (
 ): Promise<void> => {
   const paramCheck = assetIdParamsSchema.safeParse(req.params);
 
-  if (!paramCheck.success)
-    return handleZodError(
-      res,
-      paramCheck.error,
-      "Erro ao validar o ID do ativo",
-    );
+  if (!paramCheck.success) return handleZodError(res, paramCheck.error, 409);
 
   const { id } = paramCheck.data;
 
   const parsed = updateAssetSchema.safeParse(req.body);
 
-  if (!parsed.success)
-    return handleZodError(
-      res,
-      parsed.error,
-      "Erro ao validar os dados do ativo",
-    );
+  if (!parsed.success) return handleZodError(res, parsed.error, 409);
 
   const { type, ticker, quantity, averagePriceCents, institution, currency } =
     parsed.data;
@@ -81,8 +70,7 @@ export const deleteAsset = async (
   res: Response,
 ): Promise<void> => {
   const paramCheck = assetIdParamsSchema.safeParse(req.params);
-  if (!paramCheck.success)
-    return handleZodError(res, paramCheck.error, "Error validating asset ID");
+  if (!paramCheck.success) return handleZodError(res, paramCheck.error, 409);
 
   const { id } = paramCheck.data;
 
@@ -93,22 +81,12 @@ export const deleteAsset = async (
 
 export const buyAsset = async (req: Request, res: Response): Promise<void> => {
   const paramCheck = tickerParamsSchema.safeParse(req.params);
-  if (!paramCheck.success)
-    return handleZodError(
-      res,
-      paramCheck.error,
-      "Error validating asset ticker",
-    );
+  if (!paramCheck.success) return handleZodError(res, paramCheck.error, 409);
   const { ticker } = paramCheck.data;
 
   const parsed = buyAssetSchema.safeParse(req.body);
 
-  if (!parsed.success)
-    return handleZodError(
-      res,
-      parsed.error,
-      "Error validating asset purchase data",
-    );
+  if (!parsed.success) return handleZodError(res, parsed.error, 409);
 
   const {
     quantity: newQuantity,
@@ -132,22 +110,12 @@ export const buyAsset = async (req: Request, res: Response): Promise<void> => {
 
 export const sellAsset = async (req: Request, res: Response): Promise<void> => {
   const paramCheck = tickerParamsSchema.safeParse(req.params);
-  if (!paramCheck.success)
-    return handleZodError(
-      res,
-      paramCheck.error,
-      "Erro ao validar o ID do ativo",
-    );
+  if (!paramCheck.success) return handleZodError(res, paramCheck.error, 409);
 
   const { ticker } = paramCheck.data;
 
   const parsed = sellAssetSchema.safeParse(req.body);
-  if (!parsed.success)
-    return handleZodError(
-      res,
-      parsed.error,
-      "Erro ao validar os dados de venda do ativo",
-    );
+  if (!parsed.success) return handleZodError(res, parsed.error, 409);
 
   // Por enquanto, sellPriceCents não é usado, mas será necessário
   // quando implementarmos histórico ou cálculo de lucro consolidado
@@ -172,12 +140,7 @@ export const exportAssetCsv = async (
   res: Response,
 ): Promise<void> => {
   const paramsCheck = userIdParamsSchema.safeParse(req.params);
-  if (!paramsCheck.success)
-    return handleZodError(
-      res,
-      paramsCheck.error,
-      "Erro ao validar o ID do usuário",
-    );
+  if (!paramsCheck.success) return handleZodError(res, paramsCheck.error, 409);
 
   const { userId } = paramsCheck.data;
 

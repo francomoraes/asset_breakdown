@@ -1,7 +1,7 @@
 import {
   getOverviewByCurrency,
   getSummary,
-} from "controllers/summaryController";
+} from "../controllers/summaryController";
 import { Router } from "express";
 
 const router = Router();

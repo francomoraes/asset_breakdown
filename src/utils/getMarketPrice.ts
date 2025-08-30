@@ -1,8 +1,8 @@
 import yahooFinance from "yahoo-finance2";
 import { formatYahooTicker } from "./formatYahooTicker";
-import { AppDataSource } from "config/data-source";
-import { PriceCache } from "models/PriceCache";
-import { ensureDataSource } from "utils/ensureDataSource";
+import { AppDataSource } from "../config/data-source";
+import { PriceCache } from "../models/PriceCache";
+import { ensureDataSource } from "../utils/ensureDataSource";
 const TTL_HOURS = 24;
 
 function isFresh(updatedAt: Date): boolean {

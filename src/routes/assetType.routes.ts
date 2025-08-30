@@ -3,7 +3,7 @@ import {
   deleteAssetType,
   getAssetTypes,
   updateAssetType,
-} from "controllers/assetType.controller";
+} from "../controllers/assetType.controller";
 import { Router } from "express";
 
 const router = Router();

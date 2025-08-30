@@ -1,8 +1,8 @@
-import { AppDataSource } from "config/data-source";
-import { ConflictError, NotFoundError } from "errors/AppError";
-import { Asset } from "models/Asset";
-import { AssetClass } from "models/AssetClass";
-import { AssetType } from "models/AssetType";
+import { AppDataSource } from "../config/data-source";
+import { ConflictError, NotFoundError } from "../errors/AppError";
+import { Asset } from "../models/Asset";
+import { AssetClass } from "../models/AssetClass";
+import { AssetType } from "../models/AssetType";
 import { Repository } from "typeorm";
 
 export class AssetTypeService {
