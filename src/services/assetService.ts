@@ -102,14 +102,19 @@ export class AssetService {
     return asset;
   }
 
-  async deleteAsset({ id }: { id: number }) {
-    const asset = await this.assetRepo.findOneBy({ id: Number(id) });
+  async deleteAsset({ id, userId }: { id: string; userId: string }) {
+    const asset = await this.assetRepo.findOne({
+      where: { id: Number(id), userId },
+    });
 
     if (!asset) {
-      throw new NotFoundError(`Asset with ID ${id} not found`);
+      throw new NotFoundError(`Asset not found`);
     }
 
-    await this.assetRepo.remove(asset);
+    await this.assetRepo.delete({
+      id: Number(id),
+      userId,
+    });
     await recalculatePortfolio();
 
     return asset;

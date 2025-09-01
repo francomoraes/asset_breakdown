@@ -1,16 +1,13 @@
 import { Request, Response } from "express";
-import {
-  buyAssetSchema,
-  updateAssetSchema,
-  assetIdParamsSchema,
-  sellAssetSchema,
-  tickerParamsSchema,
-  userIdParamsSchema,
-} from "../schemas/asset.schema";
 import { handleZodError } from "../utils/handleZodError";
 import { assetService } from "../services/assetService";
 import { UserIdParamDto } from "dtos/params.dto";
-import { BuyAssetDto, SellAssetDto, UpdateAssetDto } from "dtos/asset.dto";
+import {
+  BuyAssetDto,
+  DeleteAssetDto,
+  SellAssetDto,
+  UpdateAssetDto,
+} from "dtos/asset.dto";
 
 export const getAssets = async (req: Request, res: Response) => {
   const assets = await assetService.getAsset();
@@ -78,12 +75,18 @@ export const deleteAsset = async (
   req: Request,
   res: Response,
 ): Promise<void> => {
-  const paramCheck = assetIdParamsSchema.safeParse(req.params);
-  if (!paramCheck.success) return handleZodError(res, paramCheck.error, 409);
+  const dtoData = {
+    id: req.params.id,
+    userId: req.params.userId,
+  };
 
-  const { id } = paramCheck.data;
+  const result = DeleteAssetDto.safeParse(dtoData);
 
-  const asset = await assetService.deleteAsset({ id: Number(id) });
+  if (!result.success) return handleZodError(res, result.error, 409);
+
+  const { id, userId } = result.data;
+
+  const asset = await assetService.deleteAsset({ id, userId });
 
   res.json({ message: `Asset deleted`, deleted: asset });
 };

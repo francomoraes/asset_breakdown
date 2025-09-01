@@ -4,6 +4,7 @@ import {
   Entity,
   ManyToOne,
   PrimaryGeneratedColumn,
+  UpdateDateColumn,
 } from "typeorm";
 import { AssetType } from "./AssetType";
 
@@ -54,6 +55,6 @@ export class Asset {
   @CreateDateColumn()
   createdAt!: Date;
 
-  @CreateDateColumn()
+  @UpdateDateColumn()
   updatedAt!: Date;
 }

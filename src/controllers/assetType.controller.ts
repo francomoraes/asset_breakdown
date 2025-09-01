@@ -1,32 +1,35 @@
 import { Request, Response } from "express";
-import { userIdParamsSchema } from "../schemas/asset.schema";
-import {
-  assetTypeCreateSchema,
-  assetTypeIdParamSchema,
-  updateAssetTypeSchema,
-} from "../schemas/assetType.schema";
 import { assetTypeService } from "../services/assetTypeService";
 import { handleZodError } from "../utils/handleZodError";
+import {
+  CreateAssetTypeDto,
+  DeleteAssetTypeDto,
+  UpdateAssetTypeDto,
+} from "dtos/assetType.dto";
+import { UserIdParamDto } from "dtos/params.dto";
 
 export const createAssetType = async (
   req: Request,
   res: Response,
 ): Promise<void> => {
-  const paramsCheck = userIdParamsSchema.safeParse(req.params);
-  const bodyCheck = assetTypeCreateSchema.safeParse(req.body);
+  const dtoData = {
+    userId: req.params.userId,
+    name: req.body.name,
+    targetPercentage: req.body.targetPercentage,
+    assetClassId: req.body.assetClassId,
+  };
 
-  if (!paramsCheck.success) return handleZodError(res, paramsCheck.error, 409);
+  const result = CreateAssetTypeDto.safeParse(dtoData);
 
-  if (!bodyCheck.success) return handleZodError(res, bodyCheck.error, 409);
+  if (!result.success) {
+    return handleZodError(res, result.error, 409);
+  }
 
-  const { userId } = paramsCheck.data;
-  const { targetPercentage, assetClassId } = bodyCheck.data;
-
-  const name = bodyCheck.data.name.trim();
+  const { userId, name, targetPercentage, assetClassId } = result.data;
 
   const assetType = await assetTypeService.createAssetType({
     assetClassId,
-    name,
+    name: name.trim(),
     targetPercentage,
     userId,
   });
@@ -41,8 +44,12 @@ export const getAssetTypes = async (
   req: Request,
   res: Response,
 ): Promise<void> => {
-  const paramsCheck = userIdParamsSchema.safeParse(req.params);
-  if (!paramsCheck.success) return handleZodError(res, paramsCheck.error, 409);
+  const paramsCheck = UserIdParamDto.safeParse(req.params);
+
+  if (!paramsCheck.success) {
+    return handleZodError(res, paramsCheck.error);
+  }
+
   const { userId } = paramsCheck.data;
 
   const assetTypes = await assetTypeService.getAssetTypes({ userId });
@@ -54,18 +61,20 @@ export const updateAssetType = async (
   req: Request,
   res: Response,
 ): Promise<void> => {
-  const parsedParams = assetTypeIdParamSchema
-    .merge(userIdParamsSchema)
-    .safeParse(req.params);
-  const parsedBody = updateAssetTypeSchema.safeParse(req.body);
+  const dtoData = {
+    id: req.params.id,
+    userId: req.params.userId,
+    name: req.body.name,
+    targetPercentage: req.body.targetPercentage,
+  };
 
-  if (!parsedParams.success || !parsedBody.success) {
-    res.status(400).json({ error: "Invalid input" });
-    return;
+  const result = UpdateAssetTypeDto.safeParse(dtoData);
+
+  if (!result.success) {
+    return handleZodError(res, result.error);
   }
 
-  const { id, userId } = parsedParams.data;
-  const { name, targetPercentage } = parsedBody.data;
+  const { id, userId, name, targetPercentage } = result.data;
 
   const assetType = await assetTypeService.updateAssetType({
     id,
@@ -80,13 +89,16 @@ export const deleteAssetType = async (
   req: Request,
   res: Response,
 ): Promise<void> => {
-  const paramsCheck = assetTypeIdParamSchema
-    .merge(userIdParamsSchema)
-    .safeParse(req.params);
+  const dtoData = {
+    id: req.params.id,
+    userId: req.params.userId,
+  };
 
-  if (!paramsCheck.success) return handleZodError(res, paramsCheck.error, 409);
+  const result = DeleteAssetTypeDto.safeParse(dtoData);
 
-  const { id, userId } = paramsCheck.data;
+  if (!result.success) return handleZodError(res, result.error, 409);
+
+  const { id, userId } = result.data;
 
   const assetType = await assetTypeService.deleteAssetType({ id, userId });
 

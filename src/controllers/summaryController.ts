@@ -1,10 +1,10 @@
 import { Request, Response } from "express";
-import { userIdParamsSchema } from "../schemas/asset.schema";
 import { summaryService } from "../services/summaryService";
 import { handleZodError } from "../utils/handleZodError";
+import { UserIdParamDto } from "dtos/params.dto";
 
 export const getSummary = async (req: Request, res: Response) => {
-  const paramsCheck = userIdParamsSchema.safeParse(req.params);
+  const paramsCheck = UserIdParamDto.safeParse(req.params);
   if (!paramsCheck.success) return handleZodError(res, paramsCheck.error, 409);
 
   const { userId } = paramsCheck.data;
@@ -14,7 +14,7 @@ export const getSummary = async (req: Request, res: Response) => {
 };
 
 export const getOverviewByCurrency = async (req: Request, res: Response) => {
-  const paramCheck = userIdParamsSchema.safeParse(req.params);
+  const paramCheck = UserIdParamDto.safeParse(req.params);
   if (!paramCheck.success) return handleZodError(res, paramCheck.error, 409);
   const { userId } = paramCheck.data;
 
