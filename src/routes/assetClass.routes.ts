@@ -8,9 +8,9 @@ import { Router } from "express";
 
 const router = Router();
 
-router.get("/asset-class/:userId", getAssetClasses);
-router.post("/asset-class/:userId", createAssetClass);
-router.patch("/asset-class/:userId/:id", updateAssetClass);
-router.delete("/asset-class/:userId/:id", deleteAssetClass);
+router.get("/asset-class", getAssetClasses);
+router.post("/asset-class", createAssetClass);
+router.patch("/asset-class/:id", updateAssetClass);
+router.delete("/asset-class/:id", deleteAssetClass);
 
 export default router;

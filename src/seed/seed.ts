@@ -8,12 +8,27 @@ import { recalculatePortfolio } from "../utils/recalculate-portfolio";
 import { ensureDataSource } from "../utils/ensure-data-source";
 import { PriceCache } from "../models/price-cache";
 import { User } from "../models/user";
+import bcrypt from "bcrypt";
 
 AppDataSource.initialize()
   .then(async () => {
     await ensureDataSource();
 
-    const userId = 0;
+    const seedUsers = [
+      { id: 0, email: "admin@test.com", password: "Admin123!" },
+      { id: 1, email: "user@test.com", password: "User123!" },
+    ];
+
+    seedUsers.forEach(async (seedUser) => {
+      const { email, password } = seedUser;
+      const hashedPassword = await bcrypt.hash(password, 10);
+      const newUser = AppDataSource.getRepository(User).create({
+        email,
+        password: hashedPassword,
+      });
+      await AppDataSource.getRepository(User).save(newUser);
+      console.log(`User created: ${email}`);
+    });
 
     const shouldReset = process.argv.includes("--reset");
     const shouldClearPriceCache = process.argv.includes("--clear-price-cache");
@@ -25,6 +40,7 @@ AppDataSource.initialize()
       await queryRunner.connect();
 
       await queryRunner.query(`
+        TRUNCATE TABLE "user" RESTART IDENTITY CASCADE;
         TRUNCATE TABLE "asset" RESTART IDENTITY CASCADE;
         TRUNCATE TABLE "asset_type" RESTART IDENTITY CASCADE;
         TRUNCATE TABLE "asset_class" RESTART IDENTITY CASCADE;
@@ -49,9 +65,15 @@ AppDataSource.initialize()
     ];
 
     for (const name of assetClasses) {
-      const existing = await assetClassRespository.findOneBy({ name, userId });
+      const existing = await assetClassRespository.findOneBy({
+        name,
+        userId: seedUsers[1].id,
+      });
       if (!existing) {
-        const newClass = assetClassRespository.create({ name, userId });
+        const newClass = assetClassRespository.create({
+          name,
+          userId: seedUsers[1].id,
+        });
         await assetClassRespository.save(newClass);
         console.log(`Asset Class created: ${name}`);
       } else {
@@ -88,7 +110,7 @@ AppDataSource.initialize()
     for (const { name, class: className, targetPercentage } of assetTypes) {
       const assetClass = await assetClassRespository.findOneBy({
         name: className,
-        userId,
+        userId: seedUsers[1].id,
       });
 
       if (!assetClass) {
@@ -96,14 +118,17 @@ AppDataSource.initialize()
         continue;
       }
 
-      const existing = await assetTypeRepository.findOneBy({ name, userId });
+      const existing = await assetTypeRepository.findOneBy({
+        name,
+        userId: seedUsers[1].id,
+      });
 
       if (!existing) {
         const newType = assetTypeRepository.create({
           name,
           targetPercentage,
           assetClass,
-          userId,
+          userId: seedUsers[1].id,
         });
         await assetTypeRepository.save(newType);
         console.log(`Asset type created: ${name}`);
@@ -223,7 +248,7 @@ AppDataSource.initialize()
     } of seedAssets) {
       const assetType = await assetTypeRepository.findOneBy({
         name: type,
-        userId,
+        userId: seedUsers[1].id,
       });
 
       if (!assetType) {
@@ -245,7 +270,10 @@ AppDataSource.initialize()
         currentPriceCents,
       );
 
-      const existing = await assetRepository.findOneBy({ ticker, userId });
+      const existing = await assetRepository.findOneBy({
+        ticker,
+        userId: seedUsers[1].id,
+      });
 
       if (!existing) {
         const asset = assetRepository.create({
@@ -261,7 +289,7 @@ AppDataSource.initialize()
           institution: "Teste",
           currency,
           type: assetType,
-          userId,
+          userId: seedUsers[1].id,
         });
 
         await assetRepository.save(asset);
@@ -271,28 +299,7 @@ AppDataSource.initialize()
       }
     }
 
-    const seedUsers = [
-      { id: 0, email: "admin@test.com", password: "Admin123!" },
-      { id: 1, email: "user@test.com", password: "User123!" },
-    ];
-
-    for (const { email, password } of seedUsers) {
-      const existingUser = await AppDataSource.getRepository(User).findOneBy({
-        email,
-      });
-      if (!existingUser) {
-        const newUser = AppDataSource.getRepository(User).create({
-          email,
-          password,
-        });
-        await AppDataSource.getRepository(User).save(newUser);
-        console.log(`User created: ${email}`);
-      } else {
-        console.log(`User already exists: ${email}`);
-      }
-    }
-
-    await recalculatePortfolio(userId);
+    await recalculatePortfolio(seedUsers[1].id);
     await AppDataSource.destroy();
   })
   .catch((err) => {
