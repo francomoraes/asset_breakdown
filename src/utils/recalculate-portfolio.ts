@@ -3,7 +3,7 @@ import { Asset } from "../models/asset";
 import { getBRLtoUSDRate } from "./get-brl-to-usd-rate";
 import { ensureDataSource } from "../utils/ensure-data-source";
 
-export async function recalculatePortfolio(userId?: string) {
+export async function recalculatePortfolio(userId?: number) {
   await ensureDataSource();
 
   const assetRepository = AppDataSource.getRepository(Asset);

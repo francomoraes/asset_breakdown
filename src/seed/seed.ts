@@ -12,7 +12,7 @@ AppDataSource.initialize()
   .then(async () => {
     await ensureDataSource();
 
-    const userId = "default-user-id";
+    const userId = 0;
 
     const shouldReset = process.argv.includes("--reset");
     const shouldClearPriceCache = process.argv.includes("--clear-price-cache");
