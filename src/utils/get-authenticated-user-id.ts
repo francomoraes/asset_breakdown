@@ -1,4 +1,4 @@
-import { UnauthorizedError } from "errors/app-error";
+import { UnauthorizedError } from "../errors/app-error";
 import { Request } from "express";
 
 export const getAuthenticatedUserId = (req: Request): number => {

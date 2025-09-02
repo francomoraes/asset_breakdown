@@ -2,7 +2,7 @@ import { Request, Response } from "express";
 import { summaryService } from "../services/summary.service";
 import { handleZodError } from "../utils/handle-zod-error";
 
-import { getAuthenticatedUserId } from "utils/get-authenticated-user-id";
+import { getAuthenticatedUserId } from "../utils/get-authenticated-user-id";
 
 export const getSummary = async (req: Request, res: Response) => {
   const userId = getAuthenticatedUserId(req);

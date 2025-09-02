@@ -7,6 +7,7 @@ import { calculateDerivedFields } from "../utils/calculate-derived-fields";
 import { recalculatePortfolio } from "../utils/recalculate-portfolio";
 import { ensureDataSource } from "../utils/ensure-data-source";
 import { PriceCache } from "../models/price-cache";
+import { User } from "../models/user";
 
 AppDataSource.initialize()
   .then(async () => {
@@ -267,6 +268,27 @@ AppDataSource.initialize()
         console.log(`✅ Ativo criado: ${ticker}`);
       } else {
         console.log(`ℹ️ Ativo já existe: ${ticker}`);
+      }
+    }
+
+    const seedUsers = [
+      { id: 0, email: "admin@test.com", password: "Admin123!" },
+      { id: 1, email: "user@test.com", password: "User123!" },
+    ];
+
+    for (const { email, password } of seedUsers) {
+      const existingUser = await AppDataSource.getRepository(User).findOneBy({
+        email,
+      });
+      if (!existingUser) {
+        const newUser = AppDataSource.getRepository(User).create({
+          email,
+          password,
+        });
+        await AppDataSource.getRepository(User).save(newUser);
+        console.log(`User created: ${email}`);
+      } else {
+        console.log(`User already exists: ${email}`);
       }
     }
 

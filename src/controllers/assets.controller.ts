@@ -9,7 +9,7 @@ import {
   UpdateAssetDto,
 } from "../dtos/asset.dto";
 import { getAuthenticatedUserId } from "../utils/get-authenticated-user-id";
-import { ForbiddenError, NotFoundError } from "errors/app-error";
+import { ForbiddenError, NotFoundError } from "../errors/app-error";
 
 export const getAssets = async (req: Request, res: Response) => {
   const assets = await assetService.getAsset();
