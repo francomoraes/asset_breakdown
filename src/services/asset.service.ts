@@ -60,16 +60,12 @@ export class AssetService {
   async updateAsset(data: UpdateAssetData & { requestUserId: number }) {
     const { requestUserId, ...updateData } = data;
 
-    const existingAsset = await this.assetRepo.findOneBy({
-      id: Number(updateData.id),
+    const existingAsset = await this.assetRepo.findOne({
+      where: { id: Number(updateData.id), userId: requestUserId },
     });
 
     if (!existingAsset) {
       throw new NotFoundError(`Asset ${updateData.id} not found`);
-    }
-
-    if (existingAsset.userId !== requestUserId) {
-      throw new ForbiddenError("You can only update your own assets");
     }
 
     let currentPriceCents = 0;
@@ -128,16 +124,12 @@ export class AssetService {
     id: string;
     requestUserId: number;
   }) {
-    const existingAsset = await this.assetRepo.findOneBy({
-      id: Number(id),
+    const existingAsset = await this.assetRepo.findOne({
+      where: { id: Number(id), userId: requestUserId },
     });
 
     if (!existingAsset) {
       throw new NotFoundError(`Asset ${id} not found`);
-    }
-
-    if (existingAsset.userId !== requestUserId) {
-      throw new ForbiddenError("You can only delete your own assets");
     }
 
     await this.assetRepo.delete({
@@ -269,14 +261,10 @@ export class AssetService {
     ticker: string;
     sellQuantity: number;
   }) {
-    const asset = await this.assetRepo.findOneBy({ ticker });
+    const asset = await this.assetRepo.findOne({ where: { ticker, userId } });
 
     if (!asset) {
       throw new NotFoundError(`Asset ${ticker} not found`);
-    }
-
-    if (asset.userId !== userId) {
-      throw new ForbiddenError("You can only sell your own assets");
     }
 
     if (sellQuantity > asset.quantity) {

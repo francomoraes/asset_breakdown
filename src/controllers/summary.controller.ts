@@ -1,22 +1,18 @@
 import { Request, Response } from "express";
 import { summaryService } from "../services/summary.service";
 import { handleZodError } from "../utils/handle-zod-error";
-import { UserIdParamDto } from "../dtos/params.dto";
+
+import { getAuthenticatedUserId } from "utils/get-authenticated-user-id";
 
 export const getSummary = async (req: Request, res: Response) => {
-  const paramsCheck = UserIdParamDto.safeParse(req.params);
-  if (!paramsCheck.success) return handleZodError(res, paramsCheck.error, 409);
-
-  const { userId } = paramsCheck.data;
+  const userId = getAuthenticatedUserId(req);
 
   const summary = await summaryService.getSummary({ userId });
   res.json(summary);
 };
 
 export const getOverviewByCurrency = async (req: Request, res: Response) => {
-  const paramCheck = UserIdParamDto.safeParse(req.params);
-  if (!paramCheck.success) return handleZodError(res, paramCheck.error, 409);
-  const { userId } = paramCheck.data;
+  const userId = getAuthenticatedUserId(req);
 
   const overview = await summaryService.getOverviewByCurrency({ userId });
   res.json(overview);

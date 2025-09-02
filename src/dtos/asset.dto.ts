@@ -59,8 +59,5 @@ export const DeleteAssetDto = z
     id: z
       .string({ required_error: "O ID do ativo é obrigatório" })
       .regex(/^\d+$/, "O ID do ativo deve ser um número inteiro"),
-    userId: z
-      .string({ required_error: "O ID do usuário é obrigatório" })
-      .regex(/^\d+$/, "O ID do usuário deve ser um número inteiro"),
   })
   .strict();

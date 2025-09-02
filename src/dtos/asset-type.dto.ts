@@ -1,7 +1,6 @@
 import { z } from "zod";
 
 export const CreateAssetTypeDto = z.object({
-  userId: z.string().min(1),
   name: z.string().min(2).max(100),
   targetPercentage: z.number().min(0).max(100),
   assetClassId: z.string().uuid(),
@@ -9,12 +8,10 @@ export const CreateAssetTypeDto = z.object({
 
 export const UpdateAssetTypeDto = z.object({
   id: z.string().min(1),
-  userId: z.string().min(1),
   name: z.string().min(2).max(100).optional(),
   targetPercentage: z.number().min(0).max(100).optional(),
 });
 
 export const DeleteAssetTypeDto = z.object({
   id: z.string().min(1),
-  userId: z.string().min(1),
 });

@@ -3,26 +3,27 @@ import {
   DeleteAssetClassDto,
   UpdateAssetClassDto,
 } from "../dtos/asset-class.dto";
-import { UserIdParamDto } from "../dtos/params.dto";
+
 import { Request, Response } from "express";
 import { assetClassService } from "../services/asset-class.service";
 import { handleZodError } from "../utils/handle-zod-error";
+import { getAuthenticatedUserId } from "../utils/get-authenticated-user-id";
 
 export const createAssetClass = async (
   req: Request,
   res: Response,
 ): Promise<void> => {
-  const dtoData = {
+  const userId = getAuthenticatedUserId(req);
+
+  const result = CreateAssetClassDto.safeParse({
     name: req.body.name,
-    userId: req.params.userId,
-  };
-  const result = CreateAssetClassDto.safeParse(dtoData);
+  });
 
   if (!result.success) {
     return handleZodError(res, result.error);
   }
 
-  const { userId, name } = result.data;
+  const { name } = result.data;
 
   const assetClass = await assetClassService.createAssetClass({
     userId,
@@ -38,13 +39,7 @@ export const getAssetClasses = async (
   req: Request,
   res: Response,
 ): Promise<void> => {
-  const paramsCheck = UserIdParamDto.safeParse(req.params);
-
-  if (!paramsCheck.success) {
-    return handleZodError(res, paramsCheck.error);
-  }
-
-  const { userId } = paramsCheck.data;
+  const userId = getAuthenticatedUserId(req);
 
   const assetClasses = await assetClassService.getAssetClasses({ userId });
 
@@ -55,9 +50,10 @@ export const updateAssetClass = async (
   req: Request,
   res: Response,
 ): Promise<void> => {
+  const userId = getAuthenticatedUserId(req);
+
   const dtoData = {
     id: req.params.id,
-    userId: req.params.userId,
     name: req.body.name,
   };
 
@@ -67,7 +63,7 @@ export const updateAssetClass = async (
     return handleZodError(res, result.error);
   }
 
-  const { id, userId, name } = result.data;
+  const { id, name } = result.data;
 
   const assetClass = await assetClassService.updateAssetClass({
     id,
@@ -82,19 +78,18 @@ export const deleteAssetClass = async (
   req: Request,
   res: Response,
 ): Promise<void> => {
-  const dtoData = {
-    id: req.params.id,
-    userId: req.params.userId,
-  };
+  const userId = getAuthenticatedUserId(req);
 
-  const parsedParams = DeleteAssetClassDto.safeParse(dtoData);
+  const parsedParams = DeleteAssetClassDto.safeParse({
+    id: req.params.id,
+  });
 
   if (!parsedParams.success) {
     res.status(400).json({ error: "Invalid parameters" });
     return;
   }
 
-  const { id, userId } = parsedParams.data;
+  const { id } = parsedParams.data;
 
   const assetClass = await assetClassService.deleteAssetClass({
     id,

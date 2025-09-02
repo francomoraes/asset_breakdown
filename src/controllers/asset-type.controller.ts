@@ -6,14 +6,16 @@ import {
   DeleteAssetTypeDto,
   UpdateAssetTypeDto,
 } from "../dtos/asset-type.dto";
-import { UserIdParamDto } from "../dtos/params.dto";
+
+import { getAuthenticatedUserId } from "../utils/get-authenticated-user-id";
 
 export const createAssetType = async (
   req: Request,
   res: Response,
 ): Promise<void> => {
+  const userId = getAuthenticatedUserId(req);
+
   const dtoData = {
-    userId: req.params.userId,
     name: req.body.name,
     targetPercentage: req.body.targetPercentage,
     assetClassId: req.body.assetClassId,
@@ -25,7 +27,7 @@ export const createAssetType = async (
     return handleZodError(res, result.error, 409);
   }
 
-  const { userId, name, targetPercentage, assetClassId } = result.data;
+  const { name, targetPercentage, assetClassId } = result.data;
 
   const assetType = await assetTypeService.createAssetType({
     assetClassId,
@@ -44,13 +46,7 @@ export const getAssetTypes = async (
   req: Request,
   res: Response,
 ): Promise<void> => {
-  const paramsCheck = UserIdParamDto.safeParse(req.params);
-
-  if (!paramsCheck.success) {
-    return handleZodError(res, paramsCheck.error);
-  }
-
-  const { userId } = paramsCheck.data;
+  const userId = getAuthenticatedUserId(req);
 
   const assetTypes = await assetTypeService.getAssetTypes({ userId });
 
@@ -61,9 +57,10 @@ export const updateAssetType = async (
   req: Request,
   res: Response,
 ): Promise<void> => {
+  const userId = getAuthenticatedUserId(req);
+
   const dtoData = {
     id: req.params.id,
-    userId: req.params.userId,
     name: req.body.name,
     targetPercentage: req.body.targetPercentage,
   };
@@ -74,7 +71,7 @@ export const updateAssetType = async (
     return handleZodError(res, result.error);
   }
 
-  const { id, userId, name, targetPercentage } = result.data;
+  const { id, name, targetPercentage } = result.data;
 
   const assetType = await assetTypeService.updateAssetType({
     id,
@@ -89,16 +86,17 @@ export const deleteAssetType = async (
   req: Request,
   res: Response,
 ): Promise<void> => {
+  const userId = getAuthenticatedUserId(req);
+
   const dtoData = {
     id: req.params.id,
-    userId: req.params.userId,
   };
 
   const result = DeleteAssetTypeDto.safeParse(dtoData);
 
   if (!result.success) return handleZodError(res, result.error, 409);
 
-  const { id, userId } = result.data;
+  const { id } = result.data;
 
   const assetType = await assetTypeService.deleteAssetType({ id, userId });
 

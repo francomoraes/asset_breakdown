@@ -5,18 +5,15 @@ import fs from "fs";
 
 import { Asset } from "../models/asset";
 import { AppDataSource } from "../config/data-source";
-import { handleZodError } from "../utils/handle-zod-error";
-import { UserIdParamDto } from "../dtos/params.dto";
 import { csvAssetSchema } from "../dtos/csv.dto";
+import { getAuthenticatedUserId } from "../utils/get-authenticated-user-id";
 
 function toCents(value: number): number {
   return Math.round(value * 100);
 }
 
 export const uploadCsv = async (req: Request, res: Response): Promise<void> => {
-  const paramCheck = UserIdParamDto.safeParse(req.params);
-  if (!paramCheck.success) return handleZodError(res, paramCheck.error, 409);
-  const { userId } = paramCheck.data;
+  const userId = getAuthenticatedUserId(req);
 
   const file = req.file;
 

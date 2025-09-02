@@ -1,7 +1,7 @@
 import { Request, Response } from "express";
 import { handleZodError } from "../utils/handle-zod-error";
 import { assetService } from "../services/asset.service";
-import { UserIdParamDto } from "../dtos/params.dto";
+
 import {
   BuyAssetDto,
   DeleteAssetDto,
@@ -60,7 +60,6 @@ export const deleteAsset = async (
 
   const result = DeleteAssetDto.safeParse({
     id: req.params.id,
-    userId,
   });
 
   if (!result.success) return handleZodError(res, result.error, 409);
