@@ -3,7 +3,7 @@ import {
   deleteAssetClass,
   getAssetClasses,
   updateAssetClass,
-} from "../controllers/assetClass.controller";
+} from "../controllers/asset-class.controller";
 import { Router } from "express";
 
 const router = Router();

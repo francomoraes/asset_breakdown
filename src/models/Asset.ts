@@ -6,15 +6,15 @@ import {
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from "typeorm";
-import { AssetType } from "./AssetType";
+import { AssetType } from "./asset-type";
 
 @Entity("asset")
 export class Asset {
   @PrimaryGeneratedColumn()
   id!: number;
 
-  @Column("text")
-  userId!: string;
+  @Column("int")
+  userId!: number;
 
   @ManyToOne(() => AssetType, (type) => type.assets, { eager: true })
   type!: AssetType;

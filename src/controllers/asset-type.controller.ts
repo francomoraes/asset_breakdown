@@ -1,12 +1,12 @@
 import { Request, Response } from "express";
-import { assetTypeService } from "../services/assetTypeService";
-import { handleZodError } from "../utils/handleZodError";
+import { assetTypeService } from "../services/asset-type.service";
+import { handleZodError } from "../utils/handle-zod-error";
 import {
   CreateAssetTypeDto,
   DeleteAssetTypeDto,
   UpdateAssetTypeDto,
-} from "dtos/assetType.dto";
-import { UserIdParamDto } from "dtos/params.dto";
+} from "../dtos/asset-type.dto";
+import { UserIdParamDto } from "../dtos/params.dto";
 
 export const createAssetType = async (
   req: Request,

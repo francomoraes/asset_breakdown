@@ -1,12 +1,12 @@
 import { AppDataSource } from "../config/data-source";
-import { Asset } from "../models/Asset";
+import { Asset } from "../models/asset";
 import { Repository } from "typeorm";
-import { getBRLtoUSDRate } from "../utils/getBRLtoUSDRate";
+import { getBRLtoUSDRate } from "../utils/get-brl-to-usd-rate";
 
 export class SummaryService {
   constructor(private assetRepo: Repository<Asset>) {}
 
-  async getSummary({ userId }: { userId: string }) {
+  async getSummary({ userId }: { userId: number }) {
     const rawSummary = await this.assetRepo
       .createQueryBuilder("asset")
       .leftJoin("asset.type", "type")
@@ -44,7 +44,7 @@ export class SummaryService {
     return summary;
   }
 
-  async getOverviewByCurrency({ userId }: { userId: string }) {
+  async getOverviewByCurrency({ userId }: { userId: number }) {
     const rawResult = await this.assetRepo
       .createQueryBuilder("asset")
       .select(`asset.currency`, "currency")

@@ -5,8 +5,8 @@ import {
   OneToMany,
   PrimaryGeneratedColumn,
 } from "typeorm";
-import { AssetClass } from "./AssetClass";
-import { Asset } from "./Asset";
+import { AssetClass } from "./asset-class";
+import { Asset } from "./asset";
 
 @Entity("asset_type")
 export class AssetType {
@@ -19,8 +19,8 @@ export class AssetType {
   @Column("decimal", { precision: 5, scale: 2 })
   targetPercentage!: number;
 
-  @Column("text")
-  userId!: string;
+  @Column("int")
+  userId!: number;
 
   @ManyToOne(() => AssetClass, (assetClass) => assetClass.types, {
     eager: true,

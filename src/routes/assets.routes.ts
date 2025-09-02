@@ -10,9 +10,8 @@ import {
 } from "../controllers/assets.controller";
 
 const router = express.Router();
-router.get("/assets", getAssets);
-router.get("/assets/:userId", getAssetsByUser);
-router.get("/assets/:userId/export", exportAssetCsv);
+router.get("/assets", getAssetsByUser);
+router.get("/assets/export", exportAssetCsv);
 router.put("/assets/:id", updateAsset);
 router.delete("/assets/:id", deleteAsset);
 router.post("/assets/:ticker/buy", buyAsset);

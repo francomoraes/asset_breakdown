@@ -1,10 +1,10 @@
 import dotenv from "dotenv";
 import { DataSource } from "typeorm";
-import { Asset } from "../models/Asset";
-import { AssetType } from "../models/AssetType";
-import { AssetClass } from "../models/AssetClass";
-import { PriceCache } from "../models/PriceCache";
-import { User } from "models/User";
+import { Asset } from "../models/asset";
+import { AssetType } from "../models/asset-type";
+import { AssetClass } from "../models/asset-class";
+import { PriceCache } from "../models/price-cache";
+import { User } from "../models/user";
 dotenv.config();
 
 const shouldDropSchema = process.argv.includes("--drop-schema");

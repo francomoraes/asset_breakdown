@@ -1,13 +1,13 @@
 import { AppDataSource } from "../config/data-source";
-import { ConflictError, NotFoundError } from "../errors/AppError";
-import { AssetClass } from "../models/AssetClass";
-import { AssetType } from "../models/AssetType";
+import { ConflictError, NotFoundError } from "../errors/app-error";
+import { AssetClass } from "../models/asset-class";
+import { AssetType } from "../models/asset-type";
 import { Repository } from "typeorm";
 
 export class AssetClassService {
   constructor(private assetClassRepo: Repository<AssetClass>) {}
 
-  async createAssetClass({ userId, name }: { userId: string; name: string }) {
+  async createAssetClass({ userId, name }: { userId: number; name: string }) {
     const existingAssetClass = await this.assetClassRepo.findOne({
       where: { name, userId },
     });
@@ -26,7 +26,7 @@ export class AssetClassService {
     return assetClass;
   }
 
-  async getAssetClasses({ userId }: { userId: string }) {
+  async getAssetClasses({ userId }: { userId: number }) {
     const assetClasses = await this.assetClassRepo.find({
       where: { userId },
       order: { name: "ASC" },
@@ -41,7 +41,7 @@ export class AssetClassService {
     name,
   }: {
     id: string;
-    userId: string;
+    userId: number;
     name: string;
   }) {
     const assetClass = await this.assetClassRepo.findOne({
@@ -58,7 +58,7 @@ export class AssetClassService {
     return assetClass;
   }
 
-  async deleteAssetClass({ id, userId }: { id: string; userId: string }) {
+  async deleteAssetClass({ id, userId }: { id: string; userId: number }) {
     const assetClass = await this.assetClassRepo.findOne({
       where: { id: Number(id), userId },
     });

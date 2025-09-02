@@ -1,8 +1,8 @@
 import { AppDataSource } from "../config/data-source";
-import { ConflictError, NotFoundError } from "../errors/AppError";
-import { Asset } from "../models/Asset";
-import { AssetClass } from "../models/AssetClass";
-import { AssetType } from "../models/AssetType";
+import { ConflictError, NotFoundError } from "../errors/app-error";
+import { Asset } from "../models/asset";
+import { AssetClass } from "../models/asset-class";
+import { AssetType } from "../models/asset-type";
 import { Repository } from "typeorm";
 
 export class AssetTypeService {
@@ -18,7 +18,7 @@ export class AssetTypeService {
     targetPercentage,
     userId,
   }: {
-    userId: string;
+    userId: number;
     name: string;
     assetClassId: string;
     targetPercentage: number;
@@ -51,7 +51,7 @@ export class AssetTypeService {
     return assetType;
   }
 
-  async getAssetTypes({ userId }: { userId: string }) {
+  async getAssetTypes({ userId }: { userId: number }) {
     const assetTypes = await this.assetTypeRepo.find({
       where: { userId },
       order: { id: "ASC" },
@@ -69,7 +69,7 @@ export class AssetTypeService {
     id: string;
     name: string;
     targetPercentage: number;
-    userId: string;
+    userId: number;
   }) {
     const assetType = await this.assetTypeRepo.findOne({
       where: { id: Number(id), userId },
@@ -88,7 +88,7 @@ export class AssetTypeService {
     return assetType;
   }
 
-  async deleteAssetType({ id, userId }: { id: string; userId: string }) {
+  async deleteAssetType({ id, userId }: { id: string; userId: number }) {
     const assetType = await this.assetTypeRepo.findOne({
       where: { id: Number(id), userId },
     });

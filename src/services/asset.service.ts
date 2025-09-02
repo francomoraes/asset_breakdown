@@ -1,12 +1,26 @@
 import { AppDataSource } from "../config/data-source";
-import { ConflictError, NotFoundError } from "../errors/AppError";
+import {
+  ConflictError,
+  ForbiddenError,
+  NotFoundError,
+} from "../errors/app-error";
 import { Parser } from "json2csv";
-import { Asset } from "../models/Asset";
-import { AssetType } from "../models/AssetType";
+import { Asset } from "../models/asset";
+import { AssetType } from "../models/asset-type";
 import { Repository } from "typeorm";
-import { calculateDerivedFields } from "../utils/calculateDerivedFields";
-import { getMarketPriceCents } from "../utils/getMarketPrice";
-import { recalculatePortfolio } from "../utils/recalculatePortfolio";
+import { calculateDerivedFields } from "../utils/calculate-derived-fields";
+import { getMarketPriceCents } from "../utils/get-market-price";
+import { recalculatePortfolio } from "../utils/recalculate-portfolio";
+
+type UpdateAssetData = {
+  id: number;
+  type: string;
+  ticker: string;
+  quantity: number;
+  averagePriceCents: number;
+  institution?: string;
+  currency?: string;
+};
 
 export class AssetService {
   constructor(
@@ -19,7 +33,7 @@ export class AssetService {
     return assets;
   }
 
-  async getAssetsByUser({ userId }: { userId: string }) {
+  async getAssetsByUser({ userId }: { userId: number }) {
     const assets = await this.assetRepo.find({
       where: { userId },
       relations: {
@@ -35,36 +49,41 @@ export class AssetService {
     return assets;
   }
 
-  async updateAsset({
-    id,
-    type,
-    ticker,
-    quantity,
-    averagePriceCents,
-    institution,
-    currency,
-  }: {
-    id: number;
-    type: string;
-    ticker: string;
-    quantity: number;
-    averagePriceCents: number;
-    institution?: string;
-    currency?: string;
-  }) {
-    const asset = await this.assetRepo.findOneBy({ id: Number(id) });
-
+  async getAssetById(id: number) {
+    const asset = await this.assetRepo.findOneBy({ id });
     if (!asset) {
-      throw new NotFoundError(`Asset ${ticker} not found`);
+      throw new NotFoundError(`Asset ${id} not found`);
+    }
+    return asset;
+  }
+
+  async updateAsset(data: UpdateAssetData & { requestUserId: number }) {
+    const { requestUserId, ...updateData } = data;
+
+    const existingAsset = await this.assetRepo.findOneBy({
+      id: Number(updateData.id),
+    });
+
+    if (!existingAsset) {
+      throw new NotFoundError(`Asset ${updateData.id} not found`);
+    }
+
+    if (existingAsset.userId !== requestUserId) {
+      throw new ForbiddenError("You can only update your own assets");
     }
 
     let currentPriceCents = 0;
 
     try {
-      currentPriceCents = await getMarketPriceCents(ticker);
+      currentPriceCents = await getMarketPriceCents(updateData.ticker);
     } catch (error) {
-      throw new Error(`Error fetching market price for ${ticker}: ${error}`);
+      throw new Error(
+        `Error fetching market price for ${updateData.ticker}: ${error}`,
+      );
     }
+
+    const { ticker, quantity, averagePriceCents, institution, currency, type } =
+      updateData;
 
     const {
       investedValueCents,
@@ -80,7 +99,7 @@ export class AssetService {
       throw new NotFoundError(`Asset type ${type} not found`);
     }
 
-    Object.assign(asset, {
+    Object.assign(existingAsset, {
       type: assetType,
       ticker,
       quantity,
@@ -95,32 +114,43 @@ export class AssetService {
       currency,
     });
 
-    await this.assetRepo.save(asset);
+    await this.assetRepo.save(existingAsset);
 
     await recalculatePortfolio();
 
-    return asset;
+    return existingAsset;
   }
 
-  async deleteAsset({ id, userId }: { id: string; userId: string }) {
-    const asset = await this.assetRepo.findOne({
-      where: { id: Number(id), userId },
+  async deleteAsset({
+    id,
+    requestUserId,
+  }: {
+    id: string;
+    requestUserId: number;
+  }) {
+    const existingAsset = await this.assetRepo.findOneBy({
+      id: Number(id),
     });
 
-    if (!asset) {
-      throw new NotFoundError(`Asset not found`);
+    if (!existingAsset) {
+      throw new NotFoundError(`Asset ${id} not found`);
+    }
+
+    if (existingAsset.userId !== requestUserId) {
+      throw new ForbiddenError("You can only delete your own assets");
     }
 
     await this.assetRepo.delete({
       id: Number(id),
-      userId,
+      userId: requestUserId,
     });
     await recalculatePortfolio();
 
-    return asset;
+    return existingAsset;
   }
 
   async buyAsset({
+    userId,
     ticker,
     newQuantity,
     newPriceCents,
@@ -128,6 +158,7 @@ export class AssetService {
     institution,
     currency,
   }: {
+    userId: number;
     ticker: string;
     newQuantity: number;
     newPriceCents: number;
@@ -162,6 +193,7 @@ export class AssetService {
         }
 
         asset = this.assetRepo.create({
+          userId,
           type: assetType,
           ticker,
           quantity: newQuantity,
@@ -229,9 +261,11 @@ export class AssetService {
   }
 
   async sellAsset({
+    userId,
     ticker,
     sellQuantity,
   }: {
+    userId: number;
     ticker: string;
     sellQuantity: number;
   }) {
@@ -239,6 +273,10 @@ export class AssetService {
 
     if (!asset) {
       throw new NotFoundError(`Asset ${ticker} not found`);
+    }
+
+    if (asset.userId !== userId) {
+      throw new ForbiddenError("You can only sell your own assets");
     }
 
     if (sellQuantity > asset.quantity) {
@@ -294,7 +332,7 @@ export class AssetService {
     return asset;
   }
 
-  async exportAssetsToCsv({ userId }: { userId: string }) {
+  async exportAssetsToCsv({ userId }: { userId: number }) {
     const assets = await this.assetRepo.find({
       where: { userId },
       relations: {

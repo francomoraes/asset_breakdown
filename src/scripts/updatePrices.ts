@@ -1,8 +1,8 @@
 import { AppDataSource } from "../config/data-source";
-import { calculateDerivedFields } from "../utils/calculateDerivedFields";
-import { ensureDataSource } from "../utils/ensureDataSource";
-import { getMarketPriceCents } from "../utils/getMarketPrice";
-import { recalculatePortfolio } from "../utils/recalculatePortfolio";
+import { calculateDerivedFields } from "../utils/calculate-derived-fields";
+import { ensureDataSource } from "../utils/ensure-data-source";
+import { getMarketPriceCents } from "../utils/get-market-price";
+import { recalculatePortfolio } from "../utils/recalculate-portfolio";
 
 async function updatePricesAndAssets() {
   await ensureDataSource();

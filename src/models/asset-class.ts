@@ -1,5 +1,5 @@
 import { Column, Entity, OneToMany, PrimaryGeneratedColumn } from "typeorm";
-import { AssetType } from "./AssetType";
+import { AssetType } from "./asset-type";
 
 @Entity("asset_class")
 export class AssetClass {
@@ -9,8 +9,8 @@ export class AssetClass {
   @Column("text")
   name!: string;
 
-  @Column("text")
-  userId!: string;
+  @Column("int")
+  userId!: number;
 
   @OneToMany(() => AssetType, (type) => type.assetClass)
   types!: AssetType[];

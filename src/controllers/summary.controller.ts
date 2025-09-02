@@ -1,7 +1,7 @@
 import { Request, Response } from "express";
-import { summaryService } from "../services/summaryService";
-import { handleZodError } from "../utils/handleZodError";
-import { UserIdParamDto } from "dtos/params.dto";
+import { summaryService } from "../services/summary.service";
+import { handleZodError } from "../utils/handle-zod-error";
+import { UserIdParamDto } from "../dtos/params.dto";
 
 export const getSummary = async (req: Request, res: Response) => {
   const paramsCheck = UserIdParamDto.safeParse(req.params);

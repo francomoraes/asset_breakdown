@@ -3,11 +3,11 @@ import { parse } from "fast-csv";
 import yahooFinance from "yahoo-finance2";
 import fs from "fs";
 
-import { Asset } from "../models/Asset";
+import { Asset } from "../models/asset";
 import { AppDataSource } from "../config/data-source";
-import { handleZodError } from "../utils/handleZodError";
-import { UserIdParamDto } from "dtos/params.dto";
-import { csvAssetSchema } from "dtos/csv.dto";
+import { handleZodError } from "../utils/handle-zod-error";
+import { UserIdParamDto } from "../dtos/params.dto";
+import { csvAssetSchema } from "../dtos/csv.dto";
 
 function toCents(value: number): number {
   return Math.round(value * 100);

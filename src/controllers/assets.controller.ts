@@ -1,13 +1,15 @@
 import { Request, Response } from "express";
-import { handleZodError } from "../utils/handleZodError";
-import { assetService } from "../services/assetService";
-import { UserIdParamDto } from "dtos/params.dto";
+import { handleZodError } from "../utils/handle-zod-error";
+import { assetService } from "../services/asset.service";
+import { UserIdParamDto } from "../dtos/params.dto";
 import {
   BuyAssetDto,
   DeleteAssetDto,
   SellAssetDto,
   UpdateAssetDto,
-} from "dtos/asset.dto";
+} from "../dtos/asset.dto";
+import { getAuthenticatedUserId } from "../utils/get-authenticated-user-id";
+import { ForbiddenError, NotFoundError } from "errors/app-error";
 
 export const getAssets = async (req: Request, res: Response) => {
   const assets = await assetService.getAsset();
@@ -18,13 +20,7 @@ export const getAssetsByUser = async (
   req: Request,
   res: Response,
 ): Promise<void> => {
-  const paramsCheck = UserIdParamDto.safeParse(req.params);
-
-  if (!paramsCheck.success) {
-    return handleZodError(res, paramsCheck.error);
-  }
-
-  const { userId } = paramsCheck.data;
+  const userId = getAuthenticatedUserId(req);
 
   const assets = await assetService.getAssetsByUser({ userId });
 
@@ -35,63 +31,51 @@ export const updateAsset = async (
   req: Request,
   res: Response,
 ): Promise<void> => {
-  const dtoData = {
+  const userId = getAuthenticatedUserId(req);
+
+  const result = UpdateAssetDto.safeParse({
     id: req.params.id,
-    type: req.params.type,
-    ticker: req.params.ticker,
-    quantity: req.params.quantity,
-    averagePriceCents: req.params.averagePriceCents,
-    institution: req.params.institution,
-    currency: req.params.currency,
-  };
-
-  const result = UpdateAssetDto.safeParse(dtoData);
-  if (!result.success) return handleZodError(res, result.error, 409);
-
-  const {
-    id,
-    type,
-    ticker,
-    quantity,
-    averagePriceCents,
-    institution,
-    currency,
-  } = result.data;
-
-  const asset = await assetService.updateAsset({
-    id: Number(id),
-    type,
-    ticker,
-    quantity,
-    averagePriceCents,
-    institution,
-    currency,
+    ...req.body,
   });
 
-  res.json({ message: `Asset ${ticker} updated successfully`, asset });
+  if (!result.success) return handleZodError(res, result.error, 409);
+
+  const asset = await assetService.updateAsset({
+    ...result.data,
+    id: Number(req.params.id),
+    requestUserId: userId,
+  });
+
+  res.json({
+    message: `Asset ${result.data.ticker} updated successfully`,
+    asset,
+  });
 };
 
 export const deleteAsset = async (
   req: Request,
   res: Response,
 ): Promise<void> => {
-  const dtoData = {
-    id: req.params.id,
-    userId: req.params.userId,
-  };
+  const userId = getAuthenticatedUserId(req);
 
-  const result = DeleteAssetDto.safeParse(dtoData);
+  const result = DeleteAssetDto.safeParse({
+    id: req.params.id,
+    userId,
+  });
 
   if (!result.success) return handleZodError(res, result.error, 409);
 
-  const { id, userId } = result.data;
-
-  const asset = await assetService.deleteAsset({ id, userId });
+  const asset = await assetService.deleteAsset({
+    id: result.data.id,
+    requestUserId: userId,
+  });
 
   res.json({ message: `Asset deleted`, deleted: asset });
 };
 
 export const buyAsset = async (req: Request, res: Response): Promise<void> => {
+  const userId = getAuthenticatedUserId(req);
+
   const dtoData = {
     ticker: req.params.ticker,
     quantity: req.body.quantity,
@@ -115,6 +99,7 @@ export const buyAsset = async (req: Request, res: Response): Promise<void> => {
   } = result.data;
 
   const asset = await assetService.buyAsset({
+    userId,
     ticker,
     newQuantity,
     newPriceCents,
@@ -127,6 +112,8 @@ export const buyAsset = async (req: Request, res: Response): Promise<void> => {
 };
 
 export const sellAsset = async (req: Request, res: Response): Promise<void> => {
+  const userId = getAuthenticatedUserId(req);
+
   const dtoData = {
     ticker: req.params.ticker,
     quantity: req.body.quantity,
@@ -146,6 +133,7 @@ export const sellAsset = async (req: Request, res: Response): Promise<void> => {
   } = result.data;
 
   const asset = await assetService.sellAsset({
+    userId,
     ticker,
     sellQuantity,
   });
@@ -160,15 +148,9 @@ export const exportAssetCsv = async (
   req: Request,
   res: Response,
 ): Promise<void> => {
-  const paramsCheck = UserIdParamDto.safeParse(req.params);
+  const userId = getAuthenticatedUserId(req);
 
-  if (!paramsCheck.success) {
-    return handleZodError(res, paramsCheck.error);
-  }
-
-  const { userId } = paramsCheck.data;
-
-  const csv = await assetService.exportAssetsToCsv({ userId });
+  const csv = await assetService.exportAssetsToCsv({ userId: Number(userId) });
 
   res.header("Content-Type", "text/csv");
   res.attachment("assets.csv");
