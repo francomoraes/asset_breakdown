@@ -1,12 +1,12 @@
 import { Request, Response } from "express";
 import { parse } from "fast-csv";
-import yahooFinance from "yahoo-finance2";
 import fs from "fs";
 
 import { Asset } from "../models/asset";
 import { AppDataSource } from "../config/data-source";
 import { csvAssetSchema } from "../dtos/csv.dto";
 import { getAuthenticatedUserId } from "../utils/get-authenticated-user-id";
+import { getMarketPriceCents } from "utils/get-market-price";
 
 function toCents(value: number): number {
   return Math.round(value * 100);
@@ -63,19 +63,17 @@ export const uploadCsv = async (req: Request, res: Response): Promise<void> => {
           );
           const investedValue = Math.round(quantity * averagePrice);
 
-          let currentPrice = 0;
+          let currentPriceCents = 0;
 
           try {
-            const quote: any = await yahooFinance.quote(ticker);
-            const marketPrice = Array.isArray(quote)
-              ? quote[0]?.regularMarketPrice
-              : quote?.regularMarketPrice;
-            currentPrice = toCents(marketPrice);
+            currentPriceCents = await getMarketPriceCents(ticker);
           } catch (error) {
-            console.error(`Error fetching data for ticker ${ticker}`);
+            throw new Error(
+              `Error fetching market price for ${ticker}: ${error}`,
+            );
           }
 
-          const currentValue = Math.round(quantity * currentPrice);
+          const currentValue = Math.round(quantity * currentPriceCents);
           const result = currentValue - investedValue;
 
           const assetType = await assetTypeRepository.findOneBy({ name: type });
@@ -86,13 +84,13 @@ export const uploadCsv = async (req: Request, res: Response): Promise<void> => {
             });
           }
 
-          const asset = assetRepository.create({
+          const assetInfo = {
             userId,
             type: assetType,
             ticker,
             quantity,
             averagePriceCents: averagePrice,
-            currentPriceCents: currentPrice,
+            currentPriceCents,
             investedValueCents: investedValue,
             currentValueCents: currentValue,
             resultCents: result,
@@ -102,7 +100,9 @@ export const uploadCsv = async (req: Request, res: Response): Promise<void> => {
             institution: institution,
             currency: currency,
             portfolioPercentage: 0,
-          });
+          };
+
+          const asset = assetRepository.create(assetInfo);
 
           assets.push(asset);
           totalCurrentValue += currentValue;

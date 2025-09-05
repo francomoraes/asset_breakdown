@@ -1,0 +1,509 @@
+{
+  "info": {
+    "_postman_id": "c3d4019f-dfba-45df-8d72-f20c38a6103c",
+    "name": "asset_breakdown",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "21527083"
+  },
+  "item": [
+    {
+      "name": "auth",
+      "item": [
+        {
+          "name": "login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Login successful', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "    ",
+                  "    const responseJson = pm.response.json();",
+                  "    pm.test('Token exists', function () {",
+                  "        pm.expect(responseJson.token).to.exist;",
+                  "    });",
+                  "    ",
+                  "    // Captura token automaticamente",
+                  "    pm.environment.set('token', responseJson.token);",
+                  "    console.log('🎯 Token capturado:', responseJson.token);",
+                  "});",
+                  "",
+                  "pm.test('Response time is acceptable', function () {",
+                  "    pm.expect(pm.response.responseTime).to.be.below(2000);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n    \"email\": \"{{userEmail}}\",\r\n    \"password\": \"{{userPassword}}\"\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{asset_api}}/auth/login",
+              "host": ["{{asset_api}}"],
+              "path": ["auth", "login"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "register",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n    \"email\": \"{{userEmail}}\",\r\n    \"password\": \"{{userPassword}}\"\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{asset_api}}/auth/register",
+              "host": ["{{asset_api}}"],
+              "path": ["auth", "register"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "assets",
+      "item": [
+        {
+          "name": "assets by user",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{asset_api}}/assets",
+              "host": ["{{asset_api}}"],
+              "path": ["assets"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "export csv assets",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{asset_api}}/assets/export",
+              "host": ["{{asset_api}}"],
+              "path": ["assets", "export"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "buy asset",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n    \"quantity\": 10,\r\n    \"priceCents\": 8364,\r\n    \"type\": \"Reits\",\r\n    \"institution\": \"Avenue\",\r\n    \"currency\": \"USD\"\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{asset_api}}/assets/VNQ/buy",
+              "host": ["{{asset_api}}"],
+              "path": ["assets", "VNQ", "buy"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "update asset",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "PUT",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n  \"institution\": \"XP\"\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{asset_api}}/assets/21",
+              "host": ["{{asset_api}}"],
+              "path": ["assets", "21"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "sell asset",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "PUT",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n    \"quantity\": 10,\r\n    \"priceCents\": 1234\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{asset_api}}/assets/VNQ/sell",
+              "host": ["{{asset_api}}"],
+              "path": ["assets", "VNQ", "sell"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "delete asset",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{asset_api}}/assets/21",
+              "host": ["{{asset_api}}"],
+              "path": ["assets", "21"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "csv",
+      "item": [
+        {
+          "name": "csv template",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{asset_api}}/csv-template",
+              "host": ["{{asset_api}}"],
+              "path": ["csv-template"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "csv file",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": "/C:/Users/Usuario/Downloads/csv-test.txt"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{asset_api}}/upload-csv",
+              "host": ["{{asset_api}}"],
+              "path": ["upload-csv"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "summary",
+      "item": [
+        {
+          "name": "get summary",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{asset_api}}/summary",
+              "host": ["{{asset_api}}"],
+              "path": ["summary"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "currency overview",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{asset_api}}/summary/overview",
+              "host": ["{{asset_api}}"],
+              "path": ["summary", "overview"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "asset-types",
+      "item": [
+        {
+          "name": "Get asset types",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{asset_api}}/asset-type",
+              "host": ["{{asset_api}}"],
+              "path": ["asset-type"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Edit asset types",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "PATCH",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n    \"name\": \"Pós-fixado Editado\",\r\n    \"targetPercentage\": 0.04\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{asset_api}}/asset-type/1",
+              "host": ["{{asset_api}}"],
+              "path": ["asset-type", "1"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Create asset type",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n    \"name\": \"Teste criação 1\",\r\n    \"targetPercentage\": 0.05,\r\n    \"assetClassId\": 1\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{asset_api}}/asset-type",
+              "host": ["{{asset_api}}"],
+              "path": ["asset-type"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Delete asset type",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{asset_api}}/asset-type/17",
+              "host": ["{{asset_api}}"],
+              "path": ["asset-type", "17"]
+            }
+          },
+          "response": []
+        }
+      ]
+    }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "packages": {},
+        "exec": [""]
+      }
+    },
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "packages": {},
+        "exec": [""]
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "asset_api",
+      "value": "http://localhost:3000/api"
+    },
+    {
+      "key": "token",
+      "value": ""
+    }
+  ]
+}

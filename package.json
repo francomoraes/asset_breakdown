@@ -9,7 +9,11 @@
     "reset": "npm run seed -- --drop-schema --reset --clear-price-cache",
     "update:prices": "ts-node -r tsconfig-paths/register src/scripts/updatePrices.ts",
     "test:api": "newman run postman/collection.json -e postman/environment.json --reporters cli,json --reporter-json-export postman/results.json",
-    "test:api:verbose": "newman run postman/collection.json -e postman/environment.json --reporters cli --verbose"
+    "test:api:verbose": "newman run postman/collection.json -e postman/environment.json --reporters cli --verbose",
+    "test:api:full": "newman run postman/asset_breakdown.postman_collection.json -e postman/environment.json --reporters cli",
+    "test:api:auth": "newman run postman/asset_breakdown.postman_collection.json -e postman/environment.json --folder auth",
+    "test:api:assets": "newman run postman/asset_breakdown.postman_collection.json -e postman/environment.json --folder assets",
+    "test:api:html": "newman run postman/asset_breakdown.postman_collection.json -e postman/environment.json --reporters cli,html --reporter-html-export postman/report.html"
   },
   "keywords": [],
   "author": "",
@@ -36,6 +40,7 @@
     "@types/jsonwebtoken": "^9.0.10",
     "@types/multer": "^1.4.12",
     "@types/node": "^22.15.18",
+    "newman": "^6.2.1",
     "nodemon": "^3.1.10",
     "ts-node": "^10.9.2",
     "ts-node-dev": "^2.0.0",

@@ -3,13 +3,23 @@
   "name": "Development",
   "values": [
     {
-      "key": "baseUrl",
-      "value": "http://localhost:3000",
+      "key": "asset_api",
+      "value": "http://localhost:3000/api",
       "enabled": true
     },
     {
       "key": "token",
       "value": "",
+      "enabled": true
+    },
+    {
+      "key": "userEmail",
+      "value": "user@test.com",
+      "enabled": true
+    },
+    {
+      "key": "userPassword",
+      "value": "User123!",
       "enabled": true
     },
     {
