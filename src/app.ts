@@ -5,7 +5,7 @@ import { AppDataSource } from "./config/data-source";
 import csvRoutes from "./routes/csv.routes";
 import assetRoutes from "./routes/assets.routes";
 import summaryRoutes from "./routes/summary.routes";
-import assetTypeRoutes from "./routes/assetType.routes";
+import assetTypeRoutes from "./routes/asset-type.routes";
 import authRoutes from "./routes/auth.routes";
 import { errorHandler } from "./middlewares/error-handler";
 import { authMiddleware } from "./middlewares/auth.middleware";
