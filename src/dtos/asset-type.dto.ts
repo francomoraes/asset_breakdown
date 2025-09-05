@@ -3,7 +3,7 @@ import { z } from "zod";
 export const CreateAssetTypeDto = z.object({
   name: z.string().min(2).max(100),
   targetPercentage: z.number().min(0).max(100),
-  assetClassId: z.string().uuid(),
+  assetClassId: z.number(),
 });
 
 export const UpdateAssetTypeDto = z.object({

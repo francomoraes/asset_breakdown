@@ -20,7 +20,7 @@ export class AssetTypeService {
   }: {
     userId: number;
     name: string;
-    assetClassId: string;
+    assetClassId: number;
     targetPercentage: number;
   }) {
     const existingAssetType = await this.assetTypeRepo.findOne({
@@ -58,6 +58,22 @@ export class AssetTypeService {
     });
 
     return assetTypes;
+  }
+
+  async getAssetTypeById({ id, userId }: { id: string; userId: number }) {
+    const assetType = await this.assetTypeRepo.findOne({
+      where: { id: Number(id), userId },
+    });
+
+    return assetType;
+  }
+
+  async getAssetsByAssetType({ id, userId }: { id: string; userId: number }) {
+    const assets = await this.assetRepo.find({
+      where: { type: { id: Number(id) }, userId },
+    });
+
+    return assets;
   }
 
   async updateAssetType({
@@ -98,7 +114,7 @@ export class AssetTypeService {
     }
 
     const assets = await this.assetRepo.find({
-      where: { type: assetType, userId },
+      where: { type: { id: Number(id) }, userId },
     });
 
     if (assets.length > 0) {

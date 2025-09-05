@@ -8,6 +8,7 @@ import {
 } from "../dtos/asset-type.dto";
 
 import { getAuthenticatedUserId } from "../utils/get-authenticated-user-id";
+import { ConflictError, NotFoundError } from "errors/app-error";
 
 export const createAssetType = async (
   req: Request,
@@ -41,6 +42,51 @@ export const createAssetType = async (
     assetType,
   });
 };
+
+// export const createAssetType = async (
+//   req: Request,
+//   res: Response,
+// ): Promise<void> => {
+//   try {
+//     console.log("🚀 createAssetType INICIADO");
+//     console.log("📥 req.body:", req.body);
+
+//     const userId = getAuthenticatedUserId(req);
+//     console.log("👤 userId:", userId);
+
+//     const dtoData = {
+//       name: req.body.name,
+//       targetPercentage: req.body.targetPercentage,
+//       assetClassId: req.body.assetClassId,
+//     };
+//     console.log("📦 dtoData:", dtoData);
+
+//     const result = CreateAssetTypeDto.safeParse(dtoData);
+//     console.log("✅ result.success:", result.success);
+//     console.log("❌ result.error:", result.error);
+//     console.log("📊 result:", result);
+
+//     if (!result.success) {
+//       console.log("🚨 ERRO DE VALIDAÇÃO:", result.error);
+//       res
+//         .status(400)
+//         .json({ error: "Validation failed", details: result.error });
+//       return; // ✅ SEM retornar res.status()
+//     }
+
+//     res.json({ message: "Debug OK", data: result.data });
+//     return; // ✅ SEM retornar res.json()
+//   } catch (error) {
+//     console.error("💥 CATCH ERROR:", error);
+//     res
+//       .status(500)
+//       .json({
+//         error: "Catch error",
+//         details: error instanceof Error ? error.message : String(error),
+//       });
+//     return; // ✅ SEM retornar res.status()
+//   }
+// };
 
 export const getAssetTypes = async (
   req: Request,
@@ -97,6 +143,23 @@ export const deleteAssetType = async (
   if (!result.success) return handleZodError(res, result.error, 409);
 
   const { id } = result.data;
+
+  const assetTypeExists = await assetTypeService.getAssetTypeById({
+    id,
+    userId,
+  });
+  if (!assetTypeExists) {
+    throw new NotFoundError("Asset type not found");
+  }
+
+  const assetTypeHasAssets = await assetTypeService.getAssetsByAssetType({
+    id,
+    userId,
+  });
+
+  if (assetTypeHasAssets.length > 0) {
+    throw new ConflictError("Cannot delete asset type with associated assets");
+  }
 
   const assetType = await assetTypeService.deleteAssetType({ id, userId });
 
