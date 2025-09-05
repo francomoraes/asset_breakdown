@@ -1,0 +1,108 @@
+{
+  "info": {
+    "name": "Asset Breakdown API - Basic Tests",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Auth - Login",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Login successful', function () {",
+              "    pm.response.to.have.status(200);",
+              "    ",
+              "    const responseJson = pm.response.json();",
+              "    pm.test('Token exists', function () {",
+              "        pm.expect(responseJson.token).to.exist;",
+              "    });",
+              "    ",
+              "    // Captura token automaticamente",
+              "    pm.environment.set('token', responseJson.token);",
+              "    console.log('🎯 Token capturado:', responseJson.token);",
+              "});",
+              "",
+              "pm.test('Response time is acceptable', function () {",
+              "    pm.expect(pm.response.responseTime).to.be.below(2000);",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"{{adminEmail}}\",\n  \"password\": \"{{adminPassword}}\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/auth/login",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "auth", "login"]
+        }
+      }
+    },
+    {
+      "name": "Asset Types - Get All",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Get asset types successful', function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "",
+              "pm.test('Response is array', function () {",
+              "    const responseJson = pm.response.json();",
+              "    pm.expect(responseJson).to.be.an('array');",
+              "});",
+              "",
+              "pm.test('Response time is acceptable', function () {",
+              "    pm.expect(pm.response.responseTime).to.be.below(1000);",
+              "});",
+              "",
+              "pm.test('Authentication working', function () {",
+              "    pm.response.to.not.have.status(401);",
+              "});"
+            ]
+          }
+        },
+        {
+          "listen": "prerequest",
+          "script": {
+            "exec": [
+              "// Verifica se token existe",
+              "const token = pm.environment.get('token');",
+              "if (!token) {",
+              "    console.log('⚠️ Token não encontrado - execute Login primeiro');",
+              "}"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/asset-type",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "asset-type"]
+        }
+      }
+    }
+  ]
+}

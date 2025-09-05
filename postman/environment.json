@@ -1,0 +1,26 @@
+{
+  "id": "dev-environment",
+  "name": "Development",
+  "values": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3000",
+      "enabled": true
+    },
+    {
+      "key": "token",
+      "value": "",
+      "enabled": true
+    },
+    {
+      "key": "adminEmail",
+      "value": "admin@test.com",
+      "enabled": true
+    },
+    {
+      "key": "adminPassword",
+      "value": "Admin123!",
+      "enabled": true
+    }
+  ]
+}

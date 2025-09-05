@@ -5,17 +5,21 @@ export const UpdateAssetDto = z
     id: z
       .string({ required_error: "O ID do ativo é obrigatório" })
       .regex(/^\d+$/, "O ID do ativo deve ser um número inteiro"),
-    type: z.string({ required_error: "O tipo é obrigatório" }),
-    ticker: z.string({ required_error: "O ticker é obrigatório" }),
+    type: z.string().optional(),
+    ticker: z.string().optional(),
     quantity: z
-      .number({ required_error: "A quantidade é obrigatória" })
-      .positive("A quantidade deve ser maior que zero"),
+      .number({ invalid_type_error: "A quantidade deve ser um número" })
+      .positive("A quantidade deve ser maior que zero")
+      .optional(),
     averagePriceCents: z
-      .number({ required_error: "O preço médio em centavos é obrigatório" })
+      .number({
+        invalid_type_error: "O preço médio em centavos deve ser um número",
+      })
       .int("O preço médio deve ser um número inteiro")
-      .nonnegative("O preço médio deve ser positivo"),
-    institution: z.string({ required_error: "A instituição é obrigatória" }),
-    currency: z.string({ required_error: "A moeda é obrigatória" }),
+      .nonnegative("O preço médio deve ser positivo")
+      .optional(),
+    institution: z.string().optional(),
+    currency: z.string().optional(),
   })
   .strict();
 

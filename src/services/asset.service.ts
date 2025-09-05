@@ -14,10 +14,10 @@ import { recalculatePortfolio } from "../utils/recalculate-portfolio";
 
 type UpdateAssetData = {
   id: number;
-  type: string;
-  ticker: string;
-  quantity: number;
-  averagePriceCents: number;
+  type?: string;
+  ticker?: string;
+  quantity?: number;
+  averagePriceCents?: number;
   institution?: string;
   currency?: string;
 };
@@ -70,8 +70,10 @@ export class AssetService {
 
     let currentPriceCents = 0;
 
+    const newTicker = updateData.ticker || existingAsset.ticker;
+
     try {
-      currentPriceCents = await getMarketPriceCents(updateData.ticker);
+      currentPriceCents = await getMarketPriceCents(newTicker);
     } catch (error) {
       throw new Error(
         `Error fetching market price for ${updateData.ticker}: ${error}`,
@@ -81,12 +83,20 @@ export class AssetService {
     const { ticker, quantity, averagePriceCents, institution, currency, type } =
       updateData;
 
+    const newQuantity = quantity ?? existingAsset.quantity;
+    const newAveragePriceCents =
+      averagePriceCents ?? existingAsset.averagePriceCents;
+
     const {
       investedValueCents,
       currentValueCents,
       resultCents,
       returnPercentage,
-    } = calculateDerivedFields(quantity, averagePriceCents, currentPriceCents);
+    } = calculateDerivedFields(
+      newQuantity,
+      newAveragePriceCents,
+      currentPriceCents,
+    );
 
     const assetTypeRepository = this.assetTypeRepo;
     const assetType = await assetTypeRepository.findOneBy({ name: type });
@@ -158,7 +168,7 @@ export class AssetService {
     institution?: string;
     currency?: string;
   }) {
-    let asset = await this.assetRepo.findOneBy({ ticker });
+    let asset = await this.assetRepo.findOne({ where: { ticker, userId } });
     const assetTypeRepository = this.assetTypeRepo;
 
     if (!asset) {
@@ -184,7 +194,7 @@ export class AssetService {
           throw new NotFoundError(`Asset type ${type} not found`);
         }
 
-        asset = this.assetRepo.create({
+        const newAsset = {
           userId,
           type: assetType,
           ticker,
@@ -198,7 +208,9 @@ export class AssetService {
           portfolioPercentage: 0,
           institution,
           currency,
-        });
+        };
+
+        asset = this.assetRepo.create(newAsset);
 
         await this.assetRepo.save(asset);
 

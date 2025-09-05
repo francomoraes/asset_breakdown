@@ -3,12 +3,13 @@
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
-    "dev": "nodemon --exec ts-node src/server.ts",
+    "start": "nodemon --exec ts-node src/server.ts",
     "build": "tsc",
-    "start": "node dist/server.js",
     "seed": "ts-node -r tsconfig-paths/register src/seed/seed.ts",
     "reset": "npm run seed -- --drop-schema --reset --clear-price-cache",
-    "update:prices": "ts-node -r tsconfig-paths/register src/scripts/updatePrices.ts"
+    "update:prices": "ts-node -r tsconfig-paths/register src/scripts/updatePrices.ts",
+    "test:api": "newman run postman/collection.json -e postman/environment.json --reporters cli,json --reporter-json-export postman/results.json",
+    "test:api:verbose": "newman run postman/collection.json -e postman/environment.json --reporters cli --verbose"
   },
   "keywords": [],
   "author": "",
