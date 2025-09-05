@@ -3,6 +3,8 @@ import { formatYahooTicker } from "./format-yahoo-ticker";
 import { AppDataSource } from "../config/data-source";
 import { PriceCache } from "../models/price-cache";
 import { ensureDataSource } from "../utils/ensure-data-source";
+import { logger } from "../utils/logger";
+
 const TTL_HOURS = 24;
 
 function isFresh(updatedAt: Date): boolean {
@@ -21,7 +23,7 @@ export async function getMarketPriceCents(ticker: string): Promise<number> {
   const cached = await repo.findOneBy({ ticker });
 
   if (cached && isFresh(cached.updatedAt)) {
-    console.log(
+    logger.info(
       `Cotação encontrada no cache para ${formattedTicker}: ${cached.value} cents`,
     );
     return cached.value;
@@ -45,12 +47,12 @@ export async function getMarketPriceCents(ticker: string): Promise<number> {
       }),
     );
 
-    console.log(
+    logger.info(
       `Cotação salva/atualizada para ${formattedTicker}: ${cents} cents`,
     );
     return cents;
   } catch (error) {
-    console.error(`Erro ao buscar cotação para ${formattedTicker}:`, error);
+    logger.error(`Erro ao buscar cotação para ${formattedTicker}:`, error);
     throw new Error(`Erro ao buscar dados para ${formattedTicker}`);
   }
 }

@@ -1,8 +1,9 @@
 import { AppDataSource } from "../config/data-source";
+import { logger } from "./logger";
 
 export async function ensureDataSource() {
   if (!AppDataSource.isInitialized) {
     await AppDataSource.initialize();
-    console.log("📦 AppDataSource inicializado automaticamente");
+    logger.info("📦 AppDataSource inicializado automaticamente");
   }
 }

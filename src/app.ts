@@ -17,6 +17,8 @@ import {
 import { corsOptions } from "./config/cors";
 import cors from "cors";
 import { helmetOptions } from "./config/helmet";
+import { requestLogger } from "./middlewares/request-logger";
+import { logger } from "./utils/logger";
 
 dotenv.config();
 
@@ -26,6 +28,7 @@ const app = express();
 app.use(express.json());
 app.use(cors(corsOptions));
 app.use(helmetOptions);
+app.use(requestLogger);
 app.use(appLimiter);
 
 // Rotas
@@ -39,7 +42,7 @@ app.use(errorHandler);
 
 // Inicializa conexão com o banco
 AppDataSource.initialize()
-  .then(() => console.log("📦 Banco conectado com sucesso"))
-  .catch((err) => console.error("Erro ao conectar banco:", err));
+  .then(() => logger.info("📦 Banco conectado com sucesso"))
+  .catch((err) => logger.error("Erro ao conectar banco:", err));
 
 export default app;

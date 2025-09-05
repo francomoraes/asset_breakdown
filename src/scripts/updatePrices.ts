@@ -1,3 +1,4 @@
+import { logger } from "../../src/utils/logger";
 import { AppDataSource } from "../config/data-source";
 import { calculateDerivedFields } from "../utils/calculate-derived-fields";
 import { ensureDataSource } from "../utils/ensure-data-source";
@@ -37,8 +38,8 @@ async function updatePricesAndAssets() {
 
 updatePricesAndAssets()
   .then(() => {
-    console.log("Prices and assets updated successfully.");
+    logger.info("Prices and assets updated successfully.");
   })
   .catch((error) => {
-    console.error("Error updating prices and assets:", error);
+    logger.error("Error updating prices and assets:", error);
   });
