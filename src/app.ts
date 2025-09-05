@@ -9,6 +9,11 @@ import assetTypeRoutes from "./routes/asset-type.routes";
 import authRoutes from "./routes/auth.routes";
 import { errorHandler } from "./middlewares/error-handler";
 import { authMiddleware } from "./middlewares/auth.middleware";
+import {
+  appLimiter,
+  authLimiter,
+  strictLimiter,
+} from "./middlewares/rate-limit";
 
 dotenv.config();
 
@@ -16,10 +21,11 @@ const app = express();
 
 // Middlewares
 app.use(express.json());
+app.use(appLimiter);
 
 // Rotas
-app.use("/api", authRoutes);
-app.use("/api", authMiddleware, csvRoutes);
+app.use("/api", authLimiter, authRoutes);
+app.use("/api", authMiddleware, strictLimiter, csvRoutes);
 app.use("/api", authMiddleware, assetRoutes);
 app.use("/api", authMiddleware, summaryRoutes);
 app.use("/api", authMiddleware, assetTypeRoutes);
