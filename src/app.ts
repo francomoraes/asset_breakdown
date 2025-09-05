@@ -14,6 +14,9 @@ import {
   authLimiter,
   strictLimiter,
 } from "./middlewares/rate-limit";
+import { corsOptions } from "./config/cors";
+import cors from "cors";
+import { helmetOptions } from "./config/helmet";
 
 dotenv.config();
 
@@ -21,6 +24,8 @@ const app = express();
 
 // Middlewares
 app.use(express.json());
+app.use(cors(corsOptions));
+app.use(helmetOptions);
 app.use(appLimiter);
 
 // Rotas
