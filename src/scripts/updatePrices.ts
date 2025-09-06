@@ -1,4 +1,4 @@
-import { logger } from "../../src/utils/logger";
+import { logger } from "../utils/logger";
 import { AppDataSource } from "../config/data-source";
 import { calculateDerivedFields } from "../utils/calculate-derived-fields";
 import { ensureDataSource } from "../utils/ensure-data-source";

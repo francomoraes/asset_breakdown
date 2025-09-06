@@ -6,7 +6,7 @@ import { Asset } from "../models/asset";
 import { AppDataSource } from "../config/data-source";
 import { csvAssetSchema } from "../dtos/csv.dto";
 import { getAuthenticatedUserId } from "../utils/get-authenticated-user-id";
-import { getMarketPriceCents } from "utils/get-market-price";
+import { getMarketPriceCents } from "../utils/get-market-price";
 
 function toCents(value: number): number {
   return Math.round(value * 100);

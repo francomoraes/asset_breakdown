@@ -8,7 +8,7 @@ import {
 } from "../dtos/asset-type.dto";
 
 import { getAuthenticatedUserId } from "../utils/get-authenticated-user-id";
-import { ConflictError, NotFoundError } from "errors/app-error";
+import { ConflictError, NotFoundError } from "../errors/app-error";
 
 export const createAssetType = async (
   req: Request,
