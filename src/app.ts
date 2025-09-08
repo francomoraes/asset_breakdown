@@ -19,6 +19,7 @@ import cors from "cors";
 import { helmetOptions } from "./config/helmet";
 import { requestLogger } from "./middlewares/request-logger";
 import { logger } from "./utils/logger";
+import { demoProtection } from "./middlewares/demo-protection";
 
 dotenv.config();
 
@@ -29,6 +30,7 @@ app.use(express.json());
 app.use(cors(corsOptions));
 app.use(helmetOptions);
 app.use(requestLogger);
+app.use(demoProtection);
 app.use(appLimiter);
 
 // Rotas

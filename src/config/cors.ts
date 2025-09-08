@@ -1,15 +1,16 @@
 import cors from "cors";
-
-const isDevelopment = process.env.NODE_ENV === "development";
+import { config } from "./environment";
 
 export const corsOptions: cors.CorsOptions = {
-  origin: isDevelopment
+  origin: config.isDevelopment
     ? [
         "http://localhost:3000",
         "http://localhost:3001",
         "http://localhost:5173",
       ]
-    : process.env.FRONTEND_URL || "https://seudominio.com",
+    : config.frontendUrl === "*"
+    ? true
+    : config.frontendUrl.split(","),
   credentials: true,
   methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
   allowedHeaders: [

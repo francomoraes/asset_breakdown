@@ -209,6 +209,17 @@ POST /api/assets/AAPL/buy
 }
 ```
 
+## 🌐 Live Demo
+
+- **API Base URL:** `https://asset-breakdown-api.onrender.com/api`
+- **Environment:** Demo (rate limited, test data only)
+
+### Quick Test
+
+```bash
+curl https://asset-breakdown-api.onrender.com/api/assets
+# Expected: {"error":"Authorization header missing"}
+
 <div align="center">
 by Franco Moraes
 
@@ -219,3 +230,4 @@ Transforming portfolio management through technology
 <a href="www.github.com/in/francomoraes" target="blank"><img alt="API" src="https://img.shields.io/badge/Github-Visit-black"></a>
 
 </div>
+```

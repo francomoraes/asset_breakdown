@@ -1,5 +1,6 @@
 import winston from "winston";
 import path from "path";
+import { config } from "../config/environment";
 
 const isDevelopment = process.env.NODE_ENV === "development";
 
@@ -24,8 +25,8 @@ const jsonFormat = winston.format.combine(
 );
 
 export const logger = winston.createLogger({
-  level: isDevelopment ? "debug" : "info",
-  format: isDevelopment ? logFormat : jsonFormat,
+  level: config.logLevel,
+  format: config.isDevelopment ? logFormat : jsonFormat,
 
   transports: [
     // Console (sempre)
