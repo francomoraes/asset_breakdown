@@ -10,13 +10,42 @@ export const errorHandler = (
   // Log estruturado do erro
   logError(err, `${req.method} ${req.path}`);
 
+  const sanitizeBody = (body: any) => {
+    if (!body || typeof body !== "object") return body;
+
+    const sanitized = { ...body };
+    const sensitiveFields = [
+      "password",
+      "confirmPassword",
+      "currentPassword",
+      "newPassword",
+      "token",
+      "accessToken",
+      "refreshToken",
+      "apiKey",
+      "secret",
+      "authorization",
+      "creditCard",
+      "ssn",
+      "cpf",
+    ];
+
+    sensitiveFields.forEach((field) => {
+      if (sanitized[field]) {
+        sanitized[field] = "[REDACTED]";
+      }
+    });
+
+    return sanitized;
+  };
+
   // Log adicional com contexto da requisição
   logger.error("Request details", {
     method: req.method,
     url: req.originalUrl,
     ip: req.ip,
     userAgent: req.get("User-Agent"),
-    body: req.body,
+    body: sanitizeBody(req.body),
     query: req.query,
     params: req.params,
   });

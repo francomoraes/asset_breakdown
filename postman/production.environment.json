@@ -1,0 +1,26 @@
+{
+  "id": "prod-environment",
+  "name": "Production",
+  "values": [
+    {
+      "key": "asset_api",
+      "value": "https://asset-breakdown-api.onrender.com/api",
+      "enabled": true
+    },
+    {
+      "key": "token",
+      "value": "",
+      "enabled": true
+    },
+    {
+      "key": "userEmail",
+      "value": "user@test.com",
+      "enabled": true
+    },
+    {
+      "key": "userPassword",
+      "value": "User123!",
+      "enabled": true
+    }
+  ]
+}

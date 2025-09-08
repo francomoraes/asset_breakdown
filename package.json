@@ -14,7 +14,8 @@
     "test:api:full": "newman run postman/asset_breakdown.postman_collection.json -e postman/environment.json --reporters cli",
     "test:api:auth": "newman run postman/asset_breakdown.postman_collection.json -e postman/environment.json --folder auth",
     "test:api:assets": "newman run postman/asset_breakdown.postman_collection.json -e postman/environment.json --folder assets",
-    "test:api:html": "newman run postman/asset_breakdown.postman_collection.json -e postman/environment.json --reporters cli,html --reporter-html-export postman/report.html"
+    "test:api:html": "newman run postman/asset_breakdown.postman_collection.json -e postman/environment.json --reporters cli,html --reporter-html-export postman/report.html",
+    "test:prod:auth": "newman run postman/asset_breakdown.postman_collection.json -e postman/production.environment.json --folder auth --reporters cli"
   },
   "keywords": [],
   "author": "",
