@@ -7,3 +7,5 @@ dist/
 uploads/
 *.zip
 *.log
+postman/results.json
+postman/environment.json

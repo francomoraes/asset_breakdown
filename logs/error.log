@@ -1,0 +1,17 @@
+[2025-09-27 20:41:30] ERROR: Invalid email or password [POST /api/auth/login]
+NotFoundError: Invalid email or password
+    at AuthService.login (C:\Users\Usuario\Documents\Dev\asset_breakdown\backend\dist\services\auth.service.js:48:19)
+    at async login (C:\Users\Usuario\Documents\Dev\asset_breakdown\backend\dist\controllers\auth.controller.js:21:18)
+[2025-09-27 20:41:30] ERROR: Request details
+[2025-09-28 21:57:05] ERROR: ENOENT: no such file or directory, stat 'C:\Users\Usuario\Documents\Dev\asset_breakdown\backend\dist\static\asset-template.csv' [GET /api/csv-template]
+Error: ENOENT: no such file or directory, stat 'C:\Users\Usuario\Documents\Dev\asset_breakdown\backend\dist\static\asset-template.csv'
+[2025-09-28 21:57:05] ERROR: Request details
+[2025-09-28 22:09:36] ERROR: ENOENT: no such file or directory, stat 'C:\Users\Usuario\Documents\Dev\asset_breakdown\backend\dist\static\asset-template.csv' [GET /api/csv-template]
+Error: ENOENT: no such file or directory, stat 'C:\Users\Usuario\Documents\Dev\asset_breakdown\backend\dist\static\asset-template.csv'
+[2025-09-28 22:09:37] ERROR: Request details
+[2025-09-28 22:16:19] ERROR: ENOENT: no such file or directory, stat 'C:\Users\Usuario\Documents\Dev\asset_breakdown\backend\dist\static\asset-template.csv' [GET /api/csv-template]
+Error: ENOENT: no such file or directory, stat 'C:\Users\Usuario\Documents\Dev\asset_breakdown\backend\dist\static\asset-template.csv'
+[2025-09-28 22:16:19] ERROR: Request details
+[2025-09-28 22:17:28] ERROR: ENOENT: no such file or directory, stat 'C:\Users\Usuario\Documents\Dev\asset_breakdown\backend\dist\static\asset-template.csv' [GET /api/csv-template]
+Error: ENOENT: no such file or directory, stat 'C:\Users\Usuario\Documents\Dev\asset_breakdown\backend\dist\static\asset-template.csv'
+[2025-09-28 22:17:28] ERROR: Request details
