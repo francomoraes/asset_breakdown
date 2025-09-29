@@ -2,7 +2,6 @@ import express from "express";
 import multer from "multer";
 
 import { uploadCsv } from "../controllers/csv.controller";
-import path from "path";
 
 const upload = multer({ dest: "src/uploads/" });
 const router = express.Router();

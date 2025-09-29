@@ -7,6 +7,7 @@ import assetRoutes from "./routes/assets.routes";
 import summaryRoutes from "./routes/summary.routes";
 import assetTypeRoutes from "./routes/asset-type.routes";
 import authRoutes from "./routes/auth.routes";
+import assetClassRoutes from "./routes/asset-class.routes";
 import { errorHandler } from "./middlewares/error-handler";
 import { authMiddleware } from "./middlewares/auth.middleware";
 import {
@@ -34,11 +35,13 @@ app.use(demoProtection);
 app.use(appLimiter);
 
 // Rotas
-app.use("/api", authLimiter, authRoutes);
-app.use("/api", authMiddleware, strictLimiter, csvRoutes);
+app.use("/api/auth", authLimiter, authRoutes);
+app.use("/api/csv", authMiddleware, strictLimiter, csvRoutes);
 app.use("/api", authMiddleware, assetRoutes);
 app.use("/api", authMiddleware, summaryRoutes);
+app.use("/api", authMiddleware, assetClassRoutes);
 app.use("/api", authMiddleware, assetTypeRoutes);
+
 // Error handler
 app.use(errorHandler);
 
