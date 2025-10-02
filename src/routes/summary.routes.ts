@@ -6,7 +6,7 @@ import { Router } from "express";
 
 const router = Router();
 
-router.get("/summary", getSummary);
-router.get("/summary/overview", getOverviewByCurrency);
+router.get("/", getSummary);
+router.get("/overview", getOverviewByCurrency);
 
 export default router;

@@ -37,10 +37,10 @@ app.use(appLimiter);
 // Rotas
 app.use("/api/auth", authLimiter, authRoutes);
 app.use("/api/csv", authMiddleware, strictLimiter, csvRoutes);
-app.use("/api", authMiddleware, assetRoutes);
-app.use("/api", authMiddleware, summaryRoutes);
-app.use("/api", authMiddleware, assetClassRoutes);
-app.use("/api", authMiddleware, assetTypeRoutes);
+app.use("/api/assets", authMiddleware, assetRoutes);
+app.use("/api/summary", authMiddleware, summaryRoutes);
+app.use("/api/asset-class", authMiddleware, assetClassRoutes);
+app.use("/api/asset-type", authMiddleware, assetTypeRoutes);
 
 // Error handler
 app.use(errorHandler);
