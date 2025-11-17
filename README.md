@@ -223,8 +223,6 @@ curl https://asset-breakdown-api.onrender.com/api/assets
 <div align="center">
 by Franco Moraes
 
-Transforming portfolio management through technology
-
 <a href="www.linkedin.com/in/francomoraes" target="blank"><img alt="LinkedIn" src="https://img.shields.io/badge/LinkedIn-Connect-blue"></a>
 <a href="www.linkedin.com/in/francomoraes" target="blank"><img alt="Portfolio" src="https://img.shields.io/badge/Portfolio-Visit-green"></a>
 <a href="www.github.com/in/francomoraes" target="blank"><img alt="API" src="https://img.shields.io/badge/Github-Visit-black"></a>
