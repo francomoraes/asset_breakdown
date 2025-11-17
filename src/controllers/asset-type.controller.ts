@@ -54,6 +54,20 @@ export const getAssetTypes = async (
   res.json(assetTypes);
 };
 
+export const getAssetTypeById = async (
+  req: Request,
+  res: Response,
+): Promise<void> => {
+  const userId = getAuthenticatedUserId(req);
+  const id = req.params.id;
+  const assetType = await assetTypeService.getAssetTypeById({ id, userId });
+
+  if (!assetType) {
+    throw new NotFoundError("Asset type not found");
+  }
+  res.json(assetType);
+};
+
 export const updateAssetType = async (
   req: Request,
   res: Response,

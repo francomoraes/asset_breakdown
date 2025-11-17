@@ -46,6 +46,21 @@ export const getAssetClasses = async (
   res.json(assetClasses);
 };
 
+export const getAssetClassById = async (
+  req: Request,
+  res: Response,
+): Promise<void> => {
+  const userId = getAuthenticatedUserId(req);
+  const { id } = req.params;
+
+  const assetClass = await assetClassService.getAssetClassById({
+    id,
+    userId,
+  });
+
+  res.json(assetClass);
+};
+
 export const updateAssetClass = async (
   req: Request,
   res: Response,

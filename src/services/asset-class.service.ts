@@ -35,6 +35,16 @@ export class AssetClassService {
     return assetClasses;
   }
 
+  async getAssetClassById({ id, userId }: { id: string; userId: number }) {
+    const assetClass = await this.assetClassRepo.findOne({
+      where: { id: Number(id), userId },
+    });
+    if (!assetClass) {
+      throw new NotFoundError("Asset class not found");
+    }
+    return assetClass;
+  }
+
   async updateAssetClass({
     id,
     userId,
