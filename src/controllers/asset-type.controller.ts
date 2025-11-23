@@ -78,6 +78,7 @@ export const updateAssetType = async (
     id: req.params.id,
     name: req.body.name,
     targetPercentage: req.body.targetPercentage,
+    assetClassId: req.body.assetClassId,
   };
 
   const result = UpdateAssetTypeDto.safeParse(dtoData);
@@ -86,12 +87,13 @@ export const updateAssetType = async (
     return handleZodError(res, result.error);
   }
 
-  const { id, name, targetPercentage } = result.data;
+  const { id, name, targetPercentage, assetClassId } = result.data;
 
   const assetType = await assetTypeService.updateAssetType({
     id,
     name: name || "",
     targetPercentage: targetPercentage || 0,
+    assetClassId: assetClassId,
     userId,
   });
   res.json({ message: "Asset type updated successfully", assetType });

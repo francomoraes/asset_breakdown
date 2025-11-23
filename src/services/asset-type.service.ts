@@ -80,11 +80,13 @@ export class AssetTypeService {
     id,
     name,
     targetPercentage,
+    assetClassId,
     userId,
   }: {
     id: string;
     name: string;
     targetPercentage: number;
+    assetClassId?: number;
     userId: number;
   }) {
     const assetType = await this.assetTypeRepo.findOne({
@@ -98,6 +100,17 @@ export class AssetTypeService {
     if (name !== undefined) assetType.name = name;
     if (targetPercentage !== undefined)
       assetType.targetPercentage = Number(targetPercentage);
+    if (assetClassId !== undefined) {
+      const assetClass = await this.assetClassRepo.findOne({
+        where: { id: Number(assetClassId), userId },
+      });
+
+      if (!assetClass) {
+        throw new NotFoundError("Asset class not found");
+      }
+
+      assetType.assetClass = assetClass;
+    }
 
     await this.assetTypeRepo.save(assetType);
 
