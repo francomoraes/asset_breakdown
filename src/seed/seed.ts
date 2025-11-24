@@ -15,22 +15,6 @@ AppDataSource.initialize()
   .then(async () => {
     await ensureDataSource();
 
-    const seedUsers = [
-      { id: 0, email: "admin@test.com", password: "Admin123!" },
-      { id: 1, email: "user@test.com", password: "User123!" },
-    ];
-
-    seedUsers.forEach(async (seedUser) => {
-      const { email, password } = seedUser;
-      const hashedPassword = await bcrypt.hash(password, 10);
-      const newUser = AppDataSource.getRepository(User).create({
-        email,
-        password: hashedPassword,
-      });
-      await AppDataSource.getRepository(User).save(newUser);
-      console.log(`User created: ${email}`);
-    });
-
     const shouldReset = process.argv.includes("--reset");
     const shouldClearPriceCache = process.argv.includes("--clear-price-cache");
 
@@ -45,9 +29,37 @@ AppDataSource.initialize()
         TRUNCATE TABLE "asset" RESTART IDENTITY CASCADE;
         TRUNCATE TABLE "asset_type" RESTART IDENTITY CASCADE;
         TRUNCATE TABLE "asset_class" RESTART IDENTITY CASCADE;
+        TRUNCATE TABLE "institution" RESTART IDENTITY CASCADE;
       `);
 
       await queryRunner.release();
+    }
+
+    const userRepository = AppDataSource.getRepository(User);
+    const seedUsersData = [
+      { email: "admin@test.com", password: "Admin123!" },
+      { email: "user@test.com", password: "User123!" },
+    ];
+
+    const seedUsers: User[] = [];
+
+    for (const userData of seedUsersData) {
+      const { email, password } = userData;
+      let user = await userRepository.findOneBy({ email });
+
+      if (!user) {
+        const hashedPassword = await bcrypt.hash(password, 10);
+        user = userRepository.create({
+          email,
+          password: hashedPassword,
+        });
+        await userRepository.save(user);
+        console.log(`User created: ${email}`);
+      } else {
+        console.log(`User already exists: ${email}`);
+      }
+
+      seedUsers.push(user);
     }
 
     if (shouldClearPriceCache) {
@@ -139,7 +151,7 @@ AppDataSource.initialize()
     }
 
     const institutionsRepository = AppDataSource.getRepository(Institution);
-    const institutions = [
+    const institutionsData = [
       {
         name: "Avenue",
         userId: seedUsers[1].id,
@@ -153,6 +165,25 @@ AppDataSource.initialize()
         userId: seedUsers[1].id,
       },
     ];
+
+    const institutions: Institution[] = [];
+
+    for (const instData of institutionsData) {
+      let institution = await institutionsRepository.findOneBy({
+        name: instData.name,
+        userId: instData.userId,
+      });
+
+      if (!institution) {
+        institution = institutionsRepository.create(instData);
+        await institutionsRepository.save(institution);
+        console.log(`Institution created: ${institution.name}`);
+      } else {
+        console.log(`Institution already exists: ${institution.name}`);
+      }
+
+      institutions.push(institution);
+    }
 
     const assetRepository = AppDataSource.getRepository(Asset);
     const seedAssets = [

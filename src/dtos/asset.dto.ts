@@ -18,7 +18,7 @@ export const UpdateAssetDto = z
       .int("O preço médio deve ser um número inteiro")
       .nonnegative("O preço médio deve ser positivo")
       .optional(),
-    institution: z.string().optional(),
+    institutionId: z.number().int().positive().optional(),
     currency: z.string().optional(),
   })
   .strict();
@@ -38,7 +38,7 @@ export const BuyAssetDto = z
       .nonnegative("O preço deve ser positivo"),
 
     type: z.string().optional(),
-    institution: z.string().optional(),
+    institutionId: z.number().int().positive().optional(),
     currency: z.string().optional(),
   })
   .strict();

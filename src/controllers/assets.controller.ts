@@ -80,7 +80,7 @@ export const buyAsset = async (req: Request, res: Response): Promise<void> => {
     quantity: req.body.quantity,
     priceCents: req.body.priceCents,
     type: req.body.type,
-    institution: req.body.institution,
+    institutionId: req.body.institutionId,
     currency: req.body.currency,
   };
 
@@ -93,7 +93,7 @@ export const buyAsset = async (req: Request, res: Response): Promise<void> => {
     quantity: newQuantity,
     priceCents: newPriceCents,
     type,
-    institution,
+    institutionId,
     currency,
   } = result.data;
 
@@ -103,7 +103,7 @@ export const buyAsset = async (req: Request, res: Response): Promise<void> => {
     newQuantity,
     newPriceCents,
     type,
-    institution,
+    institutionId,
     currency,
   });
 

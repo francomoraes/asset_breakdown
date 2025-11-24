@@ -19,7 +19,7 @@ type UpdateAssetData = {
   ticker?: string;
   quantity?: number;
   averagePriceCents?: number;
-  institution?: string;
+  institutionId?: number;
   currency?: string;
 };
 
@@ -83,8 +83,14 @@ export class AssetService {
       );
     }
 
-    const { ticker, quantity, averagePriceCents, institution, currency, type } =
-      updateData;
+    const {
+      ticker,
+      quantity,
+      averagePriceCents,
+      institutionId,
+      currency,
+      type,
+    } = updateData;
 
     const newQuantity = quantity ?? existingAsset.quantity;
     const newAveragePriceCents =
@@ -108,10 +114,20 @@ export class AssetService {
       throw new NotFoundError(`Asset type ${type} not found`);
     }
 
-    const institutionRepository = this.institutionRepo;
-    const assetInstitution = await institutionRepository.findOneBy({
-      name: institution,
-    });
+    let institutionEntity = existingAsset.institution;
+    if (institutionId !== undefined) {
+      const foundInstitution = await this.institutionRepo.findOne({
+        where: { id: institutionId, userId: requestUserId },
+      });
+
+      if (!foundInstitution) {
+        throw new NotFoundError(
+          `Institution with id ${institutionId} not found`,
+        );
+      }
+
+      institutionEntity = foundInstitution;
+    }
 
     Object.assign(existingAsset, {
       type: assetType,
@@ -124,7 +140,7 @@ export class AssetService {
       resultCents,
       returnPercentage,
       portfolioPercentage: 0,
-      institution: assetInstitution,
+      institution: institutionEntity,
       currency,
     });
 
@@ -165,7 +181,7 @@ export class AssetService {
     newQuantity,
     newPriceCents,
     type,
-    institution,
+    institutionId,
     currency,
   }: {
     userId: number;
@@ -173,7 +189,7 @@ export class AssetService {
     newQuantity: number;
     newPriceCents: number;
     type?: string;
-    institution?: string;
+    institutionId?: number;
     currency?: string;
   }) {
     let asset = await this.assetRepo.findOne({ where: { ticker, userId } });
@@ -203,12 +219,14 @@ export class AssetService {
           throw new NotFoundError(`Asset type ${type} not found`);
         }
 
-        const assetInstitution = await institutionRepository.findOneBy({
-          name: institution,
+        const assetInstitution = await institutionRepository.findOne({
+          where: { id: institutionId, userId },
         });
 
         if (!assetInstitution) {
-          throw new NotFoundError(`Institution ${institution} not found`);
+          throw new NotFoundError(
+            `Institution with id ${institutionId} not found`,
+          );
         }
 
         const newAsset = {

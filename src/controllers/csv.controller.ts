@@ -56,7 +56,7 @@ export const uploadCsv = async (req: Request, res: Response): Promise<void> => {
             ticker,
             quantity: quantityStr,
             averagePrice: averagePriceStr,
-            institution,
+            institutionName,
             currency,
           } = validation.data;
 
@@ -88,12 +88,12 @@ export const uploadCsv = async (req: Request, res: Response): Promise<void> => {
           }
 
           const assetInstitution = await institutionRepository.findOneBy({
-            name: institution,
+            name: institutionName,
           });
 
           if (!assetInstitution) {
             return res.status(400).json({
-              error: `Institution "${institution}" not found`,
+              error: `Institution ${institutionName} not found`,
             });
           }
 
