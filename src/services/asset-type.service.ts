@@ -54,7 +54,7 @@ export class AssetTypeService {
   async getAssetTypes({ userId }: { userId: number }) {
     const assetTypes = await this.assetTypeRepo.find({
       where: { userId },
-      order: { id: "ASC" },
+      order: { name: "ASC" },
     });
 
     return assetTypes;

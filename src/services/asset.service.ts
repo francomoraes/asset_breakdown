@@ -11,6 +11,7 @@ import { Repository } from "typeorm";
 import { calculateDerivedFields } from "../utils/calculate-derived-fields";
 import { getMarketPriceCents } from "../utils/get-market-price";
 import { recalculatePortfolio } from "../utils/recalculate-portfolio";
+import { Institution } from "models/institution";
 
 type UpdateAssetData = {
   id: number;
@@ -26,6 +27,7 @@ export class AssetService {
   constructor(
     private assetRepo: Repository<Asset>,
     private assetTypeRepo: Repository<AssetType>,
+    private institutionRepo: Repository<Institution>,
   ) {}
 
   async getAsset() {
@@ -40,6 +42,7 @@ export class AssetService {
         type: {
           assetClass: true,
         },
+        institution: true,
       },
       order: {
         id: "ASC",
@@ -105,6 +108,11 @@ export class AssetService {
       throw new NotFoundError(`Asset type ${type} not found`);
     }
 
+    const institutionRepository = this.institutionRepo;
+    const assetInstitution = await institutionRepository.findOneBy({
+      name: institution,
+    });
+
     Object.assign(existingAsset, {
       type: assetType,
       ticker,
@@ -116,7 +124,7 @@ export class AssetService {
       resultCents,
       returnPercentage,
       portfolioPercentage: 0,
-      institution,
+      institution: assetInstitution,
       currency,
     });
 
@@ -170,6 +178,7 @@ export class AssetService {
   }) {
     let asset = await this.assetRepo.findOne({ where: { ticker, userId } });
     const assetTypeRepository = this.assetTypeRepo;
+    const institutionRepository = this.institutionRepo;
 
     if (!asset) {
       try {
@@ -194,6 +203,14 @@ export class AssetService {
           throw new NotFoundError(`Asset type ${type} not found`);
         }
 
+        const assetInstitution = await institutionRepository.findOneBy({
+          name: institution,
+        });
+
+        if (!assetInstitution) {
+          throw new NotFoundError(`Institution ${institution} not found`);
+        }
+
         const newAsset = {
           userId,
           type: assetType,
@@ -206,7 +223,7 @@ export class AssetService {
           resultCents,
           returnPercentage,
           portfolioPercentage: 0,
-          institution,
+          institution: assetInstitution,
           currency,
         };
 
@@ -352,7 +369,7 @@ export class AssetService {
       currentValueCents: asset.currentValueCents,
       resultCents: asset.resultCents,
       returnPercentage: asset.returnPercentage,
-      institution: asset.institution,
+      institution: asset.institution.name,
       currency: asset.currency,
       type: asset.type.name,
       class: asset.type.assetClass.name,
@@ -368,4 +385,5 @@ export class AssetService {
 export const assetService = new AssetService(
   AppDataSource.getRepository(Asset),
   AppDataSource.getRepository(AssetType),
+  AppDataSource.getRepository(Institution),
 );

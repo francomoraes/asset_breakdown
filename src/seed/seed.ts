@@ -9,6 +9,7 @@ import { ensureDataSource } from "../utils/ensure-data-source";
 import { PriceCache } from "../models/price-cache";
 import { User } from "../models/user";
 import bcrypt from "bcrypt";
+import { Institution } from "models/institution";
 
 AppDataSource.initialize()
   .then(async () => {
@@ -137,6 +138,22 @@ AppDataSource.initialize()
       }
     }
 
+    const institutionsRepository = AppDataSource.getRepository(Institution);
+    const institutions = [
+      {
+        name: "Avenue",
+        userId: seedUsers[1].id,
+      },
+      {
+        name: "XP Investimentos",
+        userId: seedUsers[1].id,
+      },
+      {
+        name: "Binance",
+        userId: seedUsers[1].id,
+      },
+    ];
+
     const assetRepository = AppDataSource.getRepository(Asset);
     const seedAssets = [
       {
@@ -145,6 +162,7 @@ AppDataSource.initialize()
         quantity: 23.28,
         averagePrice: 110.35,
         currency: "USD",
+        institution: institutions[0].name,
       },
       {
         type: "Ouro",
@@ -152,6 +170,7 @@ AppDataSource.initialize()
         quantity: 70.0,
         averagePrice: 35.56,
         currency: "USD",
+        institution: institutions[0].name,
       },
       {
         type: "Prata",
@@ -159,6 +178,7 @@ AppDataSource.initialize()
         quantity: 66.0,
         averagePrice: 20.92,
         currency: "USD",
+        institution: institutions[0].name,
       },
       {
         type: "Reits",
@@ -166,6 +186,7 @@ AppDataSource.initialize()
         quantity: 16.44,
         averagePrice: 83.64,
         currency: "USD",
+        institution: institutions[0].name,
       },
       {
         type: "Stocks",
@@ -173,6 +194,7 @@ AppDataSource.initialize()
         quantity: 0.5,
         averagePrice: 376.51,
         currency: "USD",
+        institution: institutions[0].name,
       },
       {
         type: "Stocks",
@@ -180,6 +202,7 @@ AppDataSource.initialize()
         quantity: 8.07,
         averagePrice: 31.6,
         currency: "USD",
+        institution: institutions[0].name,
       },
       {
         type: "Inflação",
@@ -187,6 +210,7 @@ AppDataSource.initialize()
         quantity: 121.0,
         averagePrice: 88.66,
         currency: "BRL",
+        institution: institutions[1].name,
       },
       {
         type: "Inflação",
@@ -194,6 +218,7 @@ AppDataSource.initialize()
         quantity: 171.0,
         averagePrice: 104.78,
         currency: "BRL",
+        institution: institutions[1].name,
       },
       {
         type: "Pós-fixado",
@@ -201,6 +226,7 @@ AppDataSource.initialize()
         quantity: 146.0,
         averagePrice: 106.02,
         currency: "BRL",
+        institution: institutions[1].name,
       },
       {
         type: "Altcoin",
@@ -208,6 +234,7 @@ AppDataSource.initialize()
         quantity: 0.36,
         averagePrice: 2485.73,
         currency: "USD",
+        institution: institutions[2].name,
       },
       {
         type: "Bitcoin",
@@ -215,6 +242,7 @@ AppDataSource.initialize()
         quantity: 0.04,
         averagePrice: 40930.03,
         currency: "USD",
+        institution: institutions[2].name,
       },
       {
         type: "FIIs",
@@ -222,6 +250,7 @@ AppDataSource.initialize()
         quantity: 10.0,
         averagePrice: 97.62,
         currency: "BRL",
+        institution: institutions[1].name,
       },
       {
         type: "FIIs",
@@ -229,6 +258,7 @@ AppDataSource.initialize()
         quantity: 15.0,
         averagePrice: 84.46,
         currency: "BRL",
+        institution: institutions[1].name,
       },
       {
         type: "Stocks",
@@ -236,6 +266,7 @@ AppDataSource.initialize()
         quantity: 0.68,
         averagePrice: 94.7,
         currency: "USD",
+        institution: institutions[0].name,
       },
     ];
 
@@ -245,6 +276,7 @@ AppDataSource.initialize()
       quantity,
       averagePrice,
       currency,
+      institution,
     } of seedAssets) {
       const assetType = await assetTypeRepository.findOneBy({
         name: type,
@@ -253,6 +285,18 @@ AppDataSource.initialize()
 
       if (!assetType) {
         console.warn(`Asset type ${type} not found for ticker ${ticker}`);
+        continue;
+      }
+
+      const assetInstitution = await institutionsRepository.findOneBy({
+        name: institution,
+        userId: seedUsers[1].id,
+      });
+
+      if (!assetInstitution) {
+        console.warn(
+          `Institution ${institution} not found for ticker ${ticker}`,
+        );
         continue;
       }
 
@@ -286,7 +330,7 @@ AppDataSource.initialize()
           resultCents,
           returnPercentage,
           portfolioPercentage: 0,
-          institution: "Teste",
+          institution: assetInstitution,
           currency,
           type: assetType,
           userId: seedUsers[1].id,

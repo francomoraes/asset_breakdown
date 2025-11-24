@@ -7,6 +7,7 @@ import {
   UpdateDateColumn,
 } from "typeorm";
 import { AssetType } from "./asset-type";
+import { Institution } from "models/institution";
 
 @Entity("asset")
 export class Asset {
@@ -46,8 +47,10 @@ export class Asset {
   @Column("decimal", { precision: 5, scale: 2 })
   portfolioPercentage!: number;
 
-  @Column("text")
-  institution!: string;
+  @ManyToOne(() => Institution, (institution) => institution.assets, {
+    eager: true,
+  })
+  institution!: Institution;
 
   @Column("text")
   currency!: string;

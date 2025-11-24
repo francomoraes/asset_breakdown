@@ -1,26 +1,31 @@
 import "tsconfig-paths/register";
-import express from "express";
+import cors from "cors";
 import dotenv from "dotenv";
+import express from "express";
+
 import { AppDataSource } from "./config/data-source";
-import csvRoutes from "./routes/csv.routes";
-import assetRoutes from "./routes/assets.routes";
-import summaryRoutes from "./routes/summary.routes";
-import assetTypeRoutes from "./routes/asset-type.routes";
-import authRoutes from "./routes/auth.routes";
-import assetClassRoutes from "./routes/asset-class.routes";
-import { errorHandler } from "./middlewares/error-handler";
-import { authMiddleware } from "./middlewares/auth.middleware";
+import { corsOptions } from "./config/cors";
+import { helmetOptions } from "./config/helmet";
+
+import { logger } from "./utils/logger";
+
 import {
   appLimiter,
   authLimiter,
   strictLimiter,
 } from "./middlewares/rate-limit";
-import { corsOptions } from "./config/cors";
-import cors from "cors";
-import { helmetOptions } from "./config/helmet";
-import { requestLogger } from "./middlewares/request-logger";
-import { logger } from "./utils/logger";
+import { authMiddleware } from "./middlewares/auth.middleware";
 import { demoProtection } from "./middlewares/demo-protection";
+import { errorHandler } from "./middlewares/error-handler";
+import { requestLogger } from "./middlewares/request-logger";
+
+import assetClassRoutes from "./routes/asset-class.routes";
+import assetRoutes from "./routes/assets.routes";
+import assetTypeRoutes from "./routes/asset-type.routes";
+import authRoutes from "./routes/auth.routes";
+import csvRoutes from "./routes/csv.routes";
+import institutionRoutes from "./routes/institution.routes";
+import summaryRoutes from "./routes/summary.routes";
 
 dotenv.config();
 
@@ -41,6 +46,7 @@ app.use("/api/assets", authMiddleware, assetRoutes);
 app.use("/api/summary", authMiddleware, summaryRoutes);
 app.use("/api/asset-class", authMiddleware, assetClassRoutes);
 app.use("/api/asset-type", authMiddleware, assetTypeRoutes);
+app.use("/api/institutions", authMiddleware, institutionRoutes);
 
 // Error handler
 app.use(errorHandler);

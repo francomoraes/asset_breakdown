@@ -7,6 +7,8 @@ import { AppDataSource } from "../config/data-source";
 import { csvAssetSchema } from "../dtos/csv.dto";
 import { getAuthenticatedUserId } from "../utils/get-authenticated-user-id";
 import { getMarketPriceCents } from "../utils/get-market-price";
+import { AssetType } from "models/asset-type";
+import { Institution } from "models/institution";
 
 function toCents(value: number): number {
   return Math.round(value * 100);
@@ -25,7 +27,8 @@ export const uploadCsv = async (req: Request, res: Response): Promise<void> => {
   const assetRepository = AppDataSource.getRepository(Asset);
   await assetRepository.delete({ userId });
 
-  const assetTypeRepository = AppDataSource.getRepository("AssetType");
+  const assetTypeRepository = AppDataSource.getRepository(AssetType);
+  const institutionRepository = AppDataSource.getRepository(Institution);
 
   const assets: Asset[] = [];
   let totalCurrentValue = 0;
@@ -84,6 +87,16 @@ export const uploadCsv = async (req: Request, res: Response): Promise<void> => {
             });
           }
 
+          const assetInstitution = await institutionRepository.findOneBy({
+            name: institution,
+          });
+
+          if (!assetInstitution) {
+            return res.status(400).json({
+              error: `Institution "${institution}" not found`,
+            });
+          }
+
           const assetInfo = {
             userId,
             type: assetType,
@@ -97,7 +110,7 @@ export const uploadCsv = async (req: Request, res: Response): Promise<void> => {
             returnPercentage: Number(
               ((result / investedValue) * 100).toFixed(2),
             ),
-            institution: institution,
+            institution: assetInstitution,
             currency: currency,
             portfolioPercentage: 0,
           };
