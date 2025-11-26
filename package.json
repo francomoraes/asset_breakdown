@@ -10,7 +10,6 @@
     "seed:dev": "NODE_ENV=development ts-node src/seed/seed.ts",
     "seed:demo": "NODE_ENV=demo ts-node src/seed/seed.ts",
     "reset": "npm run seed -- --drop-schema --reset --clear-price-cache",
-    "update:prices": "ts-node -r tsconfig-paths/register src/scripts/updatePrices.ts",
     "test:api": "newman run postman/collection.json -e postman/environment.json --reporters cli,json --reporter-json-export postman/results.json",
     "test:api:verbose": "newman run postman/collection.json -e postman/environment.json --reporters cli --verbose",
     "test:api:full": "newman run postman/asset_breakdown.postman_collection.json -e postman/environment.json --reporters cli",

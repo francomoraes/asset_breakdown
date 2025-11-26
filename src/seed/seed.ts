@@ -2,7 +2,7 @@ import { AppDataSource } from "../config/data-source";
 import { AssetClass } from "../models/asset-class";
 import { AssetType } from "../models/asset-type";
 import { Asset } from "../models/asset";
-import { getMarketPriceCents } from "../utils/get-market-price";
+import { getMarketPriceCentsBatch } from "../utils/get-market-price-batch";
 import { calculateDerivedFields } from "../utils/calculate-derived-fields";
 import { recalculatePortfolio } from "../utils/recalculate-portfolio";
 import { ensureDataSource } from "../utils/ensure-data-source";
@@ -301,6 +301,12 @@ AppDataSource.initialize()
       },
     ];
 
+    // Buscar todos os preços em batch (uma única requisição)
+    console.log("🔍 Buscando preços em batch...");
+    const allTickers = seedAssets.map((a) => a.ticker);
+    const pricesMap = await getMarketPriceCentsBatch(allTickers);
+    console.log(`✅ ${pricesMap.size} preços obtidos`);
+
     for (const {
       ticker,
       type,
@@ -331,7 +337,13 @@ AppDataSource.initialize()
         continue;
       }
 
-      const currentPriceCents = await getMarketPriceCents(ticker);
+      const currentPriceCents = pricesMap.get(ticker);
+
+      if (!currentPriceCents) {
+        console.warn(`⚠️  Preço não encontrado para ${ticker}, pulando...`);
+        continue;
+      }
+
       const averagePriceCents = Math.round(averagePrice * 100);
 
       const {

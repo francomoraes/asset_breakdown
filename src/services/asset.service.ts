@@ -12,6 +12,7 @@ import { calculateDerivedFields } from "../utils/calculate-derived-fields";
 import { getMarketPriceCents } from "../utils/get-market-price";
 import { recalculatePortfolio } from "../utils/recalculate-portfolio";
 import { Institution } from "models/institution";
+import { getMarketPriceCentsBatch } from "utils/get-market-price-batch";
 
 type UpdateAssetData = {
   id: number;
@@ -397,6 +398,60 @@ export class AssetService {
     const csv = parser.parse(data);
 
     return csv;
+  }
+
+  async updateUserAssetsPrices(userId: number) {
+    const assets = await this.assetRepo.find({ where: { userId } });
+
+    if (!assets.length) {
+      throw new NotFoundError(`No assets found for user ${userId}`);
+    }
+
+    const tickers = assets.map((asset) => asset.ticker);
+
+    const results = await getMarketPriceCentsBatch(tickers);
+
+    const assetsToUpdate: Asset[] = [];
+    const failedTickers: string[] = [];
+
+    for (const asset of assets) {
+      const currentPriceCents = results.get(asset.ticker);
+
+      if (currentPriceCents === undefined) {
+        failedTickers.push(asset.ticker);
+        continue;
+      }
+
+      const {
+        currentValueCents,
+        investedValueCents,
+        resultCents,
+        returnPercentage,
+      } = calculateDerivedFields(
+        asset.quantity,
+        asset.averagePriceCents,
+        currentPriceCents,
+      );
+
+      asset.currentPriceCents = currentPriceCents;
+      asset.currentValueCents = currentValueCents;
+      asset.investedValueCents = investedValueCents;
+      asset.resultCents = resultCents;
+      asset.returnPercentage = returnPercentage;
+
+      assetsToUpdate.push(asset);
+    }
+
+    if (assetsToUpdate.length > 0) {
+      await this.assetRepo.save(assetsToUpdate);
+      await recalculatePortfolio();
+    }
+
+    return {
+      updated: assetsToUpdate.length,
+      failed: failedTickers.length,
+      failedTickers,
+    };
   }
 }
 

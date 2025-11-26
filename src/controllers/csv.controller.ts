@@ -6,7 +6,7 @@ import { Asset } from "../models/asset";
 import { AppDataSource } from "../config/data-source";
 import { csvAssetSchema } from "../dtos/csv.dto";
 import { getAuthenticatedUserId } from "../utils/get-authenticated-user-id";
-import { getMarketPriceCents } from "../utils/get-market-price";
+import { getMarketPriceCentsBatch } from "../utils/get-market-price-batch";
 import { AssetType } from "models/asset-type";
 import { Institution } from "models/institution";
 
@@ -40,6 +40,8 @@ export const uploadCsv = async (req: Request, res: Response): Promise<void> => {
     .on("data", (row) => rows.push(row))
     .on("end", async () => {
       try {
+        // Validar todas as linhas primeiro
+        const validatedRows = [];
         for (const row of rows) {
           const validation = csvAssetSchema.safeParse(row);
 
@@ -51,6 +53,14 @@ export const uploadCsv = async (req: Request, res: Response): Promise<void> => {
             });
           }
 
+          validatedRows.push(validation.data);
+        }
+
+        // Buscar todos os preços em batch (uma única requisição!)
+        const allTickers = validatedRows.map((r) => r.ticker);
+        const pricesMap = await getMarketPriceCentsBatch(allTickers);
+
+        for (const row of validatedRows) {
           const {
             type,
             ticker,
@@ -58,7 +68,7 @@ export const uploadCsv = async (req: Request, res: Response): Promise<void> => {
             averagePrice: averagePriceStr,
             institutionName,
             currency,
-          } = validation.data;
+          } = row;
 
           const quantity = Number(quantityStr);
           const averagePrice = toCents(
@@ -66,14 +76,12 @@ export const uploadCsv = async (req: Request, res: Response): Promise<void> => {
           );
           const investedValue = Math.round(quantity * averagePrice);
 
-          let currentPriceCents = 0;
+          const currentPriceCents = pricesMap.get(ticker);
 
-          try {
-            currentPriceCents = await getMarketPriceCents(ticker);
-          } catch (error) {
-            throw new Error(
-              `Error fetching market price for ${ticker}: ${error}`,
-            );
+          if (!currentPriceCents) {
+            return res.status(400).json({
+              error: `Market price not found for ticker ${ticker}`,
+            });
           }
 
           const currentValue = Math.round(quantity * currentPriceCents);

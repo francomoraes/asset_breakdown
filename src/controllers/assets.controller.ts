@@ -9,7 +9,6 @@ import {
   UpdateAssetDto,
 } from "../dtos/asset.dto";
 import { getAuthenticatedUserId } from "../utils/get-authenticated-user-id";
-import { ForbiddenError, NotFoundError } from "../errors/app-error";
 
 export const getAssets = async (req: Request, res: Response) => {
   const assets = await assetService.getAsset();
@@ -154,4 +153,18 @@ export const exportAssetCsv = async (
   res.header("Content-Type", "text/csv");
   res.attachment("assets.csv");
   res.send(csv);
+};
+
+export const refreshMarketPrices = async (
+  req: Request,
+  res: Response,
+): Promise<void> => {
+  const userId = getAuthenticatedUserId(req);
+
+  const result = await assetService.updateUserAssetsPrices(userId);
+
+  res.json({
+    message: "Market prices refreshed",
+    ...result,
+  });
 };
