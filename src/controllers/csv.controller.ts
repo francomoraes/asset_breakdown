@@ -9,6 +9,8 @@ import { getAuthenticatedUserId } from "../utils/get-authenticated-user-id";
 import { getMarketPriceCentsBatch } from "../utils/get-market-price-batch";
 import { AssetType } from "models/asset-type";
 import { Institution } from "models/institution";
+import { recalculatePortfolio } from "../utils/recalculate-portfolio";
+import { calculateDerivedFields } from "../utils/calculate-derived-fields";
 
 function toCents(value: number): number {
   return Math.round(value * 100);
@@ -25,13 +27,10 @@ export const uploadCsv = async (req: Request, res: Response): Promise<void> => {
   }
 
   const assetRepository = AppDataSource.getRepository(Asset);
-  await assetRepository.delete({ userId });
-
   const assetTypeRepository = AppDataSource.getRepository(AssetType);
   const institutionRepository = AppDataSource.getRepository(Institution);
 
   const assets: Asset[] = [];
-  let totalCurrentValue = 0;
   const rows: any[] = [];
   const stream = fs.createReadStream(file.path);
 
@@ -40,7 +39,6 @@ export const uploadCsv = async (req: Request, res: Response): Promise<void> => {
     .on("data", (row) => rows.push(row))
     .on("end", async () => {
       try {
-        // Validar todas as linhas primeiro
         const validatedRows = [];
         for (const row of rows) {
           const validation = csvAssetSchema.safeParse(row);
@@ -56,7 +54,6 @@ export const uploadCsv = async (req: Request, res: Response): Promise<void> => {
           validatedRows.push(validation.data);
         }
 
-        // Buscar todos os preços em batch (uma única requisição!)
         const allTickers = validatedRows.map((r) => r.ticker);
         const pricesMap = await getMarketPriceCentsBatch(allTickers);
 
@@ -71,10 +68,9 @@ export const uploadCsv = async (req: Request, res: Response): Promise<void> => {
           } = row;
 
           const quantity = Number(quantityStr);
-          const averagePrice = toCents(
+          const averagePriceCents = toCents(
             Number(averagePriceStr.replace(",", ".")),
           );
-          const investedValue = Math.round(quantity * averagePrice);
 
           const currentPriceCents = pricesMap.get(ticker);
 
@@ -84,64 +80,79 @@ export const uploadCsv = async (req: Request, res: Response): Promise<void> => {
             });
           }
 
-          const currentValue = Math.round(quantity * currentPriceCents);
-          const result = currentValue - investedValue;
-
-          const assetType = await assetTypeRepository.findOneBy({ name: type });
+          const assetType = await assetTypeRepository.findOne({
+            where: { name: type, userId },
+          });
 
           if (!assetType) {
             return res.status(400).json({
-              error: `Asset type "${type}" not found`,
+              error: `Asset type "${type}" not found for this user`,
             });
           }
 
-          const assetInstitution = await institutionRepository.findOneBy({
-            name: institutionName,
+          const assetInstitution = await institutionRepository.findOne({
+            where: { name: institutionName, userId },
           });
 
           if (!assetInstitution) {
             return res.status(400).json({
-              error: `Institution ${institutionName} not found`,
+              error: `Institution "${institutionName}" not found for this user`,
             });
           }
 
-          const assetInfo = {
-            userId,
-            type: assetType,
-            ticker,
+          const {
+            investedValueCents,
+            currentValueCents,
+            resultCents,
+            returnPercentage,
+          } = calculateDerivedFields(
             quantity,
-            averagePriceCents: averagePrice,
+            averagePriceCents,
             currentPriceCents,
-            investedValueCents: investedValue,
-            currentValueCents: currentValue,
-            resultCents: result,
-            returnPercentage: Number(
-              ((result / investedValue) * 100).toFixed(2),
-            ),
-            institution: assetInstitution,
-            currency: currency,
-            portfolioPercentage: 0,
-          };
+          );
 
-          const asset = assetRepository.create(assetInfo);
+          let existingAsset = await assetRepository.findOne({
+            where: { ticker, userId },
+          });
 
-          assets.push(asset);
-          totalCurrentValue += currentValue;
-        }
-
-        for (const asset of assets) {
-          if (totalCurrentValue === 0) {
-            asset.portfolioPercentage = 0;
-          } else if (asset.currentValueCents === 0) {
-            asset.portfolioPercentage = 0;
+          if (existingAsset) {
+            Object.assign(existingAsset, {
+              type: assetType,
+              quantity,
+              averagePriceCents,
+              currentPriceCents,
+              investedValueCents,
+              currentValueCents,
+              resultCents,
+              returnPercentage,
+              institution: assetInstitution,
+              currency,
+              portfolioPercentage: 0,
+            });
+            assets.push(existingAsset);
           } else {
-            asset.portfolioPercentage = Number(
-              ((asset.currentValueCents / totalCurrentValue) * 100).toFixed(2),
-            );
+            const newAsset = assetRepository.create({
+              userId,
+              type: assetType,
+              ticker,
+              quantity,
+              averagePriceCents,
+              currentPriceCents,
+              investedValueCents,
+              currentValueCents,
+              resultCents,
+              returnPercentage,
+              institution: assetInstitution,
+              currency,
+              portfolioPercentage: 0,
+            });
+            assets.push(newAsset);
           }
         }
 
         await assetRepository.save(assets);
+
+        await recalculatePortfolio(userId);
 
         try {
           fs.unlinkSync(file.path);

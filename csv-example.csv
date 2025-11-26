@@ -1,0 +1,6 @@
+type,ticker,quantity,averagePrice,institutionName,currency
+Stocks,AAPL,10,150.50,Avenue,USD
+Bitcoin,BTC-USD,0.5,45000.00,Binance,USD
+FIIs,TRXF11,100,97.62,XP Investimentos,BRL
+Reits,VNQ,20,83.64,Avenue,USD
+Inflação,B5P211,150,88.66,XP Investimentos,BRL

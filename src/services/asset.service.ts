@@ -260,7 +260,7 @@ export class AssetService {
       }
     }
 
-    const totalQuantity = +Math.round(+asset.quantity + newQuantity);
+    const totalQuantity = Number(Math.round(+asset.quantity + newQuantity));
 
     const newAveragePriceCents = Math.round(
       (+asset.quantity * asset.averagePriceCents +
@@ -268,7 +268,7 @@ export class AssetService {
         totalQuantity,
     );
 
-    asset.quantity = +totalQuantity;
+    asset.quantity = Number(totalQuantity);
     asset.averagePriceCents = newAveragePriceCents;
     asset.investedValueCents = totalQuantity * newAveragePriceCents;
 

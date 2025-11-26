@@ -37,7 +37,7 @@ const authLimiter = rateLimit({
 
 const strictLimiter = rateLimit({
   windowMs: 60 * 60 * 1000, // 1 hour
-  max: 5, // limit each IP to 5 requests per windowMs
+  max: 50, // limit each IP to 5 requests per windowMs
   message: {
     error: "Too many requests from this IP, please try again later.",
     retryAfter: "1 hour",

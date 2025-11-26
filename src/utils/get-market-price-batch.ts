@@ -5,7 +5,7 @@ import { PriceCache } from "../models/price-cache";
 import { ensureDataSource } from "../utils/ensure-data-source";
 import { logger } from "../utils/logger";
 
-const TTL_HOURS = 0.0011; // 4 segundos
+const TTL_HOURS = 24;
 
 function isFresh(updatedAt: Date): boolean {
   const cacheDate = new Date(updatedAt);
