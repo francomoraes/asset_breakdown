@@ -13,6 +13,8 @@ import { getMarketPriceCents } from "../utils/get-market-price";
 import { recalculatePortfolio } from "../utils/recalculate-portfolio";
 import { Institution } from "models/institution";
 import { getMarketPriceCentsBatch } from "utils/get-market-price-batch";
+import { ALLOWED_SORT_FIELDS } from "enums/allowedSortFields.enum";
+import { PaginatedResponseDto } from "dtos/pagination.dto";
 
 type UpdateAssetData = {
   id: number;
@@ -51,6 +53,63 @@ export class AssetService {
     });
 
     return assets;
+  }
+
+  async getAssetsByUserPaginated({
+    userId,
+    currentPage = 1,
+    itemsPerPage = 10,
+    sortBy = ALLOWED_SORT_FIELDS.TICKER,
+    order = "ASC",
+  }: {
+    userId: number;
+    currentPage?: number;
+    itemsPerPage?: number;
+    sortBy?: ALLOWED_SORT_FIELDS;
+    order?: "ASC" | "DESC";
+  }): Promise<PaginatedResponseDto<Asset>> {
+    const allowedSortFields = Object.values(ALLOWED_SORT_FIELDS);
+    const safeSortBy = allowedSortFields.includes(sortBy)
+      ? sortBy
+      : ALLOWED_SORT_FIELDS.TICKER;
+
+    const totalItems = await this.assetRepo.count({ where: { userId } });
+    const totalPages = Math.ceil(totalItems / itemsPerPage);
+
+    const validPage = Math.min(Math.max(currentPage, 1), totalPages || 1);
+
+    const hasNextPage = validPage < totalPages;
+    const hasPreviousPage = validPage > 1;
+
+    const skip = (validPage - 1) * itemsPerPage;
+    const take = itemsPerPage;
+
+    const [assets, _] = await this.assetRepo.findAndCount({
+      where: { userId },
+      relations: {
+        type: {
+          assetClass: true,
+        },
+        institution: true,
+      },
+      order: {
+        [safeSortBy]: order,
+      },
+      skip,
+      take,
+    });
+
+    return {
+      data: assets,
+      meta: {
+        totalItems: totalItems,
+        currentPage: validPage,
+        itemsPerPage,
+        totalPages,
+        hasNextPage,
+        hasPreviousPage,
+      },
+    };
   }
 
   async getAssetById(id: number) {
