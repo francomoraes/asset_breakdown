@@ -38,35 +38,20 @@ export class AssetService {
     return assets;
   }
 
-  async getAssetsByUser({ userId }: { userId: number }) {
-    const assets = await this.assetRepo.find({
-      where: { userId },
-      relations: {
-        type: {
-          assetClass: true,
-        },
-        institution: true,
-      },
-      order: {
-        id: "ASC",
-      },
-    });
-
-    return assets;
-  }
-
-  async getAssetsByUserPaginated({
+  async getAssetsByUser({
     userId,
     currentPage = 1,
     itemsPerPage = 10,
     sortBy = ALLOWED_SORT_FIELDS.TICKER,
     order = "ASC",
+    skipPagination = false,
   }: {
     userId: number;
     currentPage?: number;
     itemsPerPage?: number;
     sortBy?: ALLOWED_SORT_FIELDS;
     order?: "ASC" | "DESC";
+    skipPagination?: boolean;
   }): Promise<PaginatedResponseDto<Asset>> {
     const allowedSortFields = Object.values(ALLOWED_SORT_FIELDS);
     const safeSortBy = allowedSortFields.includes(sortBy)
@@ -74,15 +59,15 @@ export class AssetService {
       : ALLOWED_SORT_FIELDS.TICKER;
 
     const totalItems = await this.assetRepo.count({ where: { userId } });
-    const totalPages = Math.ceil(totalItems / itemsPerPage);
-
+    const effectiveItemsPerPage = skipPagination ? totalItems : itemsPerPage;
+    const totalPages = Math.ceil(totalItems / effectiveItemsPerPage);
     const validPage = Math.min(Math.max(currentPage, 1), totalPages || 1);
 
     const hasNextPage = validPage < totalPages;
     const hasPreviousPage = validPage > 1;
 
-    const skip = (validPage - 1) * itemsPerPage;
-    const take = itemsPerPage;
+    const skip = skipPagination ? 0 : (validPage - 1) * itemsPerPage;
+    const take = effectiveItemsPerPage;
 
     const [assets, _] = await this.assetRepo.findAndCount({
       where: { userId },
@@ -102,9 +87,9 @@ export class AssetService {
     return {
       data: assets,
       meta: {
-        totalItems: totalItems,
+        totalItems,
         currentPage: validPage,
-        itemsPerPage,
+        itemsPerPage: effectiveItemsPerPage,
         totalPages,
         hasNextPage,
         hasPreviousPage,
@@ -428,17 +413,9 @@ export class AssetService {
   }
 
   async exportAssetsToCsv({ userId }: { userId: number }) {
-    const assets = await this.assetRepo.find({
-      where: { userId },
-      relations: {
-        type: {
-          assetClass: true,
-        },
-      },
-      order: { id: "ASC" },
-    });
+    const result = await this.getAssetsByUser({ userId, skipPagination: true });
 
-    const data = assets.map((asset) => ({
+    const data = result.data.map((asset) => ({
       ticker: asset.ticker,
       quantity: asset.quantity,
       averagePriceCents: asset.averagePriceCents,

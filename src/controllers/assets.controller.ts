@@ -9,6 +9,7 @@ import {
   UpdateAssetDto,
 } from "../dtos/asset.dto";
 import { getAuthenticatedUserId } from "../utils/get-authenticated-user-id";
+import { PaginationQueryDto } from "dtos/pagination.dto";
 
 export const getAssets = async (req: Request, res: Response) => {
   const assets = await assetService.getAsset();
@@ -21,7 +22,16 @@ export const getAssetsByUser = async (
 ): Promise<void> => {
   const userId = getAuthenticatedUserId(req);
 
-  const assets = await assetService.getAssetsByUser({ userId });
+  const paginationParams = PaginationQueryDto.safeParse(req.query);
+
+  if (!paginationParams.success) {
+    return handleZodError(res, paginationParams.error, 409);
+  }
+
+  const assets = await assetService.getAssetsByUser({
+    userId,
+    ...paginationParams.data,
+  });
 
   res.json(assets);
 };
