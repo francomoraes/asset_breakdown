@@ -66,7 +66,7 @@ export class AssetService {
     const hasNextPage = validPage < totalPages;
     const hasPreviousPage = validPage > 1;
 
-    const skip = skipPagination ? 0 : (validPage - 1) * itemsPerPage;
+    const skip = skipPagination ? 0 : (validPage - 1) * effectiveItemsPerPage;
     const take = effectiveItemsPerPage;
 
     const [assets, _] = await this.assetRepo.findAndCount({

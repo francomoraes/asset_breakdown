@@ -31,6 +31,7 @@ export const getAssetsByUser = async (
   const assets = await assetService.getAssetsByUser({
     userId,
     ...paginationParams.data,
+    currentPage: paginationParams.data.page ?? 1,
   });
 
   res.json(assets);

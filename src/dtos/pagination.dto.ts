@@ -7,7 +7,7 @@ export const PaginationQueryDto = z
     itemsPerPage: z.coerce.number().min(1).max(100).optional(),
     sortBy: z.nativeEnum(ALLOWED_SORT_FIELDS).optional(),
     order: z.enum(["ASC", "DESC"]).optional(),
-    skipPagination: z.coerce.boolean().optional(),
+    skipPagination: z.coerce.boolean().optional().default(false),
   })
   .strict();
 
