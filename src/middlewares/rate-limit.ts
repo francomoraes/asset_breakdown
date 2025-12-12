@@ -9,7 +9,7 @@ const demoLimits = {
 
 const prodLimits = {
   general: { windowMs: 15 * 60 * 1000, max: 100 },
-  auth: { windowMs: 5 * 60 * 1000, max: 5 },
+  auth: { windowMs: 5 * 60 * 1000, max: 10 },
   upload: { windowMs: 60 * 60 * 1000, max: 5 },
 };
 
