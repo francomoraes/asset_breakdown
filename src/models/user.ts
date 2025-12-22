@@ -14,8 +14,17 @@ export class User {
   @Column("text", { unique: true })
   email!: string;
 
+  @Column("text")
+  name!: string;
+
   @Column({ select: false })
   password!: string;
+
+  @Column("text", { nullable: true })
+  profilePictureUrl!: string | null;
+
+  @Column("text", { nullable: true })
+  locale!: string | null;
 
   @CreateDateColumn()
   createdAt!: Date;

@@ -37,14 +37,24 @@ AppDataSource.initialize()
 
     const userRepository = AppDataSource.getRepository(User);
     const seedUsersData = [
-      { email: "admin@test.com", password: "Admin123!" },
-      { email: "user@test.com", password: "User123!" },
+      {
+        email: "admin@test.com",
+        password: "Admin123!",
+        name: "Admin User",
+        locale: "pt-br",
+      },
+      {
+        email: "user@test.com",
+        password: "User123!",
+        name: "Regular User",
+        locale: "pt-br",
+      },
     ];
 
     const seedUsers: User[] = [];
 
     for (const userData of seedUsersData) {
-      const { email, password } = userData;
+      const { email, password, name, locale } = userData;
       let user = await userRepository.findOneBy({ email });
 
       if (!user) {
@@ -52,6 +62,8 @@ AppDataSource.initialize()
         user = userRepository.create({
           email,
           password: hashedPassword,
+          name,
+          locale,
         });
         await userRepository.save(user);
         console.log(`User created: ${email}`);
