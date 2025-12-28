@@ -13,11 +13,22 @@ const prodLimits = {
   upload: { windowMs: 60 * 60 * 1000, max: 5 },
 };
 
-const limits = config.isDemo ? demoLimits : prodLimits;
+const devLimits = {
+  general: { windowMs: 15 * 60 * 1000, max: 10000 },
+  auth: { windowMs: 5 * 60 * 1000, max: 1000 },
+  upload: { windowMs: 60 * 60 * 1000, max: 1000 },
+};
+
+const limits = config.isDevelopment
+  ? devLimits
+  : config.isDemo
+  ? demoLimits
+  : prodLimits;
 
 const appLimiter = rateLimit({
-  windowMs: limits.general.windowMs, // 15 minutes
-  max: limits.general.max, // limit each IP to 100 requests per windowMs
+  windowMs: limits.general.windowMs,
+  max: limits.general.max,
+  skip: () => config.isDevelopment,
   message: {
     error: config.isDemo
       ? "Demo API: Rate limit exceeded. This is a demonstration environment."
@@ -27,8 +38,9 @@ const appLimiter = rateLimit({
 });
 
 const authLimiter = rateLimit({
-  windowMs: 5 * 60 * 1000, // 5 minutes
-  max: 5, // limit each IP to 5 requests per windowMs
+  windowMs: limits.auth.windowMs,
+  max: limits.auth.max,
+  skip: () => config.isDevelopment,
   message: {
     error: "Too many login attempts from this IP, please try again later.",
     retryAfter: "5 minutes",
@@ -36,10 +48,11 @@ const authLimiter = rateLimit({
 });
 
 const strictLimiter = rateLimit({
-  windowMs: 60 * 60 * 1000, // 1 hour
-  max: 50, // limit each IP to 5 requests per windowMs
+  windowMs: limits.upload.windowMs,
+  max: limits.upload.max,
+  skip: () => config.isDevelopment,
   message: {
-    error: "Too many requests from this IP, please try again later.",
+    error: "Too many uploads from this IP, please try again later.",
     retryAfter: "1 hour",
   },
 });
