@@ -96,7 +96,7 @@ export const buyAsset = async (req: Request, res: Response): Promise<void> => {
 
   const result = BuyAssetDto.safeParse(dtoData);
 
-  if (!result.success) return handleZodError(res, result, 409);
+  if (!result.success) return handleZodError(res, result.error, 409);
 
   const {
     ticker,

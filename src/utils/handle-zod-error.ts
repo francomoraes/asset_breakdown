@@ -1,14 +1,21 @@
 import { Response } from "express";
+import { ZodError } from "zod";
 
 export const handleZodError = (
   res: Response,
-  parsed: any,
+  error: ZodError,
   status: number = 400,
 ) => {
-  const messages = parsed.error.issues.map((issue: any) => issue.message);
+  const issues = error.issues;
+  let messages: string[] = [];
+  if (Array.isArray(issues)) {
+    messages = issues.map((issue: any) => issue.message);
+  } else {
+    messages = [error.message];
+  }
   res.status(status).json({
     error: messages,
-    issues: parsed.error.format(),
+    issues: error.format(),
   });
   return;
 };

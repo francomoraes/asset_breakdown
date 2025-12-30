@@ -1,7 +1,9 @@
 import { Request, Response } from "express";
 import { authService } from "../services/auth.service";
-import { LoginDTO, RegisterDTO } from "../dtos/auth.dto";
+import { LoginDTO, RegisterDTO, UpdateUserDto } from "../dtos/auth.dto";
 import { handleZodError } from "../utils/handle-zod-error";
+import { getAuthenticatedUserId } from "utils/get-authenticated-user-id";
+import { storageAdapter } from "config/storage";
 
 export const register = async (req: Request, res: Response) => {
   const result = RegisterDTO.safeParse(req.body);
@@ -25,13 +27,33 @@ export const login = async (req: Request, res: Response) => {
   res.json(user);
 };
 
+export const uploadProfilePicture = async (req: Request, res: Response) => {
+  const userId = getAuthenticatedUserId(req);
+
+  const file = req.file;
+
+  if (!file) {
+    res.status(400).json({ error: "No file uploaded" });
+    return;
+  }
+
+  const fileUrl = await storageAdapter.upload(file, userId);
+
+  res.json({ profilePictureUrl: fileUrl });
+};
+
 export const updateUser = async (req: Request, res: Response) => {
-  const userId = req.params.id;
-  const updateData = req.body;
+  const userId = getAuthenticatedUserId(req);
 
   if (!userId) {
     res.status(400).json({ message: "User ID is required" });
     return;
+  }
+
+  const result = UpdateUserDto.safeParse(req.body);
+
+  if (!result.success) {
+    return handleZodError(res, result.error);
   }
 
   if (req.user?.userId !== Number(userId)) {
@@ -42,8 +64,8 @@ export const updateUser = async (req: Request, res: Response) => {
   }
 
   const updatedUser = await authService.updateUser({
-    id: Number(userId),
-    ...updateData,
+    id: userId,
+    ...result.data,
   });
 
   res.json(updatedUser);

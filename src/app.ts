@@ -26,6 +26,7 @@ import authRoutes from "./routes/auth.routes";
 import csvRoutes from "./routes/csv.routes";
 import institutionRoutes from "./routes/institution.routes";
 import summaryRoutes from "./routes/summary.routes";
+import path from "path";
 
 dotenv.config();
 
@@ -47,6 +48,15 @@ app.use("/api/summary", authMiddleware, summaryRoutes);
 app.use("/api/asset-class", authMiddleware, assetClassRoutes);
 app.use("/api/asset-type", authMiddleware, assetTypeRoutes);
 app.use("/api/institutions", authMiddleware, institutionRoutes);
+app.use(
+  "/api/uploads",
+  (req, res, next) => {
+    res.setHeader("Cross-Origin-Resource-Policy", "cross-origin");
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    next();
+  },
+  express.static(path.join(__dirname, "../uploads")),
+);
 
 // Error handler
 app.use(errorHandler);

@@ -8,6 +8,19 @@ import { Repository } from "typeorm";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import { AppDataSource } from "../config/data-source";
+import { storageAdapter } from "../config/storage";
+import fs from "fs/promises";
+import path from "path";
+
+type UpdateUserData = {
+  id: number;
+  locale?: string;
+  name?: string;
+  email?: string;
+  currentPassword?: string;
+  newPassword?: string;
+  profilePictureUrl?: string | null;
+};
 
 export class AuthService {
   constructor(private userRepository: Repository<User>) {}
@@ -43,9 +56,19 @@ export class AuthService {
       throw new UnauthorizedError("Unauthorized: no token provided");
     }
 
-    const token = jwt.sign({ ...user, userId: user.id }, secret, {
-      expiresIn: "24h",
-    });
+    const token = jwt.sign(
+      {
+        userId: user.id,
+        email: user.email,
+        name: user.name,
+        profilePictureUrl: user.profilePictureUrl,
+        locale: user.locale,
+      },
+      secret,
+      {
+        expiresIn: "24h",
+      },
+    );
 
     return {
       user,
@@ -65,8 +88,6 @@ export class AuthService {
         "locale",
       ],
     });
-
-    console.log();
 
     if (!user) {
       throw new NotFoundError("Invalid email or password");
@@ -142,15 +163,45 @@ export class AuthService {
     }
   }
 
+  private async cleanupOrphanedPhotos(userId: number, keepUrl: string | null) {
+    try {
+      const uploadDir = path.join(__dirname, "../../uploads/profile-pictures");
+      const files = await fs.readdir(uploadDir);
+
+      const userFiles = files.filter((file) => file.startsWith(`${userId}-`));
+
+      const keepFilename = keepUrl ? keepUrl.split("/").pop() : null;
+
+      for (const file of userFiles) {
+        if (file !== keepFilename) {
+          await fs.rm(path.join(uploadDir, file), { force: true });
+        }
+      }
+    } catch (error) {
+      console.error("Cleanup error:", error);
+    }
+  }
+
   async updateUser({
     id,
     locale,
     name,
     email,
-    password,
+    currentPassword,
+    newPassword,
     profilePictureUrl,
-  }: User) {
-    const user = await this.userRepository.findOneBy({ id });
+  }: UpdateUserData) {
+    const user = await this.userRepository.findOne({
+      where: { id },
+      select: [
+        "id",
+        "email",
+        "name",
+        "password",
+        "locale",
+        "profilePictureUrl",
+      ],
+    });
 
     if (!user) {
       throw new NotFoundError("User not found");
@@ -159,10 +210,28 @@ export class AuthService {
     user.locale = locale ?? user.locale;
     user.name = name ?? user.name;
     user.email = email ?? user.email;
-    user.profilePictureUrl = profilePictureUrl ?? user.profilePictureUrl;
 
-    if (password) {
-      const hashedPassword = await bcrypt.hash(password, 10);
+    if (profilePictureUrl !== undefined) {
+      user.profilePictureUrl = profilePictureUrl;
+
+      await this.cleanupOrphanedPhotos(id, profilePictureUrl);
+    }
+
+    if (newPassword) {
+      console.log("newPassword", newPassword);
+      if (!currentPassword) {
+        throw new UnauthorizedError(
+          "Current password is required to set a new password",
+        );
+      }
+      const isValidPassword = await bcrypt.compare(
+        currentPassword,
+        user.password,
+      );
+      if (!isValidPassword) {
+        throw new UnauthorizedError("Current password is incorrect");
+      }
+      const hashedPassword = await bcrypt.hash(newPassword, 10);
       user.password = hashedPassword;
     }
 
