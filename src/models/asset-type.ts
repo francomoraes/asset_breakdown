@@ -1,18 +1,10 @@
-import {
-  Column,
-  Entity,
-  ManyToOne,
-  OneToMany,
-  PrimaryGeneratedColumn,
-} from "typeorm";
+import { Column, Entity, ManyToOne, OneToMany } from "typeorm";
 import { AssetClass } from "./asset-class";
 import { Asset } from "./asset";
+import { BaseEntity } from "models/base/base-entity";
 
 @Entity("asset_type")
-export class AssetType {
-  @PrimaryGeneratedColumn()
-  id!: number;
-
+export class AssetType extends BaseEntity {
   @Column("text")
   name!: string;
 

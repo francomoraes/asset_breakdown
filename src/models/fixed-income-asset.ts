@@ -1,10 +1,10 @@
-import { Column, Entity, ManyToOne } from "typeorm";
-import { AssetType } from "./asset-type";
-import { Institution } from "models/institution";
+import { AssetType } from "models/asset-type";
 import { BaseEntity } from "models/base/base-entity";
+import { Institution } from "models/institution";
+import { Column, Entity, ManyToOne } from "typeorm";
 
-@Entity("asset")
-export class Asset extends BaseEntity {
+@Entity("fixed_income_asset")
+export class FixedIncomeAsset extends BaseEntity {
   @Column("int")
   userId!: number;
 
@@ -12,16 +12,13 @@ export class Asset extends BaseEntity {
   type!: AssetType;
 
   @Column("text")
-  ticker!: string;
+  description!: string;
+
+  @Column()
+  maturityDate!: Date;
 
   @Column("decimal", { precision: 10, scale: 2 })
-  quantity!: number;
-
-  @Column("int")
-  averagePriceCents!: number;
-
-  @Column("int")
-  currentPriceCents!: number;
+  interestRate!: number;
 
   @Column("int")
   investedValueCents!: number;
