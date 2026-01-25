@@ -15,6 +15,9 @@ export class FixedIncomeAsset extends BaseEntity {
   description!: string;
 
   @Column()
+  startDate!: Date;
+
+  @Column()
   maturityDate!: Date;
 
   @Column("decimal", { precision: 10, scale: 2 })

@@ -153,6 +153,10 @@ export class AuthService {
         throw new NotFoundError("User not found");
       }
 
+      if (!user.id) {
+        throw new Error("User ID is missing");
+      }
+
       const { id, email, name, profilePictureUrl, locale } = user;
 
       return { userId: id, email, name, profilePictureUrl, locale };

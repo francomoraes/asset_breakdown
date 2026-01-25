@@ -2,6 +2,7 @@ import { AppDataSource } from "../config/data-source";
 import { AssetClass } from "../models/asset-class";
 import { AssetType } from "../models/asset-type";
 import { Asset } from "../models/asset";
+import { FixedIncomeAsset } from "../models/fixed-income-asset";
 import { getMarketPriceCentsBatch } from "../utils/get-market-price-batch";
 import { calculateDerivedFields } from "../utils/calculate-derived-fields";
 import { recalculatePortfolio } from "../utils/recalculate-portfolio";
@@ -27,6 +28,7 @@ AppDataSource.initialize()
       await queryRunner.query(`
         TRUNCATE TABLE "user" RESTART IDENTITY CASCADE;
         TRUNCATE TABLE "asset" RESTART IDENTITY CASCADE;
+        TRUNCATE TABLE "fixed_income_asset" RESTART IDENTITY CASCADE;
         TRUNCATE TABLE "asset_type" RESTART IDENTITY CASCADE;
         TRUNCATE TABLE "asset_class" RESTART IDENTITY CASCADE;
         TRUNCATE TABLE "institution" RESTART IDENTITY CASCADE;
@@ -395,6 +397,142 @@ AppDataSource.initialize()
         console.log(`✅ Ativo criado: ${ticker}`);
       } else {
         console.log(`ℹ️ Ativo já existe: ${ticker}`);
+      }
+    }
+
+    // Seed Fixed Income Assets
+    console.log("💰 Criando ativos de renda fixa...");
+    const fixedIncomeAssetRepository =
+      AppDataSource.getRepository(FixedIncomeAsset);
+
+    const seedFixedIncomeAssets = [
+      {
+        description: "CDB XP 100% CDI",
+        startDate: new Date("2024-01-15"),
+        maturityDate: new Date("2026-01-15"),
+        interestRate: 13.65, // 100% do CDI
+        investedValueCents: 1000000, // R$ 10.000,00
+        currency: "BRL",
+        institution: institutions[1].name, // XP Investimentos
+        type: "Pós-fixado",
+      },
+      {
+        description: "Tesouro IPCA+ 2029",
+        startDate: new Date("2023-06-10"),
+        maturityDate: new Date("2029-05-15"),
+        interestRate: 6.5, // IPCA + 6.5%
+        investedValueCents: 500000, // R$ 5.000,00
+        currency: "BRL",
+        institution: institutions[1].name,
+        type: "Inflação",
+      },
+      {
+        description: "LCI Banco XP",
+        startDate: new Date("2024-03-20"),
+        maturityDate: new Date("2026-03-20"),
+        interestRate: 11.2, // 82% do CDI
+        investedValueCents: 1500000, // R$ 15.000,00
+        currency: "BRL",
+        institution: institutions[1].name,
+        type: "Pós-fixado",
+      },
+      {
+        description: "Tesouro Prefixado 2027",
+        startDate: new Date("2024-01-05"),
+        maturityDate: new Date("2027-01-01"),
+        interestRate: 12.0, // Taxa prefixada
+        investedValueCents: 800000, // R$ 8.000,00
+        currency: "BRL",
+        institution: institutions[1].name,
+        type: "Pré-fixado",
+      },
+      {
+        description: "CDB Banco Inter 110% CDI",
+        startDate: new Date("2024-02-10"),
+        maturityDate: new Date("2025-02-10"),
+        interestRate: 15.0, // 110% do CDI
+        investedValueCents: 300000, // R$ 3.000,00
+        currency: "BRL",
+        institution: institutions[1].name,
+        type: "Pós-fixado",
+      },
+    ];
+
+    for (const fiAsset of seedFixedIncomeAssets) {
+      const assetType = await assetTypeRepository.findOneBy({
+        name: fiAsset.type,
+        userId: seedUsers[1].id,
+      });
+
+      if (!assetType) {
+        console.warn(
+          `Asset type ${fiAsset.type} not found for ${fiAsset.description}`,
+        );
+        continue;
+      }
+
+      const assetInstitution = await institutionsRepository.findOneBy({
+        name: fiAsset.institution,
+        userId: seedUsers[1].id,
+      });
+
+      if (!assetInstitution) {
+        console.warn(
+          `Institution ${fiAsset.institution} not found for ${fiAsset.description}`,
+        );
+        continue;
+      }
+
+      // Calcular valores derivados
+      const now = new Date();
+      const calculationDate =
+        now > fiAsset.maturityDate ? fiAsset.maturityDate : now;
+
+      const daysElapsed = Math.floor(
+        (calculationDate.getTime() - fiAsset.startDate.getTime()) /
+          (1000 * 60 * 60 * 24),
+      );
+
+      const dailyRate = Math.pow(1 + fiAsset.interestRate / 100, 1 / 365) - 1;
+      const currentValueCents = Math.round(
+        fiAsset.investedValueCents * Math.pow(1 + dailyRate, daysElapsed),
+      );
+      const resultCents = currentValueCents - fiAsset.investedValueCents;
+      const returnPercentage =
+        fiAsset.investedValueCents > 0
+          ? Number(
+              ((resultCents / fiAsset.investedValueCents) * 100).toFixed(2),
+            )
+          : 0;
+
+      const existing = await fixedIncomeAssetRepository.findOne({
+        where: {
+          description: fiAsset.description,
+          userId: seedUsers[1].id,
+        },
+      });
+
+      if (!existing) {
+        const fixedIncomeAsset = fixedIncomeAssetRepository.create({
+          description: fiAsset.description,
+          startDate: fiAsset.startDate,
+          maturityDate: fiAsset.maturityDate,
+          interestRate: fiAsset.interestRate,
+          investedValueCents: fiAsset.investedValueCents,
+          currentValueCents,
+          resultCents,
+          returnPercentage,
+          portfolioPercentage: 0,
+          institution: assetInstitution,
+          type: assetType,
+          currency: fiAsset.currency,
+          userId: seedUsers[1].id,
+        });
+
+        await fixedIncomeAssetRepository.save(fixedIncomeAsset);
+        console.log(`✅ Ativo de renda fixa criado: ${fiAsset.description}`);
+      } else {
+        console.log(`ℹ️ Ativo de renda fixa já existe: ${fiAsset.description}`);
       }
     }
 

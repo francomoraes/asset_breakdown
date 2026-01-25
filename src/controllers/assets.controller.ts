@@ -32,7 +32,7 @@ export const getAssetsByUser = async (
     userId,
     ...paginationParams.data,
     currentPage: paginationParams.data.page ?? 1,
-  });
+  } as Parameters<typeof assetService.getAssetsByUser>[0]);
 
   res.json(assets);
 };
