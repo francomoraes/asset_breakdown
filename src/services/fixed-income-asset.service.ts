@@ -6,6 +6,7 @@ import { AssetType } from "models/asset-type";
 import { FixedIncomeAsset } from "models/fixed-income-asset";
 import { Institution } from "models/institution";
 import { Repository } from "typeorm";
+import { recalculatePortfolio } from "utils/recalculate-portfolio";
 
 /**
  * Calcula os campos derivados de um ativo de renda fixa
@@ -184,6 +185,7 @@ export class FixedIncomeAssetService {
     });
 
     await this.fixedIncomeAssetRepo.save(asset);
+    await recalculatePortfolio(assetData.userId);
     return asset;
   }
 
@@ -250,6 +252,7 @@ export class FixedIncomeAssetService {
     }
 
     await this.fixedIncomeAssetRepo.save(asset);
+    await recalculatePortfolio(userId);
     return asset;
   }
 
@@ -263,6 +266,7 @@ export class FixedIncomeAssetService {
     }
 
     await this.fixedIncomeAssetRepo.delete({ id, userId });
+    await recalculatePortfolio(userId);
     return asset;
   }
 }

@@ -6,6 +6,7 @@ import { AssetClass } from "../models/asset-class";
 import { PriceCache } from "../models/price-cache";
 import { User } from "../models/user";
 import { Institution } from "models/institution";
+import { FixedIncomeAsset } from "../models/fixed-income-asset";
 dotenv.config();
 
 const shouldDropSchema = process.argv.includes("--drop-schema");
@@ -20,5 +21,13 @@ export const AppDataSource = new DataSource({
   synchronize: true,
   logging: false,
   dropSchema: shouldDropSchema,
-  entities: [Asset, AssetType, AssetClass, PriceCache, User, Institution],
+  entities: [
+    Asset,
+    AssetType,
+    AssetClass,
+    PriceCache,
+    User,
+    Institution,
+    FixedIncomeAsset,
+  ],
 });

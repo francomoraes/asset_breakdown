@@ -1,4 +1,8 @@
-import yahooFinance from "yahoo-finance2";
+import YahooFinance from "yahoo-finance2";
+
+const yahooFinance = new YahooFinance({
+  suppressNotices: ["yahooSurvey"],
+});
 
 export async function getBRLtoUSDRate(): Promise<number> {
   const quote: any = await yahooFinance.quote("USDBRL=X");

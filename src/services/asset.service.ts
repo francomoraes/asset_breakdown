@@ -112,15 +112,25 @@ export class AssetService {
       throw new NotFoundError(`Asset ${updateData.id} not found`);
     }
 
-    let currentPriceCents = 0;
+    let currentPriceCents = existingAsset.currentPriceCents;
 
     const newTicker = updateData.ticker || existingAsset.ticker;
+    const tickerChanged =
+      updateData.ticker && updateData.ticker !== existingAsset.ticker;
 
+    // Tentar buscar preço de mercado atualizado
     try {
       currentPriceCents = await getMarketPriceCents(newTicker);
-    } catch (error) {
-      throw new Error(
-        `Error fetching market price for ${updateData.ticker}: ${error}`,
+    } catch (error: any) {
+      // Se o ticker mudou e não conseguimos buscar o preço, isso é um erro crítico
+      if (tickerChanged) {
+        throw new Error(
+          `Não foi possível buscar o preço para o novo ticker ${newTicker}: ${error?.message || error}`,
+        );
+      }
+      // Se o ticker não mudou, apenas logar o aviso e usar o preço atual
+      console.warn(
+        `Aviso: Não foi possível atualizar o preço de mercado para ${newTicker}. Usando preço existente. Erro: ${error?.message || error}`,
       );
     }
 
@@ -187,7 +197,7 @@ export class AssetService {
 
     await this.assetRepo.save(existingAsset);
 
-    await recalculatePortfolio();
+    await recalculatePortfolio(requestUserId);
 
     return existingAsset;
   }
