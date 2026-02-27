@@ -218,7 +218,7 @@ export class AssetService {
       id: Number(id),
       userId: requestUserId,
     });
-    await recalculatePortfolio();
+    await recalculatePortfolio(requestUserId);
 
     return existingAsset;
   }
@@ -386,7 +386,7 @@ export class AssetService {
 
     if (assetsToUpdate.length > 0) {
       await this.assetRepo.save(assetsToUpdate);
-      await recalculatePortfolio();
+      await recalculatePortfolio(userId);
     }
 
     return {
