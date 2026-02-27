@@ -118,17 +118,14 @@ export class AssetService {
     const tickerChanged =
       updateData.ticker && updateData.ticker !== existingAsset.ticker;
 
-    // Tentar buscar preço de mercado atualizado
     try {
       currentPriceCents = await getMarketPriceCents(newTicker);
     } catch (error: any) {
-      // Se o ticker mudou e não conseguimos buscar o preço, isso é um erro crítico
       if (tickerChanged) {
         throw new Error(
           `Não foi possível buscar o preço para o novo ticker ${newTicker}: ${error?.message || error}`,
         );
       }
-      // Se o ticker não mudou, apenas logar o aviso e usar o preço atual
       console.warn(
         `Aviso: Não foi possível atualizar o preço de mercado para ${newTicker}. Usando preço existente. Erro: ${error?.message || error}`,
       );
@@ -226,196 +223,99 @@ export class AssetService {
     return existingAsset;
   }
 
-  async buyAsset({
+  async createAsset({
     userId,
     ticker,
-    newQuantity,
-    newPriceCents,
+    quantity,
+    averagePriceCents,
     type,
     institutionId,
     currency,
   }: {
     userId: number;
     ticker: string;
-    newQuantity: number;
-    newPriceCents: number;
-    type?: string;
-    institutionId?: number;
-    currency?: string;
+    quantity: number;
+    averagePriceCents: number;
+    type: string;
+    institutionId: number;
+    currency: string;
   }) {
-    let asset = await this.assetRepo.findOne({ where: { ticker, userId } });
-    const assetTypeRepository = this.assetTypeRepo;
-    const institutionRepository = this.institutionRepo;
+    const existingAsset = await this.assetRepo.findOne({
+      where: {
+        ticker,
+        userId,
+        institution: { id: institutionId },
+      },
+      relations: ["institution"],
+    });
 
-    if (!asset) {
-      try {
-        const currentPriceCents = await getMarketPriceCents(ticker);
-
-        const {
-          investedValueCents,
-          currentValueCents,
-          resultCents,
-          returnPercentage,
-        } = calculateDerivedFields(
-          newQuantity,
-          newPriceCents,
-          currentPriceCents,
-        );
-
-        const assetType = await assetTypeRepository.findOneBy({
-          name: type,
-        });
-
-        if (!assetType) {
-          throw new NotFoundError(`Asset type ${type} not found`);
-        }
-
-        const assetInstitution = await institutionRepository.findOne({
-          where: { id: institutionId, userId },
-        });
-
-        if (!assetInstitution) {
-          throw new NotFoundError(
-            `Institution with id ${institutionId} not found`,
-          );
-        }
-
-        const newAsset = {
-          userId,
-          type: assetType,
-          ticker,
-          quantity: newQuantity,
-          averagePriceCents: newPriceCents,
-          currentPriceCents,
-          investedValueCents,
-          currentValueCents,
-          resultCents,
-          returnPercentage,
-          portfolioPercentage: 0,
-          institution: assetInstitution,
-          currency,
-        };
-
-        asset = this.assetRepo.create(newAsset);
-
-        await this.assetRepo.save(asset);
-
-        await recalculatePortfolio();
-
-        return asset;
-      } catch (error) {
-        const errorMessage =
-          error instanceof Error ? error.message : String(error);
-        throw new Error(`Error buying asset ${ticker}: ${errorMessage}`);
-      }
+    if (existingAsset) {
+      throw new ConflictError(
+        `Já existe um ativo ${ticker} cadastrado na instituição ${existingAsset.institution.name}. Para alterar a quantidade ou preço médio, edite o ativo existente.`,
+      );
     }
-
-    const totalQuantity = Number(Math.round(+asset.quantity + newQuantity));
-
-    const newAveragePriceCents = Math.round(
-      (+asset.quantity * asset.averagePriceCents +
-        newQuantity * newPriceCents) /
-        totalQuantity,
-    );
-
-    asset.quantity = Number(totalQuantity);
-    asset.averagePriceCents = newAveragePriceCents;
-    asset.investedValueCents = totalQuantity * newAveragePriceCents;
-
-    let currentPriceCents;
 
     try {
-      currentPriceCents = await getMarketPriceCents(ticker);
-      asset.currentPriceCents = currentPriceCents;
-    } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : String(error);
-      throw new Error(`Error buying asset ${ticker}: ${errorMessage}`);
-    }
+      const currentPriceCents = await getMarketPriceCents(ticker);
 
-    const { currentValueCents, resultCents, returnPercentage } =
-      calculateDerivedFields(
-        totalQuantity,
-        newAveragePriceCents,
+      const {
+        investedValueCents,
+        currentValueCents,
+        resultCents,
+        returnPercentage,
+      } = calculateDerivedFields(
+        quantity,
+        averagePriceCents,
         currentPriceCents,
       );
 
-    asset.currentValueCents = currentValueCents;
-    asset.resultCents = resultCents;
-    asset.returnPercentage = returnPercentage;
-    asset.portfolioPercentage = 0;
+      const assetType = await this.assetTypeRepo.findOneBy({
+        name: type,
+      });
 
-    await this.assetRepo.save(asset);
+      if (!assetType) {
+        throw new NotFoundError(`Tipo de ativo ${type} não encontrado`);
+      }
 
-    await recalculatePortfolio();
-  }
+      const institution = await this.institutionRepo.findOne({
+        where: { id: institutionId, userId },
+      });
 
-  async sellAsset({
-    userId,
-    ticker,
-    sellQuantity,
-  }: {
-    userId: number;
-    ticker: string;
-    sellQuantity: number;
-  }) {
-    const asset = await this.assetRepo.findOne({ where: { ticker, userId } });
+      if (!institution) {
+        throw new NotFoundError(
+          `Instituição com id ${institutionId} não encontrada`,
+        );
+      }
 
-    if (!asset) {
-      throw new NotFoundError(`Asset ${ticker} not found`);
-    }
+      const newAsset = this.assetRepo.create({
+        userId,
+        type: assetType,
+        ticker,
+        quantity,
+        averagePriceCents,
+        currentPriceCents,
+        investedValueCents,
+        currentValueCents,
+        resultCents,
+        returnPercentage,
+        portfolioPercentage: 0,
+        institution,
+        currency,
+      });
 
-    if (sellQuantity > asset.quantity) {
-      throw new ConflictError(
-        `Cannot sell more than available quantity for ${ticker}`,
-      );
-    }
+      await this.assetRepo.save(newAsset);
 
-    const totalQuantity = Math.round(asset.quantity - sellQuantity);
+      await recalculatePortfolio(userId);
 
-    if (totalQuantity === 0) {
-      await this.assetRepo.remove(asset);
-      await recalculatePortfolio();
-      return {
-        message: "Asset sold and removed from portfolio",
-        asset,
-      };
-    }
-
-    asset.quantity = totalQuantity;
-    let currentPriceCents = 0;
-
-    try {
-      currentPriceCents = await getMarketPriceCents(ticker);
-      asset.currentPriceCents = currentPriceCents;
+      return newAsset;
     } catch (error) {
+      if (error instanceof ConflictError || error instanceof NotFoundError) {
+        throw error;
+      }
       const errorMessage =
         error instanceof Error ? error.message : String(error);
-      throw new Error(`Error selling asset ${ticker}: ${errorMessage}`);
+      throw new Error(`Erro ao criar ativo ${ticker}: ${errorMessage}`);
     }
-
-    const {
-      investedValueCents,
-      currentValueCents,
-      resultCents,
-      returnPercentage,
-    } = calculateDerivedFields(
-      totalQuantity,
-      asset.averagePriceCents,
-      currentPriceCents,
-    );
-
-    asset.investedValueCents = investedValueCents;
-    asset.currentValueCents = currentValueCents;
-    asset.resultCents = resultCents;
-    asset.returnPercentage = returnPercentage;
-    asset.portfolioPercentage = 0;
-
-    await this.assetRepo.save(asset);
-
-    await recalculatePortfolio();
-
-    return asset;
   }
 
   async exportAssetsToCsv({ userId }: { userId: number }) {

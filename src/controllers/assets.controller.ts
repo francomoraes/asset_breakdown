@@ -3,9 +3,8 @@ import { handleZodError } from "../utils/handle-zod-error";
 import { assetService } from "../services/asset.service";
 
 import {
-  BuyAssetDto,
+  CreateAssetDto,
   DeleteAssetDto,
-  SellAssetDto,
   UpdateAssetDto,
 } from "../dtos/asset.dto";
 import { getAuthenticatedUserId } from "../utils/get-authenticated-user-id";
@@ -82,73 +81,23 @@ export const deleteAsset = async (
   res.json({ message: `Asset deleted`, deleted: asset });
 };
 
-export const buyAsset = async (req: Request, res: Response): Promise<void> => {
+export const createAsset = async (
+  req: Request,
+  res: Response,
+): Promise<void> => {
   const userId = getAuthenticatedUserId(req);
 
-  const dtoData = {
-    ticker: req.params.ticker,
-    quantity: req.body.quantity,
-    priceCents: req.body.priceCents,
-    type: req.body.type,
-    institutionId: req.body.institutionId,
-    currency: req.body.currency,
-  };
+  const result = CreateAssetDto.safeParse(req.body);
 
-  const result = BuyAssetDto.safeParse(dtoData);
+  if (!result.success) return handleZodError(res, result.error, 400);
 
-  if (!result.success) return handleZodError(res, result.error, 409);
-
-  const {
-    ticker,
-    quantity: newQuantity,
-    priceCents: newPriceCents,
-    type,
-    institutionId,
-    currency,
-  } = result.data;
-
-  const asset = await assetService.buyAsset({
+  const asset = await assetService.createAsset({
     userId,
-    ticker,
-    newQuantity,
-    newPriceCents,
-    type,
-    institutionId,
-    currency,
+    ...result.data,
   });
 
-  res.json(asset);
-};
-
-export const sellAsset = async (req: Request, res: Response): Promise<void> => {
-  const userId = getAuthenticatedUserId(req);
-
-  const dtoData = {
-    ticker: req.params.ticker,
-    quantity: req.body.quantity,
-    priceCents: req.body.priceCents,
-  };
-
-  const result = SellAssetDto.safeParse(dtoData);
-
-  if (!result.success) return handleZodError(res, result.error, 409);
-
-  // Por enquanto, sellPriceCents não é usado, mas será necessário
-  // quando implementarmos histórico ou cálculo de lucro consolidado
-  const {
-    ticker,
-    quantity: sellQuantity,
-    // priceCents: sellPriceCents
-  } = result.data;
-
-  const asset = await assetService.sellAsset({
-    userId,
-    ticker,
-    sellQuantity,
-  });
-
-  res.json({
-    message: "Ativo vendido com sucesso",
+  res.status(201).json({
+    message: `Ativo ${result.data.ticker} adicionado com sucesso`,
     asset,
   });
 };
