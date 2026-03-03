@@ -63,8 +63,8 @@ export const updateFixedIncomeAsset = async (
   const userId = getAuthenticatedUserId(req);
 
   const result = UpdateFixedIncomeAssetDto.safeParse({
-    id: req.params.id,
     ...req.body,
+    id: req.params.id,
   });
 
   if (!result.success) return handleZodError(res, result.error, 409);

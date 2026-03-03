@@ -3,6 +3,13 @@ import { BaseEntity } from "models/base/base-entity";
 import { Institution } from "models/institution";
 import { Column, Entity, ManyToOne } from "typeorm";
 
+export enum IndexationMode {
+  PRE_FIXED = "PRE",
+  POST_CDI = "CDI",
+  POST_SELIC = "SELIC",
+  POST_IPCA = "IPCA",
+}
+
 @Entity("fixed_income_asset")
 export class FixedIncomeAsset extends BaseEntity {
   @Column("int")
@@ -19,6 +26,12 @@ export class FixedIncomeAsset extends BaseEntity {
 
   @Column()
   maturityDate!: Date;
+
+  @Column({
+    type: "text",
+    default: "PRE",
+  })
+  indexationMode!: IndexationMode;
 
   @Column("decimal", { precision: 10, scale: 2 })
   interestRate!: number;

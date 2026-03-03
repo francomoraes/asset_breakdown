@@ -1,4 +1,10 @@
 import { z } from "zod";
+import { IndexationMode } from "models/fixed-income-asset";
+
+const parseDateOnly = (value: string): Date => {
+  const [year, month, day] = value.split("-").map(Number);
+  return new Date(Date.UTC(year, month - 1, day, 12, 0, 0));
+};
 
 export const CreateFixedIncomeAssetDto = z
   .object({
@@ -8,13 +14,17 @@ export const CreateFixedIncomeAssetDto = z
       .refine((date) => !isNaN(Date.parse(date)), {
         message: "Invalid start date format",
       })
-      .transform((date) => new Date(date)),
+      .transform((date) => parseDateOnly(date)),
     maturityDate: z
       .string()
       .refine((date) => !isNaN(Date.parse(date)), {
         message: "Invalid maturity date format",
       })
-      .transform((date) => new Date(date)),
+      .transform((date) => parseDateOnly(date)),
+    indexationMode: z
+      .nativeEnum(IndexationMode)
+      .optional()
+      .default(IndexationMode.PRE_FIXED),
     interestRate: z.number().min(0).max(100),
     investedValueCents: z.number().min(0),
     institutionId: z.number().min(1),
@@ -28,22 +38,23 @@ export const CreateFixedIncomeAssetDto = z
 
 export const UpdateFixedIncomeAssetDto = z
   .object({
-    id: z.string().min(1),
+    id: z.coerce.string().min(1),
     description: z.string().min(2).max(255).optional(),
     startDate: z
       .string()
       .refine((date) => !isNaN(Date.parse(date)), {
         message: "Invalid start date format",
       })
-      .transform((date) => new Date(date))
+      .transform((date) => parseDateOnly(date))
       .optional(),
     maturityDate: z
       .string()
       .refine((date) => !isNaN(Date.parse(date)), {
         message: "Invalid maturity date format",
       })
-      .transform((date) => new Date(date))
+      .transform((date) => parseDateOnly(date))
       .optional(),
+    indexationMode: z.nativeEnum(IndexationMode).optional(),
     interestRate: z.number().min(0).max(100).optional(),
     investedValueCents: z.number().min(0).optional(),
     institutionId: z.number().min(1).optional(),
@@ -64,5 +75,5 @@ export const UpdateFixedIncomeAssetDto = z
   );
 
 export const DeleteFixedIncomeAssetDto = z.object({
-  id: z.string().min(1),
+  id: z.coerce.string().min(1),
 });

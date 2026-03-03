@@ -66,7 +66,7 @@ export class AuthService {
       },
       secret,
       {
-        expiresIn: "24h",
+        expiresIn: "1h",
       },
     );
 
@@ -115,7 +115,7 @@ export class AuthService {
       },
       secret,
       {
-        expiresIn: "24h",
+        expiresIn: "1h",
       },
     );
 
@@ -256,7 +256,7 @@ export class AuthService {
       },
       secret,
       {
-        expiresIn: "24h",
+        expiresIn: "1h",
       },
     );
 

@@ -3,52 +3,64 @@ import { PaginatedResponseDto } from "dtos/pagination.dto";
 import { ALLOWED_SORT_FIELDS_FIXED_INCOME } from "enums/allowedSortFieldsFIxedIncome.enum";
 import { NotFoundError } from "errors/app-error";
 import { AssetType } from "models/asset-type";
-import { FixedIncomeAsset } from "models/fixed-income-asset";
+import { FixedIncomeAsset, IndexationMode } from "models/fixed-income-asset";
 import { Institution } from "models/institution";
 import { Repository } from "typeorm";
 import { recalculatePortfolio } from "utils/recalculate-portfolio";
+import { indexCalculatorService } from "./index-calculator.service";
 
 /**
  * Calcula os campos derivados de um ativo de renda fixa
- * Usa juros compostos: M = C * (1 + i)^t
+ * Suporta diferentes modos de indexação: PRE, CDI, SELIC, IPCA
  */
-function calculateFixedIncomeFields(
+async function calculateFixedIncomeFields(
   investedValueCents: number,
   interestRate: number,
   startDate: Date,
   maturityDate: Date,
-): {
+  indexationMode: IndexationMode = IndexationMode.PRE_FIXED,
+): Promise<{
   currentValueCents: number;
   resultCents: number;
   returnPercentage: number;
-} {
+}> {
   const now = new Date();
   const calculationDate = now > maturityDate ? maturityDate : now;
 
-  // Calcular dias decorridos desde o início
-  const daysElapsed = Math.floor(
-    (calculationDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24),
-  );
+  try {
+    // Usar o serviço de cálculo com suporte a índices
+    const result = await indexCalculatorService.calculateFixedIncomeValue({
+      investedValueCents,
+      indexationMode,
+      interestRate,
+      startDate,
+      currentDate: calculationDate,
+    });
 
-  // Converter taxa anual para taxa diária (juros compostos)
-  const dailyRate = Math.pow(1 + interestRate / 100, 1 / 365) - 1;
+    return result;
+  } catch (error) {
+    console.error("Error calculating fixed income fields:", error);
 
-  // Calcular valor atual com juros compostos
-  const currentValueCents = Math.round(
-    investedValueCents * Math.pow(1 + dailyRate, daysElapsed),
-  );
+    if (indexationMode !== IndexationMode.PRE_FIXED) {
+      throw error;
+    }
 
-  const resultCents = currentValueCents - investedValueCents;
-  const returnPercentage =
-    investedValueCents > 0
-      ? Number(((resultCents / investedValueCents) * 100).toFixed(2))
-      : 0;
+    // Fallback: usar cálculo simples pré-fixado em caso de erro
+    const daysElapsed = Math.floor(
+      (calculationDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24),
+    );
+    const dailyRate = Math.pow(1 + interestRate / 100, 1 / 365) - 1;
+    const currentValueCents = Math.round(
+      investedValueCents * Math.pow(1 + dailyRate, daysElapsed),
+    );
+    const resultCents = currentValueCents - investedValueCents;
+    const returnPercentage =
+      investedValueCents > 0
+        ? Number(((resultCents / investedValueCents) * 100).toFixed(2))
+        : 0;
 
-  return {
-    currentValueCents,
-    resultCents,
-    returnPercentage,
-  };
+    return { currentValueCents, resultCents, returnPercentage };
+  }
 }
 
 export class FixedIncomeAssetService {
@@ -111,6 +123,29 @@ export class FixedIncomeAssetService {
       take,
     });
 
+    for (const asset of assets) {
+      const { currentValueCents, resultCents, returnPercentage } =
+        await calculateFixedIncomeFields(
+          asset.investedValueCents,
+          asset.interestRate,
+          asset.startDate,
+          asset.maturityDate,
+          asset.indexationMode || IndexationMode.PRE_FIXED,
+        );
+
+      const hasChanged =
+        asset.currentValueCents !== currentValueCents ||
+        asset.resultCents !== resultCents ||
+        asset.returnPercentage !== returnPercentage;
+
+      if (hasChanged) {
+        asset.currentValueCents = currentValueCents;
+        asset.resultCents = resultCents;
+        asset.returnPercentage = returnPercentage;
+        await this.fixedIncomeAssetRepo.save(asset);
+      }
+    }
+
     return {
       data: assets,
       meta: {
@@ -138,6 +173,7 @@ export class FixedIncomeAssetService {
     description: string;
     startDate: Date;
     maturityDate: Date;
+    indexationMode?: IndexationMode;
     interestRate: number;
     investedValueCents: number;
     institutionId: number;
@@ -161,11 +197,12 @@ export class FixedIncomeAssetService {
     }
 
     const { currentValueCents, resultCents, returnPercentage } =
-      calculateFixedIncomeFields(
+      await calculateFixedIncomeFields(
         assetData.investedValueCents,
         assetData.interestRate,
         assetData.startDate,
         assetData.maturityDate,
+        assetData.indexationMode || IndexationMode.PRE_FIXED,
       );
 
     const asset = this.fixedIncomeAssetRepo.create({
@@ -173,6 +210,7 @@ export class FixedIncomeAssetService {
       description: assetData.description,
       startDate: assetData.startDate,
       maturityDate: assetData.maturityDate,
+      indexationMode: assetData.indexationMode || IndexationMode.PRE_FIXED,
       interestRate: assetData.interestRate,
       investedValueCents: assetData.investedValueCents,
       currentValueCents,
@@ -236,14 +274,16 @@ export class FixedIncomeAssetService {
       updateData.investedValueCents !== undefined ||
       updateData.interestRate !== undefined ||
       updateData.startDate !== undefined ||
-      updateData.maturityDate !== undefined
+      updateData.maturityDate !== undefined ||
+      (updateData as any).indexationMode !== undefined
     ) {
       const { currentValueCents, resultCents, returnPercentage } =
-        calculateFixedIncomeFields(
+        await calculateFixedIncomeFields(
           asset.investedValueCents,
           asset.interestRate,
           asset.startDate,
           asset.maturityDate,
+          asset.indexationMode || IndexationMode.PRE_FIXED,
         );
 
       asset.currentValueCents = currentValueCents;
