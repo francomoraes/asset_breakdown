@@ -222,7 +222,6 @@ export class AuthService {
     }
 
     if (newPassword) {
-      console.log("newPassword", newPassword);
       if (!currentPassword) {
         throw new UnauthorizedError(
           "Current password is required to set a new password",
