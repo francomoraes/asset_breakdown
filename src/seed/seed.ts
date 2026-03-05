@@ -3,6 +3,7 @@ import { AssetClass } from "../models/asset-class";
 import { AssetType } from "../models/asset-type";
 import { Asset } from "../models/asset";
 import { FixedIncomeAsset } from "../models/fixed-income-asset";
+import { WealthHistory } from "../models/wealth-history";
 import { getMarketPriceCentsBatch } from "../utils/get-market-price-batch";
 import { calculateDerivedFields } from "../utils/calculate-derived-fields";
 import { recalculatePortfolio } from "../utils/recalculate-portfolio";
@@ -397,6 +398,112 @@ AppDataSource.initialize()
         console.log(`✅ Ativo criado: ${ticker}`);
       } else {
         console.log(`ℹ️ Ativo já existe: ${ticker}`);
+      }
+    }
+
+    // Seed Wealth History
+    console.log("📈 Criando histórico de patrimônio...");
+    const wealthHistoryRepository = AppDataSource.getRepository(WealthHistory);
+
+    const seedWealthHistory = [
+      // Histórico para o segundo usuário (Regular User)
+      {
+        userId: seedUsers[1].id,
+        date: "2024-01-01",
+        totalWealthCents: 5000000,
+      }, // R$ 50,000
+      {
+        userId: seedUsers[1].id,
+        date: "2024-02-01",
+        totalWealthCents: 5250000,
+      }, // R$ 52,500
+      {
+        userId: seedUsers[1].id,
+        date: "2024-03-01",
+        totalWealthCents: 5550000,
+      }, // R$ 55,500
+      {
+        userId: seedUsers[1].id,
+        date: "2024-04-01",
+        totalWealthCents: 5800000,
+      }, // R$ 58,000
+      {
+        userId: seedUsers[1].id,
+        date: "2024-05-01",
+        totalWealthCents: 6100000,
+      }, // R$ 61,000
+      {
+        userId: seedUsers[1].id,
+        date: "2024-06-01",
+        totalWealthCents: 6400000,
+      }, // R$ 64,000
+      {
+        userId: seedUsers[1].id,
+        date: "2024-07-01",
+        totalWealthCents: 6700000,
+      }, // R$ 67,000
+      {
+        userId: seedUsers[1].id,
+        date: "2024-08-01",
+        totalWealthCents: 6950000,
+      }, // R$ 69,500
+      {
+        userId: seedUsers[1].id,
+        date: "2024-09-01",
+        totalWealthCents: 7250000,
+      }, // R$ 72,500
+      {
+        userId: seedUsers[1].id,
+        date: "2024-10-01",
+        totalWealthCents: 7600000,
+      }, // R$ 76,000
+      {
+        userId: seedUsers[1].id,
+        date: "2024-11-01",
+        totalWealthCents: 7950000,
+      }, // R$ 79,500
+      {
+        userId: seedUsers[1].id,
+        date: "2024-12-01",
+        totalWealthCents: 8300000,
+      }, // R$ 83,000
+      {
+        userId: seedUsers[1].id,
+        date: "2025-01-01",
+        totalWealthCents: 8600000,
+      }, // R$ 86,000
+      {
+        userId: seedUsers[1].id,
+        date: "2025-02-01",
+        totalWealthCents: 8950000,
+      }, // R$ 89,500
+    ];
+
+    for (const wealthData of seedWealthHistory) {
+      const date = new Date(wealthData.date);
+      const normalizedDate = new Date(
+        date.getFullYear(),
+        date.getMonth(),
+        date.getDate(),
+      );
+
+      const existing = await wealthHistoryRepository.findOne({
+        where: {
+          userId: wealthData.userId,
+          date: normalizedDate,
+        },
+      });
+
+      if (!existing) {
+        const wealthHistory = wealthHistoryRepository.create({
+          userId: wealthData.userId,
+          date: normalizedDate,
+          totalWealthCents: wealthData.totalWealthCents,
+        });
+        await wealthHistoryRepository.save(wealthHistory);
+        console.log(`✅ Histórico de patrimônio criado: ${wealthData.date}`);
+      } else {
+        console.log(`ℹ️ Histórico de patrimônio já existe: ${wealthData.date}`);
       }
     }
 

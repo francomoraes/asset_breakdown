@@ -8,6 +8,7 @@ import { User } from "../models/user";
 import { Institution } from "models/institution";
 import { FixedIncomeAsset } from "../models/fixed-income-asset";
 import { IndexRateCache } from "../models/index-rate-cache";
+import { WealthHistory } from "../models/wealth-history";
 dotenv.config();
 
 const shouldDropSchema = process.argv.includes("--drop-schema");
@@ -31,5 +32,6 @@ export const AppDataSource = new DataSource({
     Institution,
     FixedIncomeAsset,
     IndexRateCache,
+    WealthHistory,
   ],
 });

@@ -27,6 +27,7 @@ import csvRoutes from "./routes/csv.routes";
 import fixedIncomeAssetRoutes from "./routes/fixed-income-asset.routes";
 import institutionRoutes from "./routes/institution.routes";
 import summaryRoutes from "./routes/summary.routes";
+import wealthHistoryRoutes from "./routes/wealth-history.routes";
 import path from "path";
 
 dotenv.config();
@@ -47,6 +48,7 @@ app.use("/api/csv", authMiddleware, strictLimiter, csvRoutes);
 app.use("/api/assets", authMiddleware, assetRoutes);
 app.use("/api/fixed-income-assets", authMiddleware, fixedIncomeAssetRoutes);
 app.use("/api/summary", authMiddleware, summaryRoutes);
+app.use("/api/wealth-history", authMiddleware, wealthHistoryRoutes);
 app.use("/api/asset-class", authMiddleware, assetClassRoutes);
 app.use("/api/asset-type", authMiddleware, assetTypeRoutes);
 app.use("/api/institutions", authMiddleware, institutionRoutes);

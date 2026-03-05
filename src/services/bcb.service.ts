@@ -78,13 +78,20 @@ export class BCBService {
     const startDateStr = this.formatDateForBCB(startDate);
     const endDateStr = this.formatDateForBCB(endDate);
 
-    const url = `${this.BCB_API_BASE}.${seriesCode}/dados?formato=json&dataInicial=${startDateStr}&dataFinal=${endDateStr}`;
+    const params = new URLSearchParams({
+      formato: "json",
+      dataInicial: startDateStr,
+      dataFinal: endDateStr,
+    });
+    const url = `${this.BCB_API_BASE}.${seriesCode}/dados?${params.toString()}`;
 
     try {
       const response = await fetch(url);
 
       if (!response.ok) {
-        throw new Error(`BCB API error: ${response.statusText}`);
+        throw new Error(
+          `BCB API error: ${response.status} ${response.statusText}`,
+        );
       }
 
       const data = (await response.json()) as BCBDataPoint[];
@@ -107,6 +114,11 @@ export class BCBService {
     startDate: Date,
     endDate: Date,
   ): Promise<Array<{ date: Date; value: number }>> {
+    const normalizedStartDate =
+      startDate.getTime() <= endDate.getTime() ? startDate : endDate;
+    const normalizedEndDate =
+      startDate.getTime() <= endDate.getTime() ? endDate : startDate;
+
     const cachedData = await this.cacheRepo.find({
       where: {
         indexType,
@@ -120,8 +132,8 @@ export class BCBService {
       cachedData.map((d) => this.dateKey(d.date as Date | string)),
     );
 
-    const startDateStr = this.dateKey(startDate);
-    const endDateStr = this.dateKey(endDate);
+    const startDateStr = this.dateKey(normalizedStartDate);
+    const endDateStr = this.dateKey(normalizedEndDate);
 
     const needsFetch =
       !cachedData.length ||
@@ -130,7 +142,20 @@ export class BCBService {
         this.dateKey(cachedData[cachedData.length - 1].date as Date | string);
 
     if (needsFetch) {
-      const bcbData = await this.fetchFromBCB(indexType, startDate, endDate);
+      let bcbData: BCBDataPoint[] = [];
+
+      try {
+        bcbData = await this.fetchFromBCB(
+          indexType,
+          normalizedStartDate,
+          normalizedEndDate,
+        );
+      } catch (error) {
+        // Mantém funcionamento com cache quando API externa falhar.
+        console.warn(
+          `Using cached ${indexType} data only due to BCB fetch failure`,
+        );
+      }
 
       const newEntries: IndexRateCache[] = [];
 
