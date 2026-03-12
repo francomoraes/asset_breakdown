@@ -11,6 +11,7 @@ import { Institution } from "models/institution";
 import { getMarketPriceCentsBatch } from "utils/get-market-price-batch";
 import { ALLOWED_SORT_FIELDS } from "enums/allowedSortFields.enum";
 import { PaginatedResponseDto } from "dtos/pagination.dto";
+import { FindOptionsOrder } from "typeorm";
 
 type UpdateAssetData = {
   id: number;
@@ -65,6 +66,13 @@ export class AssetService {
     const skip = skipPagination ? 0 : (validPage - 1) * effectiveItemsPerPage;
     const take = effectiveItemsPerPage;
 
+    const orderBy: FindOptionsOrder<Asset> =
+      safeSortBy === ALLOWED_SORT_FIELDS.INSTITUTION
+        ? { institution: { name: order } }
+        : safeSortBy === ALLOWED_SORT_FIELDS.TYPE
+          ? { type: { name: order } }
+          : { [safeSortBy]: order };
+
     const [assets, _] = await this.assetRepo.findAndCount({
       where: { userId },
       relations: {
@@ -73,9 +81,7 @@ export class AssetService {
         },
         institution: true,
       },
-      order: {
-        [safeSortBy]: order,
-      },
+      order: orderBy,
       skip,
       take,
     });

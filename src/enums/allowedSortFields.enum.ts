@@ -3,8 +3,10 @@ export enum ALLOWED_SORT_FIELDS {
   TYPE = "type",
   QUANTITY = "quantity",
   AVERAGE_PRICE_CENTS = "averagePriceCents",
+  CURRENT_PRICE_CENTS = "currentPriceCents",
   CURRENT_VALUE_CENTS = "currentValueCents",
   RESULT_CENTS = "resultCents",
   INSTITUTION = "institution",
   RETURN_PERCENTAGE = "returnPercentage",
+  PORTFOLIO_PERCENTAGE = "portfolioPercentage",
 }

@@ -8,6 +8,7 @@ import { Institution } from "models/institution";
 import { Repository } from "typeorm";
 import { recalculatePortfolio } from "utils/recalculate-portfolio";
 import { indexCalculatorService } from "./index-calculator.service";
+import { FindOptionsOrder } from "typeorm";
 
 /**
  * Calcula os campos derivados de um ativo de renda fixa
@@ -108,6 +109,13 @@ export class FixedIncomeAssetService {
     const skip = skipPagination ? 0 : (validPage - 1) * effectiveItemsPerPage;
     const take = effectiveItemsPerPage;
 
+    const orderBy: FindOptionsOrder<FixedIncomeAsset> =
+      safeSortBy === ALLOWED_SORT_FIELDS_FIXED_INCOME.INSTITUTION
+        ? { institution: { name: order } }
+        : safeSortBy === ALLOWED_SORT_FIELDS_FIXED_INCOME.TYPE
+          ? { type: { name: order } }
+          : { [safeSortBy]: order };
+
     const [assets, _] = await this.fixedIncomeAssetRepo.findAndCount({
       where: { userId },
       relations: {
@@ -116,9 +124,7 @@ export class FixedIncomeAssetService {
         },
         institution: true,
       },
-      order: {
-        [safeSortBy]: order,
-      },
+      order: orderBy,
       skip,
       take,
     });
