@@ -11,6 +11,9 @@
     "seed:demo": "NODE_ENV=demo ts-node src/seed/seed.ts",
     "reset": "npm run seed -- --drop-schema --reset --clear-price-cache",
     "job:wealth-snapshot": "ts-node -r tsconfig-paths/register src/jobs/monthly-wealth-snapshot.ts",
+    "test:unit": "vitest run",
+    "test:unit:watch": "vitest",
+    "test:unit:coverage": "vitest run --coverage",
     "test:api": "newman run postman/collection.json -e postman/environment.json --reporters cli,json --reporter-json-export postman/results.json",
     "test:api:verbose": "newman run postman/collection.json -e postman/environment.json --reporters cli --verbose",
     "test:api:full": "newman run postman/asset_breakdown.postman_collection.json -e postman/environment.json --reporters cli",
@@ -55,9 +58,13 @@
     "zod": "^3.24.4"
   },
   "devDependencies": {
+    "@types/supertest": "^7.2.0",
+    "@vitest/coverage-v8": "^4.1.0",
     "newman": "^6.2.1",
     "nodemon": "^3.1.10",
+    "supertest": "^7.2.2",
     "ts-node-dev": "^2.0.0",
-    "tsx": "^4.19.4"
+    "tsx": "^4.19.4",
+    "vitest": "^4.1.0"
   }
 }
