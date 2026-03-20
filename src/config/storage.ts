@@ -1,5 +1,7 @@
 import fs from "fs/promises";
 import path from "path";
+import { config } from "./environment";
+import { getSupabaseAdminClient } from "./supabase";
 
 interface StorageAdapter {
   upload(file: Express.Multer.File, userId: number): Promise<string>;
@@ -35,21 +37,53 @@ class LocalStorageAdapter implements StorageAdapter {
 
 class SupabaseStorageAdapter implements StorageAdapter {
   async upload(file: Express.Multer.File, userId: number): Promise<string> {
-    // const { data } = await supabase.storage
-    //   .from("profile-pictures")
-    //   .upload(`${userId}/${file.filename}`, file.buffer)
-    // return data?.publicUrl || "";
-    return "";
+    const supabase = getSupabaseAdminClient();
+    const extension = file.mimetype.split("/")[1] || "jpg";
+    const filename = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}.${extension}`;
+    const objectPath = `users/${userId}/${filename}`;
+
+    const { error } = await supabase.storage
+      .from(config.supabaseStorageBucket)
+      .upload(objectPath, file.buffer, {
+        contentType: file.mimetype,
+        upsert: false,
+      });
+
+    if (error) {
+      throw new Error(`Supabase upload failed: ${error.message}`);
+    }
+
+    const { data } = supabase.storage
+      .from(config.supabaseStorageBucket)
+      .getPublicUrl(objectPath);
+
+    return data.publicUrl;
   }
 
   async delete(fileUrl: string): Promise<void> {
-    // const { data } = await supabase.storage
-    //   .from("profile-pictures")
-    //   .remove([fileUrl]);
+    const supabase = getSupabaseAdminClient();
+
+    const bucketMarker = `/${config.supabaseStorageBucket}/`;
+    const markerIndex = fileUrl.indexOf(bucketMarker);
+
+    if (markerIndex === -1) {
+      return;
+    }
+
+    const objectPath = fileUrl.slice(markerIndex + bucketMarker.length);
+    if (!objectPath) {
+      return;
+    }
+
+    await supabase.storage.from(config.supabaseStorageBucket).remove([objectPath]);
   }
 }
 
-export const storageAdapter: StorageAdapter =
-  process.env.NODE_ENV === "production"
-    ? new SupabaseStorageAdapter()
-    : new LocalStorageAdapter();
+const hasSupabaseStorageConfig =
+  Boolean(config.supabaseUrl) &&
+  Boolean(config.supabaseServiceRoleKey) &&
+  Boolean(config.supabaseStorageBucket);
+
+export const storageAdapter: StorageAdapter = hasSupabaseStorageConfig
+  ? new SupabaseStorageAdapter()
+  : new LocalStorageAdapter();

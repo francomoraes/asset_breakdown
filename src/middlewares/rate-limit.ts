@@ -1,5 +1,5 @@
 import { config } from "../config/environment";
-import { rateLimit } from "express-rate-limit";
+import { ipKeyGenerator, rateLimit } from "express-rate-limit";
 import { Request } from "express";
 
 const demoLimits = {
@@ -23,8 +23,8 @@ const devLimits = {
 const limits = config.isDevelopment
   ? devLimits
   : config.isDemo
-  ? demoLimits
-  : prodLimits;
+    ? demoLimits
+    : prodLimits;
 
 const appLimiter = rateLimit({
   windowMs: limits.general.windowMs,
@@ -68,7 +68,7 @@ const getKey = (req: Request) => {
     return `user:${req.user.userId}`;
   }
 
-  return `ip:${req.ip || "unknown"}`;
+  return `ip:${ipKeyGenerator(req.ip || "")}`;
 };
 
 const createHeavyLimiter = (scope: "low" | "medium" | "high", max: number) =>
