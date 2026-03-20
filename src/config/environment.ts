@@ -11,6 +11,7 @@ export const config = {
   frontendUrl: process.env.FRONTEND_URL || "http://localhost:5173",
   exchangeRateTtlHours: Number(process.env.EXCHANGE_RATE_TTL_HOURS || 4),
   marketPriceTtlHours: Number(process.env.MARKET_PRICE_TTL_HOURS || 4),
+  marketIndicesTtlHours: Number(process.env.MARKET_INDICES_TTL_HOURS || 24),
 
   isDevelopment: process.env.NODE_ENV === "development",
   isDemo: process.env.NODE_ENV === "demo",
