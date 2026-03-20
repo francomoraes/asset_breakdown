@@ -2,6 +2,8 @@ import { AppDataSource } from "../config/data-source";
 import { AssetClass } from "../models/asset-class";
 import { AssetType } from "../models/asset-type";
 import { Asset } from "../models/asset";
+import { FixedIncomeAsset } from "../models/fixed-income-asset";
+import { WealthHistory } from "../models/wealth-history";
 import { getMarketPriceCentsBatch } from "../utils/get-market-price-batch";
 import { calculateDerivedFields } from "../utils/calculate-derived-fields";
 import { recalculatePortfolio } from "../utils/recalculate-portfolio";
@@ -27,6 +29,7 @@ AppDataSource.initialize()
       await queryRunner.query(`
         TRUNCATE TABLE "user" RESTART IDENTITY CASCADE;
         TRUNCATE TABLE "asset" RESTART IDENTITY CASCADE;
+        TRUNCATE TABLE "fixed_income_asset" RESTART IDENTITY CASCADE;
         TRUNCATE TABLE "asset_type" RESTART IDENTITY CASCADE;
         TRUNCATE TABLE "asset_class" RESTART IDENTITY CASCADE;
         TRUNCATE TABLE "institution" RESTART IDENTITY CASCADE;
@@ -37,14 +40,24 @@ AppDataSource.initialize()
 
     const userRepository = AppDataSource.getRepository(User);
     const seedUsersData = [
-      { email: "admin@test.com", password: "Admin123!" },
-      { email: "user@test.com", password: "User123!" },
+      {
+        email: "admin@test.com",
+        password: "Admin123!",
+        name: "Admin User",
+        locale: "pt-br",
+      },
+      {
+        email: "user@test.com",
+        password: "User123!",
+        name: "Regular User",
+        locale: "pt-br",
+      },
     ];
 
     const seedUsers: User[] = [];
 
     for (const userData of seedUsersData) {
-      const { email, password } = userData;
+      const { email, password, name, locale } = userData;
       let user = await userRepository.findOneBy({ email });
 
       if (!user) {
@@ -52,6 +65,8 @@ AppDataSource.initialize()
         user = userRepository.create({
           email,
           password: hashedPassword,
+          name,
+          locale,
         });
         await userRepository.save(user);
         console.log(`User created: ${email}`);
@@ -383,6 +398,248 @@ AppDataSource.initialize()
         console.log(`✅ Ativo criado: ${ticker}`);
       } else {
         console.log(`ℹ️ Ativo já existe: ${ticker}`);
+      }
+    }
+
+    // Seed Wealth History
+    console.log("📈 Criando histórico de patrimônio...");
+    const wealthHistoryRepository = AppDataSource.getRepository(WealthHistory);
+
+    const seedWealthHistory = [
+      // Histórico para o segundo usuário (Regular User)
+      {
+        userId: seedUsers[1].id,
+        date: "2024-01-01",
+        totalWealthCents: 5000000,
+      }, // R$ 50,000
+      {
+        userId: seedUsers[1].id,
+        date: "2024-02-01",
+        totalWealthCents: 5250000,
+      }, // R$ 52,500
+      {
+        userId: seedUsers[1].id,
+        date: "2024-03-01",
+        totalWealthCents: 5550000,
+      }, // R$ 55,500
+      {
+        userId: seedUsers[1].id,
+        date: "2024-04-01",
+        totalWealthCents: 5800000,
+      }, // R$ 58,000
+      {
+        userId: seedUsers[1].id,
+        date: "2024-05-01",
+        totalWealthCents: 6100000,
+      }, // R$ 61,000
+      {
+        userId: seedUsers[1].id,
+        date: "2024-06-01",
+        totalWealthCents: 6400000,
+      }, // R$ 64,000
+      {
+        userId: seedUsers[1].id,
+        date: "2024-07-01",
+        totalWealthCents: 6700000,
+      }, // R$ 67,000
+      {
+        userId: seedUsers[1].id,
+        date: "2024-08-01",
+        totalWealthCents: 6950000,
+      }, // R$ 69,500
+      {
+        userId: seedUsers[1].id,
+        date: "2024-09-01",
+        totalWealthCents: 7250000,
+      }, // R$ 72,500
+      {
+        userId: seedUsers[1].id,
+        date: "2024-10-01",
+        totalWealthCents: 7600000,
+      }, // R$ 76,000
+      {
+        userId: seedUsers[1].id,
+        date: "2024-11-01",
+        totalWealthCents: 7950000,
+      }, // R$ 79,500
+      {
+        userId: seedUsers[1].id,
+        date: "2024-12-01",
+        totalWealthCents: 8300000,
+      }, // R$ 83,000
+      {
+        userId: seedUsers[1].id,
+        date: "2025-01-01",
+        totalWealthCents: 8600000,
+      }, // R$ 86,000
+      {
+        userId: seedUsers[1].id,
+        date: "2025-02-01",
+        totalWealthCents: 8950000,
+      }, // R$ 89,500
+    ];
+
+    for (const wealthData of seedWealthHistory) {
+      const date = new Date(wealthData.date);
+      const normalizedDate = new Date(
+        date.getFullYear(),
+        date.getMonth(),
+        date.getDate(),
+      );
+
+      const existing = await wealthHistoryRepository.findOne({
+        where: {
+          userId: wealthData.userId,
+          date: normalizedDate,
+        },
+      });
+
+      if (!existing) {
+        const wealthHistory = wealthHistoryRepository.create({
+          userId: wealthData.userId,
+          date: normalizedDate,
+          totalWealthCents: wealthData.totalWealthCents,
+        });
+        await wealthHistoryRepository.save(wealthHistory);
+        console.log(`✅ Histórico de patrimônio criado: ${wealthData.date}`);
+      } else {
+        console.log(`ℹ️ Histórico de patrimônio já existe: ${wealthData.date}`);
+      }
+    }
+
+    // Seed Fixed Income Assets
+    console.log("💰 Criando ativos de renda fixa...");
+    const fixedIncomeAssetRepository =
+      AppDataSource.getRepository(FixedIncomeAsset);
+
+    const seedFixedIncomeAssets = [
+      {
+        description: "CDB XP 100% CDI",
+        startDate: new Date("2024-01-15"),
+        maturityDate: new Date("2026-01-15"),
+        interestRate: 13.65, // 100% do CDI
+        investedValueCents: 1000000, // R$ 10.000,00
+        currency: "BRL",
+        institution: institutions[1].name, // XP Investimentos
+        type: "Pós-fixado",
+      },
+      {
+        description: "Tesouro IPCA+ 2029",
+        startDate: new Date("2023-06-10"),
+        maturityDate: new Date("2029-05-15"),
+        interestRate: 6.5, // IPCA + 6.5%
+        investedValueCents: 500000, // R$ 5.000,00
+        currency: "BRL",
+        institution: institutions[1].name,
+        type: "Inflação",
+      },
+      {
+        description: "LCI Banco XP",
+        startDate: new Date("2024-03-20"),
+        maturityDate: new Date("2026-03-20"),
+        interestRate: 11.2, // 82% do CDI
+        investedValueCents: 1500000, // R$ 15.000,00
+        currency: "BRL",
+        institution: institutions[1].name,
+        type: "Pós-fixado",
+      },
+      {
+        description: "Tesouro Prefixado 2027",
+        startDate: new Date("2024-01-05"),
+        maturityDate: new Date("2027-01-01"),
+        interestRate: 12.0, // Taxa prefixada
+        investedValueCents: 800000, // R$ 8.000,00
+        currency: "BRL",
+        institution: institutions[1].name,
+        type: "Pré-fixado",
+      },
+      {
+        description: "CDB Banco Inter 110% CDI",
+        startDate: new Date("2024-02-10"),
+        maturityDate: new Date("2025-02-10"),
+        interestRate: 15.0, // 110% do CDI
+        investedValueCents: 300000, // R$ 3.000,00
+        currency: "BRL",
+        institution: institutions[1].name,
+        type: "Pós-fixado",
+      },
+    ];
+
+    for (const fiAsset of seedFixedIncomeAssets) {
+      const assetType = await assetTypeRepository.findOneBy({
+        name: fiAsset.type,
+        userId: seedUsers[1].id,
+      });
+
+      if (!assetType) {
+        console.warn(
+          `Asset type ${fiAsset.type} not found for ${fiAsset.description}`,
+        );
+        continue;
+      }
+
+      const assetInstitution = await institutionsRepository.findOneBy({
+        name: fiAsset.institution,
+        userId: seedUsers[1].id,
+      });
+
+      if (!assetInstitution) {
+        console.warn(
+          `Institution ${fiAsset.institution} not found for ${fiAsset.description}`,
+        );
+        continue;
+      }
+
+      // Calcular valores derivados
+      const now = new Date();
+      const calculationDate =
+        now > fiAsset.maturityDate ? fiAsset.maturityDate : now;
+
+      const daysElapsed = Math.floor(
+        (calculationDate.getTime() - fiAsset.startDate.getTime()) /
+          (1000 * 60 * 60 * 24),
+      );
+
+      const dailyRate = Math.pow(1 + fiAsset.interestRate / 100, 1 / 365) - 1;
+      const currentValueCents = Math.round(
+        fiAsset.investedValueCents * Math.pow(1 + dailyRate, daysElapsed),
+      );
+      const resultCents = currentValueCents - fiAsset.investedValueCents;
+      const returnPercentage =
+        fiAsset.investedValueCents > 0
+          ? Number(
+              ((resultCents / fiAsset.investedValueCents) * 100).toFixed(2),
+            )
+          : 0;
+
+      const existing = await fixedIncomeAssetRepository.findOne({
+        where: {
+          description: fiAsset.description,
+          userId: seedUsers[1].id,
+        },
+      });
+
+      if (!existing) {
+        const fixedIncomeAsset = fixedIncomeAssetRepository.create({
+          description: fiAsset.description,
+          startDate: fiAsset.startDate,
+          maturityDate: fiAsset.maturityDate,
+          interestRate: fiAsset.interestRate,
+          investedValueCents: fiAsset.investedValueCents,
+          currentValueCents,
+          resultCents,
+          returnPercentage,
+          portfolioPercentage: 0,
+          institution: assetInstitution,
+          type: assetType,
+          currency: fiAsset.currency,
+          userId: seedUsers[1].id,
+        });
+
+        await fixedIncomeAssetRepository.save(fixedIncomeAsset);
+        console.log(`✅ Ativo de renda fixa criado: ${fiAsset.description}`);
+      } else {
+        console.log(`ℹ️ Ativo de renda fixa já existe: ${fiAsset.description}`);
       }
     }
 

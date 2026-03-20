@@ -1,12 +1,17 @@
 import { AppDataSource } from "../config/data-source";
 import { Asset } from "../models/asset";
+import { FixedIncomeAsset } from "../models/fixed-income-asset";
 import { Repository } from "typeorm";
 import { getBRLtoUSDRate } from "../utils/get-brl-to-usd-rate";
 
 export class SummaryService {
-  constructor(private assetRepo: Repository<Asset>) {}
+  constructor(
+    private assetRepo: Repository<Asset>,
+    private fixedIncomeRepo: Repository<FixedIncomeAsset>,
+  ) {}
 
   async getSummary({ userId }: { userId: number }) {
+    // Buscar summary de Assets regulares
     const rawSummary = await this.assetRepo
       .createQueryBuilder("asset")
       .leftJoin("asset.type", "type")
@@ -22,12 +27,48 @@ export class SummaryService {
       .groupBy("class.name, type.name, asset.currency, type.targetPercentage")
       .getRawMany();
 
-    const total = rawSummary.reduce(
+    // Buscar summary de Fixed Income Assets
+    const rawFixedIncomeSummary = await this.fixedIncomeRepo
+      .createQueryBuilder("fixedIncome")
+      .leftJoin("fixedIncome.type", "type")
+      .leftJoin("type.assetClass", "class")
+      .select([
+        `class.name AS "assetClassName"`,
+        `type.name AS "assetTypeName"`,
+        `fixedIncome.currency AS "currency"`,
+        `SUM(fixedIncome.currentValueCents) AS "totalValueCents"`,
+        `type.targetPercentage AS "targetPercentage"`,
+      ])
+      .where("fixedIncome.userId = :userId", { userId })
+      .groupBy(
+        "class.name, type.name, fixedIncome.currency, type.targetPercentage",
+      )
+      .getRawMany();
+
+    // Combinar ambos os resultados
+    const combinedSummary = [...rawSummary, ...rawFixedIncomeSummary];
+
+    // Agrupar por classe/tipo/moeda (caso haja duplicatas)
+    const groupedMap = new Map<string, any>();
+    for (const item of combinedSummary) {
+      const key = `${item.assetClassName}|${item.assetTypeName}|${item.currency}`;
+      if (groupedMap.has(key)) {
+        const existing = groupedMap.get(key);
+        existing.totalValueCents =
+          Number(existing.totalValueCents) + Number(item.totalValueCents);
+      } else {
+        groupedMap.set(key, { ...item });
+      }
+    }
+
+    const mergedSummary = Array.from(groupedMap.values());
+
+    const total = mergedSummary.reduce(
       (acc, item) => acc + Number(item.totalValueCents),
       0,
     );
 
-    const summary = rawSummary.map((item) => {
+    const summary = mergedSummary.map((item) => {
       const actualPercentage =
         total > 0
           ? Number((Number(item.totalValueCents) / total).toFixed(4))
@@ -41,10 +82,21 @@ export class SummaryService {
       };
     });
 
-    return summary;
+    // Buscar taxa de câmbio USD para BRL
+    const brlToUsdRate = await getBRLtoUSDRate();
+    const usdToBrlRate = 1 / brlToUsdRate;
+
+    return {
+      data: summary,
+      exchangeRate: {
+        usdToBrl: Number(usdToBrlRate.toFixed(4)),
+        brlToUsd: Number(brlToUsdRate.toFixed(4)),
+      },
+    };
   }
 
   async getOverviewByCurrency({ userId }: { userId: number }) {
+    // Buscar assets regulares
     const rawResult = await this.assetRepo
       .createQueryBuilder("asset")
       .select(`asset.currency`, "currency")
@@ -53,10 +105,34 @@ export class SummaryService {
       .groupBy("asset.currency")
       .getRawMany();
 
+    // Buscar fixed income assets
+    const rawFixedIncomeResult = await this.fixedIncomeRepo
+      .createQueryBuilder("fixedIncome")
+      .select(`fixedIncome.currency`, "currency")
+      .addSelect(`SUM(fixedIncome.currentValueCents)`, `totalCents`)
+      .where("fixedIncome.userId = :userId", { userId })
+      .groupBy("fixedIncome.currency")
+      .getRawMany();
+
+    // Combinar e agrupar por moeda
+    const combinedByCurrency = new Map<string, number>();
+    [...rawResult, ...rawFixedIncomeResult].forEach((row) => {
+      const currency = row.currency;
+      const amount = Number(row.totalCents);
+      combinedByCurrency.set(
+        currency,
+        (combinedByCurrency.get(currency) || 0) + amount,
+      );
+    });
+
+    const mergedResult = Array.from(combinedByCurrency.entries()).map(
+      ([currency, totalCents]) => ({ currency, totalCents }),
+    );
+
     const brlToUsdRate = await getBRLtoUSDRate();
 
-    const converted = rawResult.map((row) => {
-      const totalCents = Number(row.totalCents);
+    const converted = mergedResult.map((row) => {
+      const totalCents = row.totalCents;
       const currency = row.currency;
 
       const totalInUSD =
@@ -90,4 +166,5 @@ export class SummaryService {
 
 export const summaryService = new SummaryService(
   AppDataSource.getRepository(Asset),
+  AppDataSource.getRepository(FixedIncomeAsset),
 );

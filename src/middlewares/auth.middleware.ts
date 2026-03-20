@@ -4,6 +4,9 @@ declare global {
       user?: {
         userId: number;
         email: string;
+        name: string;
+        profilePictureUrl: string | null;
+        locale: string | null;
       };
     }
   }

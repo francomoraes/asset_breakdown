@@ -1,17 +1,21 @@
-import yahooFinance from "yahoo-finance2";
+import YahooFinance from "yahoo-finance2";
 import { formatYahooTicker } from "./format-yahoo-ticker";
 import { AppDataSource } from "../config/data-source";
+import { config } from "../config/environment";
 import { PriceCache } from "../models/price-cache";
 import { ensureDataSource } from "../utils/ensure-data-source";
 import { logger } from "../utils/logger";
+import { runYahooTask } from "../utils/yahoo-concurrency";
 
-const TTL_HOURS = 24;
+const yahooFinance = new YahooFinance({
+  suppressNotices: ["yahooSurvey"],
+});
 
 function isFresh(updatedAt: Date): boolean {
   const cacheDate = new Date(updatedAt);
   const now = new Date();
   const diffHours = (now.getTime() - cacheDate.getTime()) / (1000 * 60 * 60);
-  return diffHours < TTL_HOURS;
+  return diffHours < config.marketPriceTtlHours;
 }
 
 export async function getMarketPriceCentsBatch(
@@ -48,7 +52,9 @@ export async function getMarketPriceCentsBatch(
   try {
     logger.info(`Buscando cotações para: ${tickersToFetch.join(", ")}`);
 
-    const quotes: any = await yahooFinance.quote(tickersToFetch);
+    const quotes: any = await runYahooTask(() =>
+      yahooFinance.quote(tickersToFetch),
+    );
 
     const quotesArray = Array.isArray(quotes) ? quotes : [quotes];
 
@@ -91,8 +97,37 @@ export async function getMarketPriceCentsBatch(
     }
 
     return results;
-  } catch (error) {
-    logger.error(`Erro ao buscar cotações em batch:`, error);
+  } catch (error: any) {
+    const errorMsg = error?.message || String(error);
+    const isRateLimitError =
+      errorMsg.includes("Too Many Requests") ||
+      errorMsg.includes("HTTPError") ||
+      error?.name === "HTTPError" ||
+      error?.cause?.code === "ERR_BODY_PARSE_FAILURE";
+
+    // Se é erro de rate limiting, retornar valores cacheados disponíveis
+    if (isRateLimitError) {
+      logger.info(
+        "Rate limit do Yahoo Finance. Usando cotações em cache disponíveis.",
+      );
+
+      // Para tickers que não foram buscados ainda, tentar pegar do cache antigo
+      for (const formattedTicker of tickersToFetch) {
+        const originalTicker = tickerMap.get(formattedTicker);
+        if (originalTicker && !results.has(originalTicker)) {
+          const cached = await repo.findOneBy({ ticker: originalTicker });
+          if (cached) {
+            logger.info(`Usando cache para ${originalTicker}`);
+            results.set(originalTicker, cached.value);
+          }
+        }
+      }
+
+      return results;
+    }
+
+    // Para outros erros, logar
+    logger.error(`Erro ao buscar cotações em batch:`, errorMsg);
     throw new Error(`Erro ao buscar dados para ${tickersToFetch.join(", ")}`);
   }
 }

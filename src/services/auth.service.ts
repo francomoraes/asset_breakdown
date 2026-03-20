@@ -8,11 +8,34 @@ import { Repository } from "typeorm";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import { AppDataSource } from "../config/data-source";
+import { storageAdapter } from "../config/storage";
+import fs from "fs/promises";
+import path from "path";
+
+type UpdateUserData = {
+  id: number;
+  locale?: string;
+  name?: string;
+  email?: string;
+  currentPassword?: string;
+  newPassword?: string;
+  profilePictureUrl?: string | null;
+};
 
 export class AuthService {
   constructor(private userRepository: Repository<User>) {}
 
-  async register({ email, password }: { email: string; password: string }) {
+  async register({
+    email,
+    password,
+    name,
+    locale = "pt-br",
+  }: {
+    email: string;
+    password: string;
+    name: string;
+    locale?: string;
+  }) {
     const existingUser = await this.userRepository.findOneBy({ email });
 
     if (existingUser) {
@@ -24,6 +47,8 @@ export class AuthService {
     const user = await this.userRepository.save({
       email,
       password: hashedPassword,
+      name,
+      locale,
     });
 
     const secret = process.env.JWT_SECRET;
@@ -31,12 +56,22 @@ export class AuthService {
       throw new UnauthorizedError("Unauthorized: no token provided");
     }
 
-    const token = jwt.sign({ userId: user.id, email: user.email }, secret, {
-      expiresIn: "24h",
-    });
+    const token = jwt.sign(
+      {
+        userId: user.id,
+        email: user.email,
+        name: user.name,
+        profilePictureUrl: user.profilePictureUrl,
+        locale: user.locale,
+      },
+      secret,
+      {
+        expiresIn: "1h",
+      },
+    );
 
     return {
-      user: { id: user.id, email: user.email },
+      user,
       token,
     };
   }
@@ -44,7 +79,14 @@ export class AuthService {
   async login({ email, password }: { email: string; password: string }) {
     const user = await this.userRepository.findOne({
       where: { email },
-      select: ["id", "email", "password"],
+      select: [
+        "id",
+        "email",
+        "password",
+        "name",
+        "profilePictureUrl",
+        "locale",
+      ],
     });
 
     if (!user) {
@@ -63,12 +105,30 @@ export class AuthService {
       throw new UnauthorizedError("Unauthorized: no token provided");
     }
 
-    const token = jwt.sign({ userId: user.id, email: user.email }, secret, {
-      expiresIn: "24h",
-    });
+    const token = jwt.sign(
+      {
+        userId: user.id,
+        email: user.email,
+        name: user.name,
+        profilePictureUrl: user.profilePictureUrl,
+        locale: user.locale,
+      },
+      secret,
+      {
+        expiresIn: "1h",
+      },
+    );
+
+    const userData = {
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      profilePictureUrl: user.profilePictureUrl,
+      locale: user.locale,
+    };
 
     return {
-      user: { id: user.id, email: user.email },
+      user: userData,
       token,
     };
   }
@@ -93,12 +153,122 @@ export class AuthService {
         throw new NotFoundError("User not found");
       }
 
-      return { userId: user.id, email: user.email };
+      if (!user.id) {
+        throw new Error("User ID is missing");
+      }
+
+      const { id, email, name, profilePictureUrl, locale } = user;
+
+      return { userId: id, email, name, profilePictureUrl, locale };
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : "Unknown error";
       throw new Error(`Token validation failed: ${errorMessage}`);
     }
+  }
+
+  private async cleanupOrphanedPhotos(userId: number, keepUrl: string | null) {
+    try {
+      const uploadDir = path.join(__dirname, "../../uploads/profile-pictures");
+      const files = await fs.readdir(uploadDir);
+
+      const userFiles = files.filter((file) => file.startsWith(`${userId}-`));
+
+      const keepFilename = keepUrl ? keepUrl.split("/").pop() : null;
+
+      for (const file of userFiles) {
+        if (file !== keepFilename) {
+          await fs.rm(path.join(uploadDir, file), { force: true });
+        }
+      }
+    } catch (error) {
+      console.error("Cleanup error:", error);
+    }
+  }
+
+  async updateUser({
+    id,
+    locale,
+    name,
+    email,
+    currentPassword,
+    newPassword,
+    profilePictureUrl,
+  }: UpdateUserData) {
+    const user = await this.userRepository.findOne({
+      where: { id },
+      select: [
+        "id",
+        "email",
+        "name",
+        "password",
+        "locale",
+        "profilePictureUrl",
+      ],
+    });
+
+    if (!user) {
+      throw new NotFoundError("User not found");
+    }
+
+    user.locale = locale ?? user.locale;
+    user.name = name ?? user.name;
+    user.email = email ?? user.email;
+
+    if (profilePictureUrl !== undefined) {
+      user.profilePictureUrl = profilePictureUrl;
+
+      await this.cleanupOrphanedPhotos(id, profilePictureUrl);
+    }
+
+    if (newPassword) {
+      if (!currentPassword) {
+        throw new UnauthorizedError(
+          "Current password is required to set a new password",
+        );
+      }
+      const isValidPassword = await bcrypt.compare(
+        currentPassword,
+        user.password,
+      );
+      if (!isValidPassword) {
+        throw new UnauthorizedError("Current password is incorrect");
+      }
+      const hashedPassword = await bcrypt.hash(newPassword, 10);
+      user.password = hashedPassword;
+    }
+
+    const updatedUser = await this.userRepository.save(user);
+
+    const secret = process.env.JWT_SECRET;
+    if (!secret) {
+      throw new UnauthorizedError("Unauthorized: no token provided");
+    }
+
+    const token = jwt.sign(
+      {
+        userId: updatedUser.id,
+        email: updatedUser.email,
+        name: updatedUser.name,
+        profilePictureUrl: updatedUser.profilePictureUrl,
+        locale: updatedUser.locale,
+      },
+      secret,
+      {
+        expiresIn: "1h",
+      },
+    );
+
+    return {
+      user: {
+        id: updatedUser.id,
+        email: updatedUser.email,
+        name: updatedUser.name,
+        profilePictureUrl: updatedUser.profilePictureUrl,
+        locale: updatedUser.locale,
+      },
+      token,
+    };
   }
 }
 
@@ -107,6 +277,7 @@ export const authService = new AuthService(AppDataSource.getRepository(User));
 interface JwtPayload {
   userId: number;
   email: string;
+  name: string;
   iat?: number;
   exp?: number;
 }

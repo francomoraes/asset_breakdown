@@ -1,22 +1,21 @@
 import express from "express";
 import {
-  buyAsset,
+  createAsset,
   deleteAsset,
   exportAssetCsv,
   getAssets,
   getAssetsByUser,
   refreshMarketPrices,
-  sellAsset,
   updateAsset,
 } from "../controllers/assets.controller";
+import { refreshLimiter } from "../middlewares/rate-limit";
 
 const router = express.Router();
 router.get("/", getAssetsByUser);
 router.get("/export", exportAssetCsv);
-router.get("/refresh-market-prices", refreshMarketPrices);
+router.get("/refresh-market-prices", refreshLimiter, refreshMarketPrices);
+router.post("/", createAsset);
 router.put("/:id", updateAsset);
 router.delete("/:id", deleteAsset);
-router.post("/:ticker/buy", buyAsset);
-router.put("/:ticker/sell", sellAsset);
 
 export default router;

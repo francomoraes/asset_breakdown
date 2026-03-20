@@ -6,19 +6,45 @@ import { AssetClass } from "../models/asset-class";
 import { PriceCache } from "../models/price-cache";
 import { User } from "../models/user";
 import { Institution } from "models/institution";
+import { FixedIncomeAsset } from "../models/fixed-income-asset";
+import { IndexRateCache } from "../models/index-rate-cache";
+import { WealthHistory } from "../models/wealth-history";
+import { ExchangeRateCache } from "../models/exchange-rate-cache";
+import { MarketIndexCache } from "../models/market-index-cache";
+
 dotenv.config();
 
 const shouldDropSchema = process.argv.includes("--drop-schema");
 
+const connectionConfig = process.env.DATABASE_URL
+  ? {
+      url: process.env.DATABASE_URL,
+    }
+  : {
+      host: process.env.DB_HOST,
+      port: Number(process.env.DB_PORT),
+      username: process.env.DB_USER,
+      password: process.env.DB_PASS,
+      database: process.env.DB_NAME,
+    };
+
 export const AppDataSource = new DataSource({
   type: "postgres",
-  host: process.env.DB_HOST,
-  port: Number(process.env.DB_PORT),
-  username: process.env.DB_USER,
-  password: process.env.DB_PASS,
-  database: process.env.DB_NAME,
+  ...connectionConfig,
   synchronize: true,
   logging: false,
   dropSchema: shouldDropSchema,
-  entities: [Asset, AssetType, AssetClass, PriceCache, User, Institution],
+  entities: [
+    Asset,
+    AssetType,
+    AssetClass,
+    PriceCache,
+    User,
+    Institution,
+    FixedIncomeAsset,
+    IndexRateCache,
+    WealthHistory,
+    ExchangeRateCache,
+    MarketIndexCache,
+  ],
 });

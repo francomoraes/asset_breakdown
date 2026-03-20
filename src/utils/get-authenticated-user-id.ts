@@ -5,5 +5,5 @@ export const getAuthenticatedUserId = (req: Request): number => {
   if (!req.user?.userId) {
     throw new UnauthorizedError("User not authorized");
   }
-  return req.user.userId;
+  return Number(req.user.userId);
 };

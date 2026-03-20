@@ -1,19 +1,10 @@
-import {
-  Column,
-  CreateDateColumn,
-  Entity,
-  ManyToOne,
-  PrimaryGeneratedColumn,
-  UpdateDateColumn,
-} from "typeorm";
+import { Column, Entity, ManyToOne } from "typeorm";
 import { AssetType } from "./asset-type";
 import { Institution } from "models/institution";
+import { BaseEntity } from "models/base/base-entity";
 
 @Entity("asset")
-export class Asset {
-  @PrimaryGeneratedColumn()
-  id!: number;
-
+export class Asset extends BaseEntity {
   @Column("int")
   userId!: number;
 
@@ -54,10 +45,4 @@ export class Asset {
 
   @Column("text")
   currency!: string;
-
-  @CreateDateColumn()
-  createdAt!: Date;
-
-  @UpdateDateColumn()
-  updatedAt!: Date;
 }
