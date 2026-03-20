@@ -8,11 +8,12 @@ import {
   refreshMarketPrices,
   updateAsset,
 } from "../controllers/assets.controller";
+import { refreshLimiter } from "../middlewares/rate-limit";
 
 const router = express.Router();
 router.get("/", getAssetsByUser);
 router.get("/export", exportAssetCsv);
-router.get("/refresh-market-prices", refreshMarketPrices);
+router.get("/refresh-market-prices", refreshLimiter, refreshMarketPrices);
 router.post("/", createAsset);
 router.put("/:id", updateAsset);
 router.delete("/:id", deleteAsset);

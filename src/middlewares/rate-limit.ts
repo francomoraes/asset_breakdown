@@ -1,5 +1,6 @@
 import { config } from "../config/environment";
 import { rateLimit } from "express-rate-limit";
+import { Request } from "express";
 
 const demoLimits = {
   general: { windowMs: 15 * 60 * 1000, max: 50 },
@@ -41,6 +42,9 @@ const authLimiter = rateLimit({
   windowMs: limits.auth.windowMs,
   max: limits.auth.max,
   skip: () => config.isDevelopment,
+  skipSuccessfulRequests: true,
+  standardHeaders: true,
+  legacyHeaders: false,
   message: {
     error: "Too many login attempts from this IP, please try again later.",
     retryAfter: "5 minutes",
@@ -57,4 +61,44 @@ const strictLimiter = rateLimit({
   },
 });
 
-export { appLimiter, authLimiter, strictLimiter };
+const heavyWindowMs = config.rateLimitWindowMs;
+
+const getKey = (req: Request) => {
+  if (req.user?.userId) {
+    return `user:${req.user.userId}`;
+  }
+
+  return `ip:${req.ip || "unknown"}`;
+};
+
+const createHeavyLimiter = (scope: "low" | "medium" | "high", max: number) =>
+  rateLimit({
+    windowMs: heavyWindowMs,
+    max,
+    skip: () => config.isDevelopment,
+    keyGenerator: getKey,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: {
+      error: "Too many requests for this endpoint. Please try again later.",
+      code: "RATE_LIMIT_EXCEEDED",
+      scope,
+      retryAfterSeconds: Math.ceil(heavyWindowMs / 1000),
+    },
+  });
+
+const refreshLimiter = createHeavyLimiter("low", config.rateLimitLow);
+const marketIndicesLimiter = createHeavyLimiter(
+  "medium",
+  config.rateLimitMedium,
+);
+const summaryLimiter = createHeavyLimiter("high", config.rateLimitHigh);
+
+export {
+  appLimiter,
+  authLimiter,
+  strictLimiter,
+  refreshLimiter,
+  marketIndicesLimiter,
+  summaryLimiter,
+};

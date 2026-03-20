@@ -11,7 +11,6 @@ import { logger } from "./utils/logger";
 
 import {
   appLimiter,
-  authLimiter,
   strictLimiter,
 } from "./middlewares/rate-limit";
 import { authMiddleware } from "./middlewares/auth.middleware";
@@ -43,7 +42,7 @@ app.use(demoProtection);
 app.use(appLimiter);
 
 // Rotas
-app.use("/api/auth", authLimiter, authRoutes);
+app.use("/api/auth", authRoutes);
 app.use("/api/csv", authMiddleware, strictLimiter, csvRoutes);
 app.use("/api/assets", authMiddleware, assetRoutes);
 app.use("/api/fixed-income-assets", authMiddleware, fixedIncomeAssetRoutes);
