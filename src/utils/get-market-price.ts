@@ -1,6 +1,7 @@
 import YahooFinance from "yahoo-finance2";
 import { formatYahooTicker } from "./format-yahoo-ticker";
 import { AppDataSource } from "../config/data-source";
+import { config } from "../config/environment";
 import { PriceCache } from "../models/price-cache";
 import { ensureDataSource } from "../utils/ensure-data-source";
 import { logger } from "../utils/logger";
@@ -9,13 +10,11 @@ const yahooFinance = new YahooFinance({
   suppressNotices: ["yahooSurvey"],
 });
 
-const TTL_HOURS = 24;
-
 function isFresh(updatedAt: Date): boolean {
   const cacheDate = new Date(updatedAt);
   const now = new Date();
   const diffHours = (now.getTime() - cacheDate.getTime()) / (1000 * 60 * 60);
-  return diffHours < TTL_HOURS;
+  return diffHours < config.marketPriceTtlHours;
 }
 
 export async function getMarketPriceCents(ticker: string): Promise<number> {
