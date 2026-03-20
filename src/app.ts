@@ -42,6 +42,14 @@ app.use(requestLogger);
 app.use(demoProtection);
 app.use(appLimiter);
 
+app.get("/health", (_req, res) => {
+  res.status(200).json({
+    status: "ok",
+    timestamp: new Date().toISOString(),
+    uptimeSeconds: Math.floor(process.uptime()),
+  });
+});
+
 // Rotas
 app.use("/api/auth", authRoutes);
 app.use("/api/csv", authMiddleware, strictLimiter, csvRoutes);
