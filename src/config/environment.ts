@@ -1,7 +1,9 @@
 import dotenv from "dotenv";
 
+// Load base .env first (local default), then override with .env.<NODE_ENV> if present.
+dotenv.config();
 const envFile = `.env.${process.env.NODE_ENV || "development"}`;
-dotenv.config({ path: envFile });
+dotenv.config({ path: envFile, override: true });
 
 export const config = {
   nodeEnv: process.env.NODE_ENV || "development",
@@ -11,7 +13,8 @@ export const config = {
   frontendUrl: process.env.FRONTEND_URL || "http://localhost:5173",
   supabaseUrl: process.env.SUPABASE_URL || "",
   supabaseServiceRoleKey: process.env.SUPABASE_SERVICE_ROLE_KEY || "",
-  supabaseStorageBucket: process.env.SUPABASE_STORAGE_BUCKET || "profile-pictures",
+  supabaseStorageBucket:
+    process.env.SUPABASE_STORAGE_BUCKET || "profile-pictures",
   exchangeRateTtlHours: Number(process.env.EXCHANGE_RATE_TTL_HOURS || 4),
   marketPriceTtlHours: Number(process.env.MARKET_PRICE_TTL_HOURS || 4),
   marketIndicesTtlHours: Number(process.env.MARKET_INDICES_TTL_HOURS || 24),

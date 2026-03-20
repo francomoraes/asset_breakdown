@@ -1,6 +1,5 @@
 import "tsconfig-paths/register";
 import cors from "cors";
-import dotenv from "dotenv";
 import express from "express";
 
 import { AppDataSource } from "./config/data-source";
@@ -28,8 +27,6 @@ import institutionRoutes from "./routes/institution.routes";
 import summaryRoutes from "./routes/summary.routes";
 import wealthHistoryRoutes from "./routes/wealth-history.routes";
 import path from "path";
-
-dotenv.config();
 
 const app = express();
 app.set("trust proxy", 1);
