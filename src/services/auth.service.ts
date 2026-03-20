@@ -9,8 +9,6 @@ import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import { AppDataSource } from "../config/data-source";
 import { storageAdapter } from "../config/storage";
-import fs from "fs/promises";
-import path from "path";
 
 type UpdateUserData = {
   id: number;
@@ -167,20 +165,13 @@ export class AuthService {
     }
   }
 
-  private async cleanupOrphanedPhotos(userId: number, keepUrl: string | null) {
+  private async cleanupOrphanedPhotos(previousUrl: string | null) {
+    if (!previousUrl) {
+      return;
+    }
+
     try {
-      const uploadDir = path.join(__dirname, "../../uploads/profile-pictures");
-      const files = await fs.readdir(uploadDir);
-
-      const userFiles = files.filter((file) => file.startsWith(`${userId}-`));
-
-      const keepFilename = keepUrl ? keepUrl.split("/").pop() : null;
-
-      for (const file of userFiles) {
-        if (file !== keepFilename) {
-          await fs.rm(path.join(uploadDir, file), { force: true });
-        }
-      }
+      await storageAdapter.delete(previousUrl);
     } catch (error) {
       console.error("Cleanup error:", error);
     }
@@ -216,9 +207,15 @@ export class AuthService {
     user.email = email ?? user.email;
 
     if (profilePictureUrl !== undefined) {
+      const previousProfilePictureUrl = user.profilePictureUrl;
       user.profilePictureUrl = profilePictureUrl;
 
-      await this.cleanupOrphanedPhotos(id, profilePictureUrl);
+      if (
+        previousProfilePictureUrl &&
+        previousProfilePictureUrl !== profilePictureUrl
+      ) {
+        await this.cleanupOrphanedPhotos(previousProfilePictureUrl);
+      }
     }
 
     if (newPassword) {
