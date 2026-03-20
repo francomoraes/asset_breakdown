@@ -16,6 +16,7 @@ export const config = {
   rateLimitLow: Number(process.env.RL_LIMIT_LOW || 5),
   rateLimitMedium: Number(process.env.RL_LIMIT_MEDIUM || 20),
   rateLimitHigh: Number(process.env.RL_LIMIT_HIGH || 30),
+  yahooMaxConcurrency: Number(process.env.YAHOO_MAX_CONCURRENCY || 2),
 
   isDevelopment: process.env.NODE_ENV === "development",
   isDemo: process.env.NODE_ENV === "demo",

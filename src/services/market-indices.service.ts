@@ -4,6 +4,7 @@ import { config } from "../config/environment";
 import { MarketIndexCache } from "../models/market-index-cache";
 import { ensureDataSource } from "../utils/ensure-data-source";
 import { logger } from "../utils/logger";
+import { runYahooTask } from "../utils/yahoo-concurrency";
 import { Between, Repository } from "typeorm";
 
 const yahooFinance = new YahooFinance({
@@ -66,7 +67,9 @@ export class MarketIndicesService {
       interval: "1d" as const,
     };
 
-    const result = await yahooFinance.chart("^GSPC", queryOptions);
+    const result = await runYahooTask(() =>
+      yahooFinance.chart("^GSPC", queryOptions),
+    );
     const quotes = result.quotes ?? [];
     const fetchedAt = new Date();
 

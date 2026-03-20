@@ -5,6 +5,7 @@ import { config } from "../config/environment";
 import { PriceCache } from "../models/price-cache";
 import { ensureDataSource } from "../utils/ensure-data-source";
 import { logger } from "../utils/logger";
+import { runYahooTask } from "../utils/yahoo-concurrency";
 
 const yahooFinance = new YahooFinance({
   suppressNotices: ["yahooSurvey"],
@@ -33,7 +34,9 @@ export async function getMarketPriceCents(ticker: string): Promise<number> {
   }
 
   try {
-    const quote: any = await yahooFinance.quote(formattedTicker);
+    const quote: any = await runYahooTask(() =>
+      yahooFinance.quote(formattedTicker),
+    );
     const marketPrice = Array.isArray(quote)
       ? quote[0]?.regularMarketPrice
       : quote?.regularMarketPrice;

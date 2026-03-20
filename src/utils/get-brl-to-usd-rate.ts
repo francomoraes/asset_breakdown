@@ -4,6 +4,7 @@ import { config } from "../config/environment";
 import { ExchangeRateCache } from "../models/exchange-rate-cache";
 import { ensureDataSource } from "./ensure-data-source";
 import { logger } from "./logger";
+import { runYahooTask } from "./yahoo-concurrency";
 
 const yahooFinance = new YahooFinance({
   suppressNotices: ["yahooSurvey"],
@@ -32,7 +33,7 @@ export async function getBRLtoUSDRate(): Promise<number> {
   }
 
   try {
-    const quote: any = await yahooFinance.quote("USDBRL=X");
+    const quote: any = await runYahooTask(() => yahooFinance.quote("USDBRL=X"));
 
     const rate = quote?.regularMarketPrice;
 

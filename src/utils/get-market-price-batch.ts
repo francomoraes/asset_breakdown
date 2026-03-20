@@ -5,6 +5,7 @@ import { config } from "../config/environment";
 import { PriceCache } from "../models/price-cache";
 import { ensureDataSource } from "../utils/ensure-data-source";
 import { logger } from "../utils/logger";
+import { runYahooTask } from "../utils/yahoo-concurrency";
 
 const yahooFinance = new YahooFinance({
   suppressNotices: ["yahooSurvey"],
@@ -51,7 +52,9 @@ export async function getMarketPriceCentsBatch(
   try {
     logger.info(`Buscando cotações para: ${tickersToFetch.join(", ")}`);
 
-    const quotes: any = await yahooFinance.quote(tickersToFetch);
+    const quotes: any = await runYahooTask(() =>
+      yahooFinance.quote(tickersToFetch),
+    );
 
     const quotesArray = Array.isArray(quotes) ? quotes : [quotes];
 
