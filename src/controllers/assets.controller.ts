@@ -123,8 +123,12 @@ export const refreshMarketPrices = async (
 
   const result = await assetService.updateUserAssetsPrices(userId);
 
+  const message = result.usedCacheOnly
+    ? `Atualizacao em cooldown: usando cache de cotacoes (TTL ${result.cooldownHours}h).`
+    : "Market prices refreshed";
+
   res.json({
-    message: "Market prices refreshed",
+    message,
     ...result,
   });
 };

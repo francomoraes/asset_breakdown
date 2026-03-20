@@ -12,6 +12,9 @@ import { getMarketPriceCentsBatch } from "utils/get-market-price-batch";
 import { ALLOWED_SORT_FIELDS } from "enums/allowedSortFields.enum";
 import { PaginatedResponseDto } from "dtos/pagination.dto";
 import { FindOptionsOrder } from "typeorm";
+import { PriceCache } from "models/price-cache";
+import { config } from "config/environment";
+import { In } from "typeorm";
 
 type UpdateAssetData = {
   id: number;
@@ -356,6 +359,38 @@ export class AssetService {
     }
 
     const tickers = assets.map((asset) => asset.ticker);
+    const uniqueTickers = [...new Set(tickers)];
+
+    const cacheRepo = AppDataSource.getRepository(PriceCache);
+    const cachedPrices = await cacheRepo.findBy({
+      ticker: In(uniqueTickers),
+    });
+
+    const cacheByTicker = new Map(cachedPrices.map((entry) => [entry.ticker, entry]));
+    const cacheTtlMs = config.marketPriceTtlHours * 60 * 60 * 1000;
+    const now = Date.now();
+
+    const hasFreshCacheForAllTickers = uniqueTickers.every((ticker) => {
+      const cached = cacheByTicker.get(ticker);
+      if (!cached) return false;
+
+      const ageMs = now - new Date(cached.updatedAt).getTime();
+      return ageMs < cacheTtlMs;
+    });
+
+    let nextYahooCallAt: string | null = null;
+    if (hasFreshCacheForAllTickers) {
+      const nextRefreshTimestamp = Math.min(
+        ...uniqueTickers
+          .map((ticker) => cacheByTicker.get(ticker))
+          .filter((entry): entry is PriceCache => Boolean(entry))
+          .map((entry) => new Date(entry.updatedAt).getTime() + cacheTtlMs),
+      );
+
+      if (Number.isFinite(nextRefreshTimestamp)) {
+        nextYahooCallAt = new Date(nextRefreshTimestamp).toISOString();
+      }
+    }
 
     const results = await getMarketPriceCentsBatch(tickers);
 
@@ -399,6 +434,9 @@ export class AssetService {
       updated: assetsToUpdate.length,
       failed: failedTickers.length,
       failedTickers,
+      usedCacheOnly: hasFreshCacheForAllTickers,
+      cooldownHours: config.marketPriceTtlHours,
+      nextYahooCallAt,
     };
   }
 }
