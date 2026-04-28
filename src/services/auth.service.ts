@@ -37,7 +37,7 @@ export class AuthService {
     const existingUser = await this.userRepository.findOneBy({ email });
 
     if (existingUser) {
-      throw new ConflictError("User already exists");
+      throw new ConflictError("User already exists", "USER_ALREADY_EXISTS");
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
@@ -88,13 +88,19 @@ export class AuthService {
     });
 
     if (!user) {
-      throw new NotFoundError("Invalid email or password");
+      throw new NotFoundError(
+        "Invalid email or password",
+        "INVALID_CREDENTIALS",
+      );
     }
 
     const isValidPassword = await bcrypt.compare(password, user.password);
 
     if (!isValidPassword) {
-      throw new NotFoundError("Invalid email or password");
+      throw new NotFoundError(
+        "Invalid email or password",
+        "INVALID_CREDENTIALS",
+      );
     }
 
     const secret = process.env.JWT_SECRET;
@@ -199,7 +205,7 @@ export class AuthService {
     });
 
     if (!user) {
-      throw new NotFoundError("User not found");
+      throw new NotFoundError("User not found", "USER_NOT_FOUND");
     }
 
     user.locale = locale ?? user.locale;
@@ -222,6 +228,7 @@ export class AuthService {
       if (!currentPassword) {
         throw new UnauthorizedError(
           "Current password is required to set a new password",
+          "CURRENT_PASSWORD_REQUIRED",
         );
       }
       const isValidPassword = await bcrypt.compare(
@@ -229,7 +236,10 @@ export class AuthService {
         user.password,
       );
       if (!isValidPassword) {
-        throw new UnauthorizedError("Current password is incorrect");
+        throw new UnauthorizedError(
+          "Current password is incorrect",
+          "INVALID_CURRENT_PASSWORD",
+        );
       }
       const hashedPassword = await bcrypt.hash(newPassword, 10);
       user.password = hashedPassword;

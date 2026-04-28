@@ -52,6 +52,7 @@ export class WealthHistoryService {
         `Já existe um registro de patrimônio para a data ${date.toLocaleDateString(
           "pt-BR",
         )}`,
+        "WEALTH_HISTORY_DATE_CONFLICT",
       );
     }
 
@@ -74,7 +75,10 @@ export class WealthHistoryService {
     });
 
     if (!wealthHistory) {
-      throw new NotFoundError("Registro de patrimônio não encontrado");
+      throw new NotFoundError(
+        "Registro de patrimônio não encontrado",
+        "WEALTH_HISTORY_NOT_FOUND",
+      );
     }
 
     if (updates.date) {
@@ -92,6 +96,7 @@ export class WealthHistoryService {
           `Já existe um registro de patrimônio para a data ${normalizedDate.toLocaleDateString(
             "pt-BR",
           )}`,
+          "WEALTH_HISTORY_DATE_CONFLICT",
         );
       }
 
@@ -111,7 +116,10 @@ export class WealthHistoryService {
     });
 
     if (!wealthHistory) {
-      throw new NotFoundError("Registro de patrimônio não encontrado");
+      throw new NotFoundError(
+        "Registro de patrimônio não encontrado",
+        "WEALTH_HISTORY_NOT_FOUND",
+      );
     }
 
     await this.wealthHistoryRepo.remove(wealthHistory);

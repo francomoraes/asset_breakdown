@@ -28,7 +28,10 @@ export class AssetTypeService {
     });
 
     if (existingAssetType) {
-      throw new ConflictError("Asset type already exists");
+      throw new ConflictError(
+        "Asset type already exists",
+        "ASSET_TYPE_ALREADY_EXISTS",
+      );
     }
 
     const assetClass = await this.assetClassRepo.findOne({
@@ -36,7 +39,7 @@ export class AssetTypeService {
     });
 
     if (!assetClass) {
-      throw new NotFoundError("Asset class not found");
+      throw new NotFoundError("Asset class not found", "ASSET_CLASS_NOT_FOUND");
     }
 
     const assetType = this.assetTypeRepo.create({
@@ -94,7 +97,7 @@ export class AssetTypeService {
     });
 
     if (!assetType) {
-      throw new NotFoundError("Asset type not found");
+      throw new NotFoundError("Asset type not found", "ASSET_TYPE_NOT_FOUND");
     }
 
     if (name !== undefined) assetType.name = name;
@@ -106,7 +109,10 @@ export class AssetTypeService {
       });
 
       if (!assetClass) {
-        throw new NotFoundError("Asset class not found");
+        throw new NotFoundError(
+          "Asset class not found",
+          "ASSET_CLASS_NOT_FOUND",
+        );
       }
 
       assetType.assetClass = assetClass;
@@ -123,7 +129,7 @@ export class AssetTypeService {
     });
 
     if (!assetType) {
-      throw new NotFoundError("Asset type not found");
+      throw new NotFoundError("Asset type not found", "ASSET_TYPE_NOT_FOUND");
     }
 
     const assets = await this.assetRepo.find({
@@ -131,7 +137,10 @@ export class AssetTypeService {
     });
 
     if (assets.length > 0) {
-      throw new ConflictError("Cannot delete asset type with existing assets");
+      throw new ConflictError(
+        "Cannot delete asset type with existing assets",
+        "ASSET_TYPE_HAS_ASSETS",
+      );
     }
 
     await this.assetTypeRepo.delete({

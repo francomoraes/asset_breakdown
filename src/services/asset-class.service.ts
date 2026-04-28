@@ -13,7 +13,10 @@ export class AssetClassService {
     });
 
     if (existingAssetClass) {
-      throw new ConflictError("Asset class already exists");
+      throw new ConflictError(
+        "Asset class already exists",
+        "ASSET_CLASS_ALREADY_EXISTS",
+      );
     }
 
     const assetClass = this.assetClassRepo.create({
@@ -40,7 +43,7 @@ export class AssetClassService {
       where: { id: Number(id), userId },
     });
     if (!assetClass) {
-      throw new NotFoundError("Asset class not found");
+      throw new NotFoundError("Asset class not found", "ASSET_CLASS_NOT_FOUND");
     }
     return assetClass;
   }
@@ -59,7 +62,7 @@ export class AssetClassService {
     });
 
     if (!assetClass) {
-      throw new NotFoundError("Asset class not found");
+      throw new NotFoundError("Asset class not found", "ASSET_CLASS_NOT_FOUND");
     }
 
     if (name !== undefined) assetClass.name = name;
@@ -74,7 +77,7 @@ export class AssetClassService {
     });
 
     if (!assetClass) {
-      throw new NotFoundError("Asset class not found");
+      throw new NotFoundError("Asset class not found", "ASSET_CLASS_NOT_FOUND");
     }
 
     const assetTypesRepo = AppDataSource.getRepository(AssetType);
@@ -85,6 +88,7 @@ export class AssetClassService {
     if (assetTypes.length > 0) {
       throw new ConflictError(
         "Cannot delete asset class with associated asset types",
+        "ASSET_CLASS_HAS_ASSET_TYPES",
       );
     }
 

@@ -105,7 +105,7 @@ export class AssetService {
   async getAssetById(id: number) {
     const asset = await this.assetRepo.findOneBy({ id });
     if (!asset) {
-      throw new NotFoundError(`Asset ${id} not found`);
+      throw new NotFoundError(`Asset ${id} not found`, "ASSET_NOT_FOUND");
     }
     return asset;
   }
@@ -118,7 +118,10 @@ export class AssetService {
     });
 
     if (!existingAsset) {
-      throw new NotFoundError(`Asset ${updateData.id} not found`);
+      throw new NotFoundError(
+        `Asset ${updateData.id} not found`,
+        "ASSET_NOT_FOUND",
+      );
     }
 
     let currentPriceCents = existingAsset.currentPriceCents;
@@ -168,7 +171,10 @@ export class AssetService {
     const assetType = await assetTypeRepository.findOneBy({ name: type });
 
     if (!assetType) {
-      throw new NotFoundError(`Asset type ${type} not found`);
+      throw new NotFoundError(
+        `Asset type ${type} not found`,
+        "ASSET_TYPE_NOT_FOUND",
+      );
     }
 
     let institutionEntity = existingAsset.institution;
@@ -180,6 +186,7 @@ export class AssetService {
       if (!foundInstitution) {
         throw new NotFoundError(
           `Institution with id ${institutionId} not found`,
+          "INSTITUTION_NOT_FOUND",
         );
       }
 
@@ -220,7 +227,7 @@ export class AssetService {
     });
 
     if (!existingAsset) {
-      throw new NotFoundError(`Asset ${id} not found`);
+      throw new NotFoundError(`Asset ${id} not found`, "ASSET_NOT_FOUND");
     }
 
     await this.assetRepo.delete({
@@ -261,6 +268,7 @@ export class AssetService {
     if (existingAsset) {
       throw new ConflictError(
         `Já existe um ativo ${ticker} cadastrado na instituição ${existingAsset.institution.name}. Para alterar a quantidade ou preço médio, edite o ativo existente.`,
+        "ASSET_ALREADY_EXISTS_IN_INSTITUTION",
       );
     }
 
@@ -283,7 +291,10 @@ export class AssetService {
       });
 
       if (!assetType) {
-        throw new NotFoundError(`Tipo de ativo ${type} não encontrado`);
+        throw new NotFoundError(
+          `Tipo de ativo ${type} não encontrado`,
+          "ASSET_TYPE_NOT_FOUND",
+        );
       }
 
       const institution = await this.institutionRepo.findOne({
@@ -293,6 +304,7 @@ export class AssetService {
       if (!institution) {
         throw new NotFoundError(
           `Instituição com id ${institutionId} não encontrada`,
+          "INSTITUTION_NOT_FOUND",
         );
       }
 
@@ -355,7 +367,10 @@ export class AssetService {
     const assets = await this.assetRepo.find({ where: { userId } });
 
     if (!assets.length) {
-      throw new NotFoundError(`No assets found for user ${userId}`);
+      throw new NotFoundError(
+        `No assets found for user ${userId}`,
+        "NO_ASSETS_FOUND",
+      );
     }
 
     const tickers = assets.map((asset) => asset.ticker);
@@ -366,7 +381,9 @@ export class AssetService {
       ticker: In(uniqueTickers),
     });
 
-    const cacheByTicker = new Map(cachedPrices.map((entry) => [entry.ticker, entry]));
+    const cacheByTicker = new Map(
+      cachedPrices.map((entry) => [entry.ticker, entry]),
+    );
     const cacheTtlMs = config.marketPriceTtlHours * 60 * 60 * 1000;
     const now = Date.now();
 

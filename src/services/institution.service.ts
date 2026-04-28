@@ -13,7 +13,10 @@ export class InstitutionService {
     });
 
     if (existingInstitution) {
-      throw new ConflictError("Institution already exists");
+      throw new ConflictError(
+        "Institution already exists",
+        "INSTITUTION_ALREADY_EXISTS",
+      );
     }
 
     const institution = this.institutionRepo.create({
@@ -40,7 +43,7 @@ export class InstitutionService {
       where: { id: Number(id), userId },
     });
     if (!institution) {
-      throw new NotFoundError("Institution not found");
+      throw new NotFoundError("Institution not found", "INSTITUTION_NOT_FOUND");
     }
     return institution;
   }
@@ -59,7 +62,7 @@ export class InstitutionService {
     });
 
     if (!institution) {
-      throw new NotFoundError("Institution not found");
+      throw new NotFoundError("Institution not found", "INSTITUTION_NOT_FOUND");
     }
 
     if (name !== undefined) institution.name = name;
@@ -73,7 +76,7 @@ export class InstitutionService {
     })) as Institution;
 
     if (!institution) {
-      throw new NotFoundError("Institution not found");
+      throw new NotFoundError("Institution not found", "INSTITUTION_NOT_FOUND");
     }
 
     const assetsRepo = AppDataSource.getRepository(Asset);
@@ -84,6 +87,7 @@ export class InstitutionService {
     if (institutionAssets.length > 0) {
       throw new ConflictError(
         "Cannot delete institution with associated assets",
+        "INSTITUTION_HAS_ASSETS",
       );
     }
 
