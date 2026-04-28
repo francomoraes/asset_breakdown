@@ -63,7 +63,7 @@ export const getAssetTypeById = async (
   const assetType = await assetTypeService.getAssetTypeById({ id, userId });
 
   if (!assetType) {
-    throw new NotFoundError("Asset type not found");
+    throw new NotFoundError("Asset type not found", "ASSET_TYPE_NOT_FOUND");
   }
   res.json(assetType);
 };
@@ -120,7 +120,7 @@ export const deleteAssetType = async (
     userId,
   });
   if (!assetTypeExists) {
-    throw new NotFoundError("Asset type not found");
+    throw new NotFoundError("Asset type not found", "ASSET_TYPE_NOT_FOUND");
   }
 
   const assetTypeHasAssets = await assetTypeService.getAssetsByAssetType({
@@ -129,7 +129,10 @@ export const deleteAssetType = async (
   });
 
   if (assetTypeHasAssets.length > 0) {
-    throw new ConflictError("Cannot delete asset type with associated assets");
+    throw new ConflictError(
+      "Cannot delete asset type with associated assets",
+      "ASSET_TYPE_HAS_ASSETS",
+    );
   }
 
   const assetType = await assetTypeService.deleteAssetType({ id, userId });

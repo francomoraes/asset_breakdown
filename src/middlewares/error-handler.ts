@@ -53,8 +53,12 @@ export const errorHandler = (
   // Resposta para o cliente (sem stack trace em produção)
   const isDevelopment = process.env.NODE_ENV === "development";
 
-  res.status(500).json({
-    error: "Internal server error",
+  const statusCode = (err as any).statusCode ?? 500;
+  const isClientError = statusCode >= 400 && statusCode < 500;
+
+  res.status(statusCode).json({
+    error: isClientError ? err.message : "Internal server error",
+    code: isClientError ? (err as any).code : undefined,
     ...(isDevelopment && { stack: err.stack, message: err.message }),
   });
 };

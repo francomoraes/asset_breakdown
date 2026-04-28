@@ -168,7 +168,10 @@ export class FixedIncomeAssetService {
   async getAssetById(id: number) {
     const asset = await this.fixedIncomeAssetRepo.findOneBy({ id });
     if (!asset) {
-      throw new NotFoundError("Fixed income asset not found");
+      throw new NotFoundError(
+        "Fixed income asset not found",
+        "FIXED_INCOME_ASSET_NOT_FOUND",
+      );
     }
 
     return asset;
@@ -191,7 +194,7 @@ export class FixedIncomeAssetService {
     });
 
     if (!institution) {
-      throw new NotFoundError("Institution not found");
+      throw new NotFoundError("Institution not found", "INSTITUTION_NOT_FOUND");
     }
 
     const assetType = await this.assetTypeRepo.findOneBy({
@@ -199,7 +202,7 @@ export class FixedIncomeAssetService {
     });
 
     if (!assetType) {
-      throw new NotFoundError("Asset type not found");
+      throw new NotFoundError("Asset type not found", "ASSET_TYPE_NOT_FOUND");
     }
 
     const { currentValueCents, resultCents, returnPercentage } =
@@ -245,7 +248,10 @@ export class FixedIncomeAssetService {
     });
 
     if (!asset) {
-      throw new NotFoundError("Fixed income asset not found");
+      throw new NotFoundError(
+        "Fixed income asset not found",
+        "FIXED_INCOME_ASSET_NOT_FOUND",
+      );
     }
 
     // Atualizar institution se fornecido
@@ -254,7 +260,10 @@ export class FixedIncomeAssetService {
         id: updateData?.institution?.id,
       });
       if (!institution) {
-        throw new NotFoundError("Institution not found");
+        throw new NotFoundError(
+          "Institution not found",
+          "INSTITUTION_NOT_FOUND",
+        );
       }
       asset.institution = institution;
       delete (updateData as any).institutionId;
@@ -266,7 +275,7 @@ export class FixedIncomeAssetService {
         id: (updateData as any).typeId,
       });
       if (!assetType) {
-        throw new NotFoundError("Asset type not found");
+        throw new NotFoundError("Asset type not found", "ASSET_TYPE_NOT_FOUND");
       }
       asset.type = assetType;
       delete (updateData as any).typeId;
@@ -308,7 +317,10 @@ export class FixedIncomeAssetService {
     });
 
     if (!asset) {
-      throw new NotFoundError("Fixed income asset not found");
+      throw new NotFoundError(
+        "Fixed income asset not found",
+        "FIXED_INCOME_ASSET_NOT_FOUND",
+      );
     }
 
     await this.fixedIncomeAssetRepo.delete({ id, userId });
