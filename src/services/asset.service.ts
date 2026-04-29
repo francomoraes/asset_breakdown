@@ -24,6 +24,7 @@ type UpdateAssetData = {
   averagePriceCents?: number;
   institutionId?: number;
   currency?: string;
+  manualCurrentPriceCents?: number;
 };
 
 export class AssetService {
@@ -125,6 +126,7 @@ export class AssetService {
     }
 
     let currentPriceCents = existingAsset.currentPriceCents;
+    let priceUnavailable = existingAsset.priceUnavailable ?? false;
 
     const newTicker = updateData.ticker || existingAsset.ticker;
     const tickerChanged =
@@ -132,15 +134,21 @@ export class AssetService {
 
     try {
       currentPriceCents = await getMarketPriceCents(newTicker);
+      priceUnavailable = false;
     } catch (error: any) {
       if (tickerChanged) {
         throw new Error(
           `Não foi possível buscar o preço para o novo ticker ${newTicker}: ${error?.message || error}`,
         );
       }
-      console.warn(
-        `Aviso: Não foi possível atualizar o preço de mercado para ${newTicker}. Usando preço existente. Erro: ${error?.message || error}`,
-      );
+      if (updateData.manualCurrentPriceCents !== undefined) {
+        currentPriceCents = updateData.manualCurrentPriceCents;
+        priceUnavailable = false;
+      } else {
+        console.warn(
+          `Aviso: Não foi possível atualizar o preço de mercado para ${newTicker}. Usando preço existente. Erro: ${error?.message || error}`,
+        );
+      }
     }
 
     const {
@@ -206,6 +214,7 @@ export class AssetService {
       portfolioPercentage: 0,
       institution: institutionEntity,
       currency,
+      priceUnavailable,
     });
 
     await this.assetRepo.save(existingAsset);
@@ -272,9 +281,17 @@ export class AssetService {
       );
     }
 
-    try {
-      const currentPriceCents = await getMarketPriceCents(ticker);
+    let currentPriceCents: number;
+    let priceUnavailable = false;
 
+    try {
+      currentPriceCents = await getMarketPriceCents(ticker);
+    } catch {
+      currentPriceCents = averagePriceCents;
+      priceUnavailable = true;
+    }
+
+    try {
       const {
         investedValueCents,
         currentValueCents,
@@ -322,6 +339,7 @@ export class AssetService {
         portfolioPercentage: 0,
         institution,
         currency,
+        priceUnavailable,
       });
 
       await this.assetRepo.save(newAsset);

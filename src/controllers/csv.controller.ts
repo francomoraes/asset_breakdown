@@ -67,7 +67,7 @@ export const uploadCsv = async (req: Request, res: Response): Promise<void> => {
             currency,
           } = row;
 
-          const quantity = Number(quantityStr);
+          const quantity = Number(quantityStr.replace(",", "."));
           const averagePriceCents = toCents(
             Number(averagePriceStr.replace(",", ".")),
           );

@@ -45,4 +45,7 @@ export class Asset extends BaseEntity {
 
   @Column("text")
   currency!: string;
+
+  @Column({ default: false })
+  priceUnavailable!: boolean;
 }
