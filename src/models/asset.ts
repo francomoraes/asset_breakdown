@@ -32,10 +32,10 @@ export class Asset extends BaseEntity {
   @Column("int")
   resultCents!: number;
 
-  @Column("decimal", { precision: 5, scale: 2 })
+  @Column("decimal", { precision: 12, scale: 2 })
   returnPercentage!: number;
 
-  @Column("decimal", { precision: 5, scale: 2 })
+  @Column("decimal", { precision: 12, scale: 2 })
   portfolioPercentage!: number;
 
   @ManyToOne(() => Institution, (institution) => institution.assets, {

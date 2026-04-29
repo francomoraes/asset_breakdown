@@ -143,7 +143,7 @@ export class AssetService {
       }
       if (updateData.manualCurrentPriceCents !== undefined) {
         currentPriceCents = updateData.manualCurrentPriceCents;
-        priceUnavailable = false;
+        // keep priceUnavailable = true: API still can't fetch this ticker
       } else {
         console.warn(
           `Aviso: Não foi possível atualizar o preço de mercado para ${newTicker}. Usando preço existente. Erro: ${error?.message || error}`,

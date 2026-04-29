@@ -81,11 +81,11 @@ export class AssetClassService {
     }
 
     const assetTypesRepo = AppDataSource.getRepository(AssetType);
-    const assetTypes = await assetTypesRepo.find({
-      where: { assetClass, userId },
+    const assetTypeCount = await assetTypesRepo.count({
+      where: { assetClass: { id: Number(id) }, userId },
     });
 
-    if (assetTypes.length > 0) {
+    if (assetTypeCount > 0) {
       throw new ConflictError(
         "Cannot delete asset class with associated asset types",
         "ASSET_CLASS_HAS_ASSET_TYPES",
