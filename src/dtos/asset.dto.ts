@@ -22,8 +22,7 @@ export const UpdateAssetDto = z
     currency: z.string().optional(),
     manualCurrentPriceCents: z
       .number({
-        invalid_type_error:
-          "O preço atual em centavos deve ser um número",
+        invalid_type_error: "O preço atual em centavos deve ser um número",
       })
       .int()
       .nonnegative()
