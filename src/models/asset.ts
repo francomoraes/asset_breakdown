@@ -14,7 +14,7 @@ export class Asset extends BaseEntity {
   @Column("text")
   ticker!: string;
 
-  @Column("decimal", { precision: 10, scale: 2 })
+  @Column("decimal", { precision: 18, scale: 8 })
   quantity!: number;
 
   @Column("int")
@@ -32,10 +32,10 @@ export class Asset extends BaseEntity {
   @Column("int")
   resultCents!: number;
 
-  @Column("decimal", { precision: 5, scale: 2 })
+  @Column("decimal", { precision: 12, scale: 2 })
   returnPercentage!: number;
 
-  @Column("decimal", { precision: 5, scale: 2 })
+  @Column("decimal", { precision: 12, scale: 2 })
   portfolioPercentage!: number;
 
   @ManyToOne(() => Institution, (institution) => institution.assets, {
@@ -45,4 +45,7 @@ export class Asset extends BaseEntity {
 
   @Column("text")
   currency!: string;
+
+  @Column({ default: false })
+  priceUnavailable!: boolean;
 }

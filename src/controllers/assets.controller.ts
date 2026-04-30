@@ -9,6 +9,8 @@ import {
 } from "../dtos/asset.dto";
 import { getAuthenticatedUserId } from "../utils/get-authenticated-user-id";
 import { PaginationQueryDto } from "dtos/pagination.dto";
+import { AppDataSource } from "../config/data-source";
+import { PriceCache } from "../models/price-cache";
 
 export const getAssets = async (req: Request, res: Response) => {
   const assets = await assetService.getAsset();
@@ -131,4 +133,13 @@ export const refreshMarketPrices = async (
     message,
     ...result,
   });
+};
+
+export const clearPriceCache = async (
+  req: Request,
+  res: Response,
+): Promise<void> => {
+  const repo = AppDataSource.getRepository(PriceCache);
+  await repo.clear();
+  res.json({ message: "Price cache cleared" });
 };

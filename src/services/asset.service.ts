@@ -24,6 +24,7 @@ type UpdateAssetData = {
   averagePriceCents?: number;
   institutionId?: number;
   currency?: string;
+  manualCurrentPriceCents?: number;
 };
 
 export class AssetService {
@@ -125,22 +126,33 @@ export class AssetService {
     }
 
     let currentPriceCents = existingAsset.currentPriceCents;
+    let priceUnavailable = existingAsset.priceUnavailable ?? false;
 
     const newTicker = updateData.ticker || existingAsset.ticker;
     const tickerChanged =
       updateData.ticker && updateData.ticker !== existingAsset.ticker;
+    const currencyForPrice = updateData.currency ?? existingAsset.currency;
 
     try {
-      currentPriceCents = await getMarketPriceCents(newTicker);
+      currentPriceCents = await getMarketPriceCents(
+        newTicker,
+        currencyForPrice,
+      );
+      priceUnavailable = false;
     } catch (error: any) {
       if (tickerChanged) {
         throw new Error(
           `Não foi possível buscar o preço para o novo ticker ${newTicker}: ${error?.message || error}`,
         );
       }
-      console.warn(
-        `Aviso: Não foi possível atualizar o preço de mercado para ${newTicker}. Usando preço existente. Erro: ${error?.message || error}`,
-      );
+      if (updateData.manualCurrentPriceCents !== undefined) {
+        currentPriceCents = updateData.manualCurrentPriceCents;
+        // keep priceUnavailable = true: API still can't fetch this ticker
+      } else {
+        console.warn(
+          `Aviso: Não foi possível atualizar o preço de mercado para ${newTicker}. Usando preço existente. Erro: ${error?.message || error}`,
+        );
+      }
     }
 
     const {
@@ -206,6 +218,7 @@ export class AssetService {
       portfolioPercentage: 0,
       institution: institutionEntity,
       currency,
+      priceUnavailable,
     });
 
     await this.assetRepo.save(existingAsset);
@@ -272,9 +285,17 @@ export class AssetService {
       );
     }
 
-    try {
-      const currentPriceCents = await getMarketPriceCents(ticker);
+    let currentPriceCents: number;
+    let priceUnavailable = false;
 
+    try {
+      currentPriceCents = await getMarketPriceCents(ticker, currency);
+    } catch {
+      currentPriceCents = averagePriceCents;
+      priceUnavailable = true;
+    }
+
+    try {
       const {
         investedValueCents,
         currentValueCents,
@@ -322,6 +343,7 @@ export class AssetService {
         portfolioPercentage: 0,
         institution,
         currency,
+        priceUnavailable,
       });
 
       await this.assetRepo.save(newAsset);
@@ -376,6 +398,13 @@ export class AssetService {
     const tickers = assets.map((asset) => asset.ticker);
     const uniqueTickers = [...new Set(tickers)];
 
+    const currencyMap = new Map<string, string>();
+    for (const asset of assets) {
+      if (!currencyMap.has(asset.ticker)) {
+        currencyMap.set(asset.ticker, asset.currency);
+      }
+    }
+
     const cacheRepo = AppDataSource.getRepository(PriceCache);
     const cachedPrices = await cacheRepo.findBy({
       ticker: In(uniqueTickers),
@@ -409,7 +438,7 @@ export class AssetService {
       }
     }
 
-    const results = await getMarketPriceCentsBatch(tickers);
+    const results = await getMarketPriceCentsBatch(tickers, currencyMap);
 
     const assetsToUpdate: Asset[] = [];
     const failedTickers: string[] = [];

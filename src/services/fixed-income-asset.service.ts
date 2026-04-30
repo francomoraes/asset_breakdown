@@ -130,6 +130,8 @@ export class FixedIncomeAssetService {
     });
 
     for (const asset of assets) {
+      if (asset.manualMode) continue; // valor manual, não recalcular
+
       const { currentValueCents, resultCents, returnPercentage } =
         await calculateFixedIncomeFields(
           asset.investedValueCents,
@@ -180,11 +182,13 @@ export class FixedIncomeAssetService {
   async createAsset(assetData: {
     userId: number;
     description: string;
-    startDate: Date;
-    maturityDate: Date;
+    manualMode?: boolean;
+    startDate?: Date;
+    maturityDate?: Date;
     indexationMode?: IndexationMode;
-    interestRate: number;
+    interestRate?: number;
     investedValueCents: number;
+    currentValueCents?: number;
     institutionId: number;
     typeId: number;
     currency: string;
@@ -205,18 +209,39 @@ export class FixedIncomeAssetService {
       throw new NotFoundError("Asset type not found", "ASSET_TYPE_NOT_FOUND");
     }
 
-    const { currentValueCents, resultCents, returnPercentage } =
-      await calculateFixedIncomeFields(
+    const isManual = assetData.manualMode ?? false;
+
+    let currentValueCents: number;
+    let resultCents: number;
+    let returnPercentage: number;
+
+    if (isManual) {
+      currentValueCents =
+        assetData.currentValueCents ?? assetData.investedValueCents;
+      resultCents = currentValueCents - assetData.investedValueCents;
+      returnPercentage =
+        assetData.investedValueCents > 0
+          ? Number(
+              ((resultCents / assetData.investedValueCents) * 100).toFixed(2),
+            )
+          : 0;
+    } else {
+      const derived = await calculateFixedIncomeFields(
         assetData.investedValueCents,
-        assetData.interestRate,
-        assetData.startDate,
-        assetData.maturityDate,
+        assetData.interestRate!,
+        assetData.startDate!,
+        assetData.maturityDate!,
         assetData.indexationMode || IndexationMode.PRE_FIXED,
       );
+      currentValueCents = derived.currentValueCents;
+      resultCents = derived.resultCents;
+      returnPercentage = derived.returnPercentage;
+    }
 
     const asset = this.fixedIncomeAssetRepo.create({
       userId: assetData.userId,
       description: assetData.description,
+      manualMode: isManual,
       startDate: assetData.startDate,
       maturityDate: assetData.maturityDate,
       indexationMode: assetData.indexationMode || IndexationMode.PRE_FIXED,
@@ -285,7 +310,20 @@ export class FixedIncomeAssetService {
     Object.assign(asset, updateData);
 
     // Recalcular campos derivados se algum campo relevante foi alterado
-    if (
+    const effectiveManualMode = asset.manualMode;
+    if (effectiveManualMode) {
+      // Modo manual: recalcular apenas baseado no currentValueCents fornecido
+      if ((updateData as any).currentValueCents !== undefined) {
+        asset.currentValueCents = (updateData as any).currentValueCents;
+      }
+      asset.resultCents = asset.currentValueCents - asset.investedValueCents;
+      asset.returnPercentage =
+        asset.investedValueCents > 0
+          ? Number(
+              ((asset.resultCents / asset.investedValueCents) * 100).toFixed(2),
+            )
+          : 0;
+    } else if (
       updateData.investedValueCents !== undefined ||
       updateData.interestRate !== undefined ||
       updateData.startDate !== undefined ||

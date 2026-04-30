@@ -20,6 +20,13 @@ export const UpdateAssetDto = z
       .optional(),
     institutionId: z.number().int().positive().optional(),
     currency: z.string().optional(),
+    manualCurrentPriceCents: z
+      .number({
+        invalid_type_error: "O preço atual em centavos deve ser um número",
+      })
+      .int()
+      .nonnegative()
+      .optional(),
   })
   .strict();
 
