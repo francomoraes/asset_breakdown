@@ -14,7 +14,7 @@ export class Asset extends BaseEntity {
   @Column("text")
   ticker!: string;
 
-  @Column("decimal", { precision: 10, scale: 2 })
+  @Column("decimal", { precision: 18, scale: 8 })
   quantity!: number;
 
   @Column("int")

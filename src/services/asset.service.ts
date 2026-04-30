@@ -131,9 +131,13 @@ export class AssetService {
     const newTicker = updateData.ticker || existingAsset.ticker;
     const tickerChanged =
       updateData.ticker && updateData.ticker !== existingAsset.ticker;
+    const currencyForPrice = updateData.currency ?? existingAsset.currency;
 
     try {
-      currentPriceCents = await getMarketPriceCents(newTicker);
+      currentPriceCents = await getMarketPriceCents(
+        newTicker,
+        currencyForPrice,
+      );
       priceUnavailable = false;
     } catch (error: any) {
       if (tickerChanged) {
@@ -285,7 +289,7 @@ export class AssetService {
     let priceUnavailable = false;
 
     try {
-      currentPriceCents = await getMarketPriceCents(ticker);
+      currentPriceCents = await getMarketPriceCents(ticker, currency);
     } catch {
       currentPriceCents = averagePriceCents;
       priceUnavailable = true;
@@ -394,6 +398,13 @@ export class AssetService {
     const tickers = assets.map((asset) => asset.ticker);
     const uniqueTickers = [...new Set(tickers)];
 
+    const currencyMap = new Map<string, string>();
+    for (const asset of assets) {
+      if (!currencyMap.has(asset.ticker)) {
+        currencyMap.set(asset.ticker, asset.currency);
+      }
+    }
+
     const cacheRepo = AppDataSource.getRepository(PriceCache);
     const cachedPrices = await cacheRepo.findBy({
       ticker: In(uniqueTickers),
@@ -427,7 +438,7 @@ export class AssetService {
       }
     }
 
-    const results = await getMarketPriceCentsBatch(tickers);
+    const results = await getMarketPriceCentsBatch(tickers, currencyMap);
 
     const assetsToUpdate: Asset[] = [];
     const failedTickers: string[] = [];

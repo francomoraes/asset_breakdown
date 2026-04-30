@@ -16,6 +16,15 @@ function toCents(value: number): number {
   return Math.round(value * 100);
 }
 
+/** Handles both "1,5" (decimal comma) and "267.687,72" (BR thousands + decimal comma) */
+function parseLocalNumber(str: string): number {
+  if (str.includes(".") && str.includes(",")) {
+    // BR format: remove thousand dots, swap decimal comma
+    return Number(str.replace(/\./g, "").replace(",", "."));
+  }
+  return Number(str.replace(",", "."));
+}
+
 export const uploadCsv = async (req: Request, res: Response): Promise<void> => {
   const userId = getAuthenticatedUserId(req);
 
@@ -55,7 +64,13 @@ export const uploadCsv = async (req: Request, res: Response): Promise<void> => {
         }
 
         const allTickers = validatedRows.map((r) => r.ticker);
-        const pricesMap = await getMarketPriceCentsBatch(allTickers);
+        const currencyMap = new Map<string, string>(
+          validatedRows.map((r) => [r.ticker, r.currency]),
+        );
+        const pricesMap = await getMarketPriceCentsBatch(
+          allTickers,
+          currencyMap,
+        );
 
         for (const row of validatedRows) {
           const {
@@ -67,18 +82,12 @@ export const uploadCsv = async (req: Request, res: Response): Promise<void> => {
             currency,
           } = row;
 
-          const quantity = Number(quantityStr.replace(",", "."));
-          const averagePriceCents = toCents(
-            Number(averagePriceStr.replace(",", ".")),
-          );
+          const quantity = parseLocalNumber(quantityStr);
+          const averagePriceCents = toCents(parseLocalNumber(averagePriceStr));
 
-          const currentPriceCents = pricesMap.get(ticker);
-
-          if (!currentPriceCents) {
-            return res.status(400).json({
-              error: `Market price not found for ticker ${ticker}`,
-            });
-          }
+          const rawCurrentPriceCents = pricesMap.get(ticker);
+          const priceUnavailable = !rawCurrentPriceCents;
+          const currentPriceCents = rawCurrentPriceCents ?? averagePriceCents;
 
           const assetType = await assetTypeRepository.findOne({
             where: { name: type, userId },
@@ -128,6 +137,7 @@ export const uploadCsv = async (req: Request, res: Response): Promise<void> => {
               institution: assetInstitution,
               currency,
               portfolioPercentage: 0,
+              priceUnavailable,
             });
             assets.push(existingAsset);
           } else {
@@ -145,6 +155,7 @@ export const uploadCsv = async (req: Request, res: Response): Promise<void> => {
               institution: assetInstitution,
               currency,
               portfolioPercentage: 0,
+              priceUnavailable,
             });
             assets.push(newAsset);
           }

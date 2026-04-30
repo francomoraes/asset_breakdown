@@ -18,10 +18,13 @@ function isFresh(updatedAt: Date): boolean {
   return diffHours < config.marketPriceTtlHours;
 }
 
-export async function getMarketPriceCents(ticker: string): Promise<number> {
+export async function getMarketPriceCents(
+  ticker: string,
+  currency?: string,
+): Promise<number> {
   await ensureDataSource();
 
-  const formattedTicker = formatYahooTicker(ticker);
+  const formattedTicker = formatYahooTicker(ticker, currency);
   const repo = AppDataSource.getRepository(PriceCache);
 
   const cached = await repo.findOneBy({ ticker });
