@@ -17,22 +17,40 @@ This account is intended for public demo usage only.
 
 ## What this API covers
 
-- JWT authentication and user isolation
-- Asset CRUD for stocks, REITs, crypto, fixed income, and cash positions
-- Portfolio summary and allocation overview endpoints
-- Market refresh flows with cache TTL controls
-- Exchange rate caching and market index historical caching
-- Profile picture upload integrated with Supabase Storage
-- Rate limiting on heavy endpoints and login protection
+- JWT authentication (register, login, token validation) with bcrypt password hashing
+- User-scoped data isolation — every query is filtered by authenticated user
+- Asset CRUD for variable assets (stocks, REITs, ETFs, crypto) and fixed income instruments
+- Institution and asset class/type management with reference data endpoints
+- Portfolio summary with allocation breakdown by asset class and currency
+- Market price refresh via Yahoo Finance 2 with concurrency control and per-asset-type caching
+- Exchange rate caching (TTL-based) for multi-currency portfolio valuation
+- Brazilian Central Bank (BCB) integration for historical financial index data (CDI, SELIC, IPCA, etc.)
+- Market indices tracking and historical series caching
+- Fixed income yield calculation using BCB index rates
+- Automated monthly wealth snapshot job (cron-ready)
+- Wealth history endpoints with paginated responses
+- Bulk asset import via CSV upload and parsing
+- Profile picture upload via Multer, stored in Supabase Storage
+- Multi-tier rate limiting (global limiter + strict limiter on sensitive endpoints)
+- Demo mode middleware that blocks destructive operations in the public demo environment
+- Centralized error handling with custom error classes (NotFoundError, ConflictError, BadRequestError)
+- Structured request logging via Winston
 
 ## Tech stack
 
-- Node.js + Express + TypeScript
+- Node.js + Express 5 + TypeScript
 - PostgreSQL + TypeORM
-- Zod for input validation
-- Yahoo Finance integration for market prices
+- Zod for input validation and DTO schemas
+- bcrypt for password hashing, JWT for session tokens
+- Yahoo Finance 2 for live market prices
+- BCB (Brazilian Central Bank) API for financial index series
 - Supabase Storage for media assets
-- Railway deployment for API and database
+- Multer for file upload handling
+- Winston for structured logging
+- Helmet + CORS + express-rate-limit for security hardening
+- Vitest for unit tests with V8 coverage
+- Newman for API integration tests (Postman collections versioned in the repo)
+- Railway for API and database deployment
 
 ## Key endpoints
 
@@ -61,8 +79,13 @@ npm start
 
 ## Next steps (portfolio roadmap)
 
-1. Implement user roles with a manager profile.
-2. Allow manager users to update target allocation percentages.
-3. Allow manager users to view the portfolios of up to 10-20 users.
-4. Add role-based authorization guards and audit logs for manager actions.
-5. Implement automated tests.
+The next major feature is a full manager–investor relationship system. Key planned work:
+
+1. **User roles** — introduce `investor`, `manager`, and `admin` roles; admin assigns manager role manually.
+2. **Link management** — investors request a link to a manager; manager accepts or rejects; links can be revoked by either party or by a system rule.
+3. **Manager read access** — managers can view the full portfolio of each linked investor (read-only), with the exception of editing asset type target allocation percentages.
+4. **Manager dashboard** — consolidated view with portfolio metrics across all active clients.
+5. **Link history** — preserve full history of past manager–investor relationships including dates and initial/final wealth per cycle.
+6. **Role-based authorization guards** — protect all new endpoints with role checks.
+7. **Soft delete** — LGPD-compliant user deletion flow.
+8. **Expanded seed** — seed data covering all roles and populated wealth/history records for every profile.
