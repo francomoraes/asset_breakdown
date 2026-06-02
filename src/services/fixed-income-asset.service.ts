@@ -71,9 +71,33 @@ export class FixedIncomeAssetService {
     private assetTypeRepo: Repository<AssetType>,
   ) {}
 
-  async getAsset() {
-    const assets = await this.fixedIncomeAssetRepo.find();
-    return assets;
+  async refreshValues(userId: number): Promise<void> {
+    const assets = await this.fixedIncomeAssetRepo.findBy({ userId });
+
+    for (const asset of assets) {
+      if (asset.manualMode) continue;
+
+      const { currentValueCents, resultCents, returnPercentage } =
+        await calculateFixedIncomeFields(
+          asset.investedValueCents,
+          asset.interestRate,
+          asset.startDate,
+          asset.maturityDate,
+          asset.indexationMode || IndexationMode.PRE_FIXED,
+        );
+
+      const hasChanged =
+        asset.currentValueCents !== currentValueCents ||
+        asset.resultCents !== resultCents ||
+        asset.returnPercentage !== returnPercentage;
+
+      if (hasChanged) {
+        asset.currentValueCents = currentValueCents;
+        asset.resultCents = resultCents;
+        asset.returnPercentage = returnPercentage;
+        await this.fixedIncomeAssetRepo.save(asset);
+      }
+    }
   }
 
   async getAssetsByUser({

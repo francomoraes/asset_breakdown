@@ -3,6 +3,7 @@ import { Asset } from "../models/asset";
 import { FixedIncomeAsset } from "../models/fixed-income-asset";
 import { Repository } from "typeorm";
 import { getBRLtoUSDRate } from "../utils/get-brl-to-usd-rate";
+import { fixedIncomeAssetService } from "./fixed-income-asset.service";
 
 export class SummaryService {
   constructor(
@@ -11,6 +12,8 @@ export class SummaryService {
   ) {}
 
   async getSummary({ userId }: { userId: number }) {
+    await fixedIncomeAssetService.refreshValues(userId);
+
     // Buscar summary de Assets regulares
     const rawSummary = await this.assetRepo
       .createQueryBuilder("asset")
@@ -96,6 +99,8 @@ export class SummaryService {
   }
 
   async getOverviewByCurrency({ userId }: { userId: number }) {
+    await fixedIncomeAssetService.refreshValues(userId);
+
     // Buscar assets regulares
     const rawResult = await this.assetRepo
       .createQueryBuilder("asset")
