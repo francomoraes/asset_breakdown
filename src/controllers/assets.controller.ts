@@ -12,11 +12,6 @@ import { PaginationQueryDto } from "dtos/pagination.dto";
 import { AppDataSource } from "../config/data-source";
 import { PriceCache } from "../models/price-cache";
 
-export const getAssets = async (req: Request, res: Response) => {
-  const assets = await assetService.getAsset();
-  res.json(assets);
-};
-
 export const getAssetsByUser = async (
   req: Request,
   res: Response,

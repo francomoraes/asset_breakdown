@@ -15,6 +15,10 @@ import { Institution } from "models/institution";
 
 AppDataSource.initialize()
   .then(async () => {
+    if (process.env.NODE_ENV === "production") {
+      throw new Error("Seed cannot run in production. Aborting.");
+    }
+
     await ensureDataSource();
 
     const shouldReset = process.argv.includes("--reset");

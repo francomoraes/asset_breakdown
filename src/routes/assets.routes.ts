@@ -3,7 +3,6 @@ import {
   createAsset,
   deleteAsset,
   exportAssetCsv,
-  getAssets,
   getAssetsByUser,
   refreshMarketPrices,
   clearPriceCache,

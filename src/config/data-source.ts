@@ -31,7 +31,7 @@ const connectionConfig = process.env.DATABASE_URL
 export const AppDataSource = new DataSource({
   type: "postgres",
   ...connectionConfig,
-  synchronize: true,
+  synchronize: process.env.NODE_ENV !== "production",
   logging: false,
   dropSchema: shouldDropSchema,
   entities: [

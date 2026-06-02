@@ -34,11 +34,6 @@ export class AssetService {
     private institutionRepo: Repository<Institution>,
   ) {}
 
-  async getAsset() {
-    const assets = await this.assetRepo.find();
-    return assets;
-  }
-
   async getAssetsByUser({
     userId,
     currentPage = 1,
@@ -365,7 +360,7 @@ export class AssetService {
     const result = await this.getAssetsByUser({ userId, skipPagination: true });
 
     const data = result.data.map((asset) => ({
-      ticker: asset.ticker,
+      ticker: sanitizeCsvCell(asset.ticker),
       quantity: asset.quantity,
       averagePriceCents: asset.averagePriceCents,
       currentPriceCents: asset.currentPriceCents,
@@ -373,10 +368,10 @@ export class AssetService {
       currentValueCents: asset.currentValueCents,
       resultCents: asset.resultCents,
       returnPercentage: asset.returnPercentage,
-      institution: asset.institution.name,
-      currency: asset.currency,
-      type: asset.type.name,
-      class: asset.type.assetClass.name,
+      institution: sanitizeCsvCell(asset.institution.name),
+      currency: sanitizeCsvCell(asset.currency),
+      type: sanitizeCsvCell(asset.type.name),
+      class: sanitizeCsvCell(asset.type.assetClass.name),
     }));
 
     const parser = new Parser();
@@ -485,6 +480,13 @@ export class AssetService {
       nextYahooCallAt,
     };
   }
+}
+
+function sanitizeCsvCell(value: string): string {
+  if (/^[=+\-@\t\r]/.test(value)) {
+    return `'${value}`;
+  }
+  return value;
 }
 
 export const assetService = new AssetService(
