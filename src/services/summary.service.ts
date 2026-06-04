@@ -24,6 +24,7 @@ export class SummaryService {
         `type.name AS "assetTypeName"`,
         `asset.currency AS "currency"`,
         `SUM(asset.currentValueCents) AS "totalValueCents"`,
+        `SUM(asset.resultCents) AS "totalResultCents"`,
         `type.targetPercentage AS "targetPercentage"`,
       ])
       .where("asset.userId = :userId", { userId })
@@ -40,6 +41,7 @@ export class SummaryService {
         `type.name AS "assetTypeName"`,
         `fixedIncome.currency AS "currency"`,
         `SUM(fixedIncome.currentValueCents) AS "totalValueCents"`,
+        `SUM(fixedIncome.resultCents) AS "totalResultCents"`,
         `type.targetPercentage AS "targetPercentage"`,
       ])
       .where("fixedIncome.userId = :userId", { userId })
@@ -59,6 +61,8 @@ export class SummaryService {
         const existing = groupedMap.get(key);
         existing.totalValueCents =
           Number(existing.totalValueCents) + Number(item.totalValueCents);
+        existing.totalResultCents =
+          Number(existing.totalResultCents) + Number(item.totalResultCents);
       } else {
         groupedMap.set(key, { ...item });
       }
@@ -80,6 +84,7 @@ export class SummaryService {
       return {
         ...item,
         totalValueCents: Number(item.totalValueCents),
+        totalResultCents: Number(item.totalResultCents),
         targetPercentage: Number(item.targetPercentage),
         actualPercentage,
       };
@@ -89,12 +94,21 @@ export class SummaryService {
     const brlToUsdRate = await getBRLtoUSDRate();
     const usdToBrlRate = 1 / brlToUsdRate;
 
+    const totalPnlCents = summary.reduce((acc, item) => {
+      const resultBRL =
+        item.currency === "USD"
+          ? Math.round(item.totalResultCents * usdToBrlRate)
+          : item.totalResultCents;
+      return acc + resultBRL;
+    }, 0);
+
     return {
       data: summary,
       exchangeRate: {
         usdToBrl: Number(usdToBrlRate.toFixed(4)),
         brlToUsd: Number(brlToUsdRate.toFixed(4)),
       },
+      totalPnlCents,
     };
   }
 

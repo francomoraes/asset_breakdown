@@ -120,6 +120,7 @@ export const uploadCsv = async (req: Request, res: Response): Promise<void> => {
           if (!assetType) {
             assetType = await assetTypeRepository.findOne({
               where: { name: type, userId },
+              relations: ["assetClass"],
             }) ?? undefined;
             if (!assetType) {
               assetType = await assetTypeRepository.save(
@@ -131,6 +132,10 @@ export const uploadCsv = async (req: Request, res: Response): Promise<void> => {
                 }),
               );
               autoCreated.assetTypes.add(type);
+            } else if (assetType.assetClass?.id !== assetClass?.id) {
+              // Tipo existe, mas classe diverge do CSV → corrigir.
+              assetType.assetClass = assetClass!;
+              await assetTypeRepository.save(assetType);
             }
             assetTypeCache.set(type, assetType);
           }
