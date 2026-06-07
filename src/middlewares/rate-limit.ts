@@ -51,7 +51,7 @@ const authLimiter = rateLimit({
       typeof req.body?.email === "string"
         ? req.body.email.toLowerCase().trim()
         : null;
-    return email ? `auth:email:${email}` : `auth:ip:${req.ip ?? "unknown"}`;
+    return email ? `auth:email:${email}` : `auth:ip:${ipKeyGenerator(req.ip ?? "")}`;
   },
   message: {
     error: "Too many login attempts, please try again later.",

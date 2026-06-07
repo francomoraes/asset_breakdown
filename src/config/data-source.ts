@@ -11,6 +11,8 @@ import { IndexRateCache } from "../models/index-rate-cache";
 import { WealthHistory } from "../models/wealth-history";
 import { ExchangeRateCache } from "../models/exchange-rate-cache";
 import { MarketIndexCache } from "../models/market-index-cache";
+import { ManagerClientLink } from "../models/manager-client-link";
+import { ManagerClientHistory } from "../models/manager-client-history";
 
 dotenv.config();
 
@@ -46,5 +48,7 @@ export const AppDataSource = new DataSource({
     WealthHistory,
     ExchangeRateCache,
     MarketIndexCache,
+    ManagerClientLink,
+    ManagerClientHistory,
   ],
 });

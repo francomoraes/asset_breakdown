@@ -29,6 +29,9 @@ import fixedIncomeAssetRoutes from "./routes/fixed-income-asset.routes";
 import institutionRoutes from "./routes/institution.routes";
 import summaryRoutes from "./routes/summary.routes";
 import wealthHistoryRoutes from "./routes/wealth-history.routes";
+import adminRoutes from "./routes/admin.routes";
+import managerLinkRoutes from "./routes/manager-link.routes";
+import managerRoutes from "./routes/manager.routes";
 
 const app = express();
 app.set("trust proxy", 1);
@@ -63,6 +66,9 @@ app.use("/api/wealth-history", authMiddleware, wealthHistoryRoutes);
 app.use("/api/asset-class", authMiddleware, assetClassRoutes);
 app.use("/api/asset-type", authMiddleware, assetTypeRoutes);
 app.use("/api/institutions", authMiddleware, institutionRoutes);
+app.use("/api/admin", authMiddleware, adminRoutes);
+app.use("/api/manager-links", authMiddleware, managerLinkRoutes);
+app.use("/api/managers", authMiddleware, managerRoutes);
 
 // Arquivos estáticos de uploads — CORS restrito ao frontend configurado
 const allowedUploadOrigins = config.isDevelopment

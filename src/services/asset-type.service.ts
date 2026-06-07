@@ -150,6 +150,29 @@ export class AssetTypeService {
 
     return assetType;
   }
+
+  async updateTargetPercentage({
+    userId,
+    assetTypeId,
+    targetPercentage,
+  }: {
+    userId: number;
+    assetTypeId: number;
+    targetPercentage: number;
+  }) {
+    const assetType = await this.assetTypeRepo.findOne({
+      where: { id: assetTypeId, userId },
+    });
+
+    if (!assetType) {
+      throw new NotFoundError("Asset type not found", "ASSET_TYPE_NOT_FOUND");
+    }
+
+    assetType.targetPercentage = targetPercentage;
+    await this.assetTypeRepo.save(assetType);
+
+    return assetType;
+  }
 }
 
 export const assetTypeService = new AssetTypeService(

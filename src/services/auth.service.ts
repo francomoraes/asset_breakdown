@@ -4,6 +4,7 @@ import {
   UnauthorizedError,
 } from "../errors/app-error";
 import { User } from "../models/user";
+import { UserRole } from "../enums/role.enum";
 import { Repository } from "typeorm";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
@@ -107,6 +108,7 @@ export class AuthService {
       password: hashedPassword,
       name,
       locale,
+      role: UserRole.INVESTOR,
     });
 
     const token = this.generateAccessToken(user);
@@ -125,6 +127,7 @@ export class AuthService {
         "name",
         "profilePictureUrl",
         "locale",
+        "role",
       ],
     });
 
@@ -153,6 +156,7 @@ export class AuthService {
       name: user.name,
       profilePictureUrl: user.profilePictureUrl,
       locale: user.locale,
+      role: user.role,
     };
 
     return { user: userData, token, refreshToken };
@@ -172,8 +176,8 @@ export class AuthService {
         throw new NotFoundError("User not found");
       }
 
-      const { id, email, name, profilePictureUrl, locale } = user;
-      return { userId: id!, email, name, profilePictureUrl, locale };
+      const { id, email, name, profilePictureUrl, locale, role } = user;
+      return { userId: id!, email, name, profilePictureUrl, locale, role };
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : "Unknown error";
@@ -186,7 +190,7 @@ export class AuthService {
 
     const user = await this.userRepository.findOne({
       where: { id: userId },
-      select: ["id", "email", "name", "profilePictureUrl", "locale"],
+      select: ["id", "email", "name", "profilePictureUrl", "locale", "role"],
     });
 
     if (!user) {
@@ -196,7 +200,16 @@ export class AuthService {
     const token = this.generateAccessToken(user);
     const newRefreshToken = this.generateRefreshToken(user.id!);
 
-    return { token, refreshToken: newRefreshToken };
+    const userData = {
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      profilePictureUrl: user.profilePictureUrl,
+      locale: user.locale,
+      role: user.role,
+    };
+
+    return { user: userData, token, refreshToken: newRefreshToken };
   }
 
   private async cleanupOrphanedPhotos(previousUrl: string | null) {
@@ -226,6 +239,7 @@ export class AuthService {
         "password",
         "locale",
         "profilePictureUrl",
+        "role",
       ],
     });
 
@@ -282,6 +296,7 @@ export class AuthService {
         name: updatedUser.name,
         profilePictureUrl: updatedUser.profilePictureUrl,
         locale: updatedUser.locale,
+        role: updatedUser.role,
       },
       token,
       refreshToken,

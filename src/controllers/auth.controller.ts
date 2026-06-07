@@ -50,6 +50,8 @@ export const login = async (req: Request, res: Response) => {
 
   const { user, token, refreshToken } = await authService.login(result.data);
 
+  console.log({ user });
+
   setRefreshCookie(res, refreshToken);
   res.json({ user, token });
 };
@@ -62,11 +64,14 @@ export const refresh = async (req: Request, res: Response) => {
     return;
   }
 
-  const { token, refreshToken: newRefreshToken } =
-    await authService.refreshSession(refreshToken);
+  const {
+    user,
+    token,
+    refreshToken: newRefreshToken,
+  } = await authService.refreshSession(refreshToken);
 
   setRefreshCookie(res, newRefreshToken);
-  res.json({ token });
+  res.json({ user, token });
 };
 
 export const logout = (_req: Request, res: Response) => {
