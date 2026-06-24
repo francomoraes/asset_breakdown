@@ -175,7 +175,7 @@ export class AssetService {
     );
 
     const assetTypeRepository = this.assetTypeRepo;
-    const assetType = await assetTypeRepository.findOneBy({ name: type });
+    const assetType = await assetTypeRepository.findOneBy({ name: type, userId: requestUserId });
 
     if (!assetType) {
       throw new NotFoundError(
@@ -304,6 +304,7 @@ export class AssetService {
 
       const assetType = await this.assetTypeRepo.findOneBy({
         name: type,
+        userId,
       });
 
       if (!assetType) {
