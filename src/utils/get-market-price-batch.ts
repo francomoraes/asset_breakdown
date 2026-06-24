@@ -105,6 +105,59 @@ export async function getMarketPriceCentsBatch(
       logger.info(`${cacheEntries.length} cotações salvas no cache`);
     }
 
+    // Fallback: London Stock Exchange (.L) for tickers with no exchange suffix
+    const lseFallbacks: Array<{ original: string; lseTicker: string }> = [];
+    for (const [formatted, original] of tickerMap) {
+      if (results.has(original)) continue;
+      const upper = original.toUpperCase();
+      if (formatted === upper && !upper.includes(".") && !upper.includes("-")) {
+        lseFallbacks.push({ original, lseTicker: `${upper}.L` });
+      }
+    }
+
+    if (lseFallbacks.length > 0) {
+      logger.info(
+        `Fallback LSE para tickers sem cotação: ${lseFallbacks.map((f) => f.lseTicker).join(", ")}`,
+      );
+      try {
+        const lseSymbols = lseFallbacks.map((f) => f.lseTicker);
+        const lseQuotes: any = await runYahooTask(() =>
+          yahooFinance.quote(lseSymbols),
+        );
+        const lseQuotesArray = Array.isArray(lseQuotes)
+          ? lseQuotes
+          : [lseQuotes];
+
+        const lseCacheEntries: PriceCache[] = [];
+        for (const quote of lseQuotesArray) {
+          if (!quote?.regularMarketPrice) continue;
+          const returnedSymbol = (quote.symbol ?? "").toUpperCase();
+          const fallback = lseFallbacks.find(
+            (f) => f.lseTicker === returnedSymbol,
+          );
+          if (!fallback) continue;
+
+          const cents = Math.round(Number(quote.regularMarketPrice) * 100);
+          results.set(fallback.original, cents);
+          logger.info(
+            `Fallback LSE: ${fallback.original} (${returnedSymbol}): ${cents} cents`,
+          );
+          lseCacheEntries.push(
+            repo.create({
+              ticker: fallback.original,
+              value: cents,
+              updatedAt: new Date(),
+            }),
+          );
+        }
+        if (lseCacheEntries.length > 0) {
+          await repo.save(lseCacheEntries);
+        }
+      } catch (lseError: any) {
+        logger.warn(`Erro no fallback LSE: ${lseError?.message}`);
+      }
+    }
+
     // Fallback: for crypto tickers in non-USD currency that got no price, try fetching
     // in USD and converting. This handles cases where e.g. "BTC-BRL" is not available
     // via the Yahoo Finance API but "BTC-USD" is.

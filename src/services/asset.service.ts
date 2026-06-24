@@ -357,6 +357,56 @@ export class AssetService {
     }
   }
 
+  async retryAssetPrice({
+    assetId,
+    requestUserId,
+  }: {
+    assetId: number;
+    requestUserId: number;
+  }) {
+    const asset = await this.assetRepo.findOne({
+      where: { id: assetId, userId: requestUserId },
+      relations: ["type", "institution"],
+    });
+
+    if (!asset) {
+      throw new NotFoundError(
+        `Asset ${assetId} not found`,
+        "ASSET_NOT_FOUND",
+      );
+    }
+
+    const currentPriceCents = await getMarketPriceCents(
+      asset.ticker,
+      asset.currency,
+    );
+
+    const {
+      investedValueCents,
+      currentValueCents,
+      resultCents,
+      returnPercentage,
+    } = calculateDerivedFields(
+      asset.quantity,
+      asset.averagePriceCents,
+      currentPriceCents,
+    );
+
+    Object.assign(asset, {
+      currentPriceCents,
+      investedValueCents,
+      currentValueCents,
+      resultCents,
+      returnPercentage,
+      priceUnavailable: false,
+    });
+
+    await this.assetRepo.save(asset);
+    await recalculatePortfolio(requestUserId);
+
+    return asset;
+  }
+
   async exportAssetsToCsv({ userId }: { userId: number }) {
     const result = await this.getAssetsByUser({ userId, skipPagination: true });
 

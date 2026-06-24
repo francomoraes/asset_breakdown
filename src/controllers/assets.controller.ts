@@ -112,6 +112,24 @@ export const exportAssetCsv = async (
   res.send(csv);
 };
 
+export const retryAssetPrice = async (
+  req: Request,
+  res: Response,
+): Promise<void> => {
+  const userId = getAuthenticatedUserId(req);
+  const assetId = Number(req.params.id);
+
+  const asset = await assetService.retryAssetPrice({
+    assetId,
+    requestUserId: userId,
+  });
+
+  res.json({
+    message: `Cotação de ${asset.ticker} atualizada com sucesso`,
+    asset,
+  });
+};
+
 export const refreshMarketPrices = async (
   req: Request,
   res: Response,

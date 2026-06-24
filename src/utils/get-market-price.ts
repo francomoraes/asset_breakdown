@@ -11,6 +11,16 @@ const yahooFinance = new YahooFinance({
   suppressNotices: ["yahooSurvey"],
 });
 
+async function fetchQuoteCents(symbol: string): Promise<number> {
+  const quote: any = await runYahooTask(() => yahooFinance.quote(symbol));
+  const marketPrice = Array.isArray(quote)
+    ? quote[0]?.regularMarketPrice
+    : quote?.regularMarketPrice;
+
+  if (marketPrice == null) throw new Error("Cotação não encontrada");
+  return Math.round(Number(marketPrice) * 100);
+}
+
 function isFresh(updatedAt: Date): boolean {
   const cacheDate = new Date(updatedAt);
   const now = new Date();
@@ -37,16 +47,7 @@ export async function getMarketPriceCents(
   }
 
   try {
-    const quote: any = await runYahooTask(() =>
-      yahooFinance.quote(formattedTicker),
-    );
-    const marketPrice = Array.isArray(quote)
-      ? quote[0]?.regularMarketPrice
-      : quote?.regularMarketPrice;
-
-    if (marketPrice == null) throw new Error("Cotação não encontrada");
-
-    const cents = Math.round(Number(marketPrice) * 100);
+    const cents = await fetchQuoteCents(formattedTicker);
 
     await repo.save(
       repo.create({
@@ -85,6 +86,29 @@ export async function getMarketPriceCents(
       throw new Error(
         `Cotação temporariamente indisponível devido a rate limiting. Tente novamente em alguns minutos.`,
       );
+    }
+
+    // Fallback: tentar London Stock Exchange (.L) para tickers sem sufixo de bolsa
+    const tickerUpper = ticker.toUpperCase();
+    if (
+      formattedTicker === tickerUpper &&
+      !tickerUpper.includes(".") &&
+      !tickerUpper.includes("-")
+    ) {
+      try {
+        const lseTicker = `${tickerUpper}.L`;
+        const cents = await fetchQuoteCents(lseTicker);
+
+        await repo.save(
+          repo.create({ ticker, value: cents, updatedAt: new Date() }),
+        );
+        logger.info(
+          `Cotação encontrada via LSE fallback (${lseTicker}): ${cents} cents`,
+        );
+        return cents;
+      } catch {
+        logger.warn(`Fallback LSE também falhou para ${ticker}`);
+      }
     }
 
     // Para outros erros, logar e tentar usar cache
