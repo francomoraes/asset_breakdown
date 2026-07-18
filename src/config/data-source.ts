@@ -1,5 +1,6 @@
-import dotenv from "dotenv";
+import path from "path";
 import { DataSource } from "typeorm";
+import { config } from "./environment";
 import { Asset } from "../models/asset";
 import { AssetType } from "../models/asset-type";
 import { AssetClass } from "../models/asset-class";
@@ -13,8 +14,6 @@ import { ExchangeRateCache } from "../models/exchange-rate-cache";
 import { MarketIndexCache } from "../models/market-index-cache";
 import { ManagerClientLink } from "../models/manager-client-link";
 import { ManagerClientHistory } from "../models/manager-client-history";
-
-dotenv.config();
 
 const shouldDropSchema = process.argv.includes("--drop-schema");
 
@@ -33,9 +32,10 @@ const connectionConfig = process.env.DATABASE_URL
 export const AppDataSource = new DataSource({
   type: "postgres",
   ...connectionConfig,
-  synchronize: process.env.NODE_ENV !== "production",
+  synchronize: !config.isProduction,
   logging: false,
   dropSchema: shouldDropSchema,
+  migrations: [path.join(__dirname, "..", "migrations", "*.{ts,js}")],
   entities: [
     Asset,
     AssetType,

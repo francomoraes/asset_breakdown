@@ -21,7 +21,7 @@ import { AppDataSource } from "config/data-source";
 import { User } from "models/user";
 import { AssetType } from "models/asset-type";
 import { NotFoundError } from "errors/app-error";
-import { ILike } from "typeorm";
+import { ILike, Not } from "typeorm";
 
 export const listManagers = async (
   req: Request,
@@ -32,18 +32,19 @@ export const listManagers = async (
     return handleZodError(res, result.error);
   }
 
+  const callerId = getAuthenticatedUserId(req);
   const { search, page, itemsPerPage } = result.data;
   const userRepo = AppDataSource.getRepository(User);
 
   const where: any[] = [
-    { role: UserRole.MANAGER, ...(search ? { name: ILike(`%${search}%`) } : {}) },
-    { role: UserRole.ADMIN, ...(search ? { name: ILike(`%${search}%`) } : {}) },
+    { id: Not(callerId), role: UserRole.MANAGER, ...(search ? { name: ILike(`%${search}%`) } : {}) },
+    { id: Not(callerId), role: UserRole.ADMIN, ...(search ? { name: ILike(`%${search}%`) } : {}) },
   ];
 
   if (search) {
     where.push(
-      { role: UserRole.MANAGER, email: ILike(`%${search}%`) },
-      { role: UserRole.ADMIN, email: ILike(`%${search}%`) },
+      { id: Not(callerId), role: UserRole.MANAGER, email: ILike(`%${search}%`) },
+      { id: Not(callerId), role: UserRole.ADMIN, email: ILike(`%${search}%`) },
     );
   }
 

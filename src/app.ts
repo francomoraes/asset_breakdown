@@ -19,6 +19,8 @@ import { authMiddleware } from "./middlewares/auth.middleware";
 import { demoProtection } from "./middlewares/demo-protection";
 import { errorHandler } from "./middlewares/error-handler";
 import { requestLogger } from "./middlewares/request-logger";
+import { requireRole } from "./middlewares/require-role.middleware";
+import { UserRole } from "./enums/role.enum";
 
 import assetClassRoutes from "./routes/asset-class.routes";
 import assetRoutes from "./routes/assets.routes";
@@ -32,6 +34,7 @@ import wealthHistoryRoutes from "./routes/wealth-history.routes";
 import adminRoutes from "./routes/admin.routes";
 import managerLinkRoutes from "./routes/manager-link.routes";
 import managerRoutes from "./routes/manager.routes";
+import investorRoutes from "./routes/investor.routes";
 
 const app = express();
 app.set("trust proxy", 1);
@@ -69,6 +72,12 @@ app.use("/api/institutions", authMiddleware, institutionRoutes);
 app.use("/api/admin", authMiddleware, adminRoutes);
 app.use("/api/manager-links", authMiddleware, managerLinkRoutes);
 app.use("/api/managers", authMiddleware, managerRoutes);
+app.use(
+  "/api/investors",
+  authMiddleware,
+  requireRole(UserRole.MANAGER, UserRole.ADMIN),
+  investorRoutes,
+);
 
 // Arquivos estáticos de uploads — CORS restrito ao frontend configurado
 const allowedUploadOrigins = config.isDevelopment

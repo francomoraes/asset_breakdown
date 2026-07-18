@@ -9,7 +9,8 @@ export const UpdateManagerClientLimitDto = z.object({
 });
 
 export const CreateLinkDto = z.object({
-  managerId: z.number().int().positive(),
+  targetUserId: z.number().int().positive(),
+  asRole: z.enum(["investor", "manager"]),
 });
 
 export const ListManagersQueryDto = z.object({

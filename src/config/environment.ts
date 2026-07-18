@@ -1,9 +1,10 @@
 import dotenv from "dotenv";
 
-// Load base .env first (local default), then override with .env.<NODE_ENV> if present.
+// Load base .env first (local default), then fill in with .env.<NODE_ENV> if present.
+// No override: a real env var already set by the hosting platform always wins over any .env file.
 dotenv.config();
 const envFile = `.env.${process.env.NODE_ENV || "development"}`;
-dotenv.config({ path: envFile, override: true });
+dotenv.config({ path: envFile });
 
 export const config = {
   nodeEnv: process.env.NODE_ENV || "development",

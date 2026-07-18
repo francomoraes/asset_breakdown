@@ -1,4 +1,4 @@
-import { Repository } from "typeorm";
+import { Not, Repository } from "typeorm";
 import { AppDataSource } from "config/data-source";
 import { ManagerClientLink, LinkStatus, RevokeReason } from "models/manager-client-link";
 import { ManagerClientHistory, HistoryCycleStatus } from "models/manager-client-history";
@@ -21,7 +21,15 @@ export class ManagerLinkService {
     private userRepo: Repository<User>,
   ) {}
 
-  async createLink({ investorId, managerId }: { investorId: number; managerId: number }) {
+  async createLink({
+    investorId,
+    managerId,
+    requestedByUserId,
+  }: {
+    investorId: number;
+    managerId: number;
+    requestedByUserId: number;
+  }) {
     if (investorId === managerId) {
       throw new BadRequestError("Cannot link to yourself", "SELF_LINK_NOT_ALLOWED");
     }
@@ -61,7 +69,7 @@ export class ManagerLinkService {
       investorId,
       managerId,
       status: LinkStatus.PENDING,
-      requestedByUserId: investorId,
+      requestedByUserId,
     });
 
     await this.linkRepo.save(link);
@@ -75,7 +83,7 @@ export class ManagerLinkService {
       throw new NotFoundError("Link not found", "NOT_FOUND");
     }
 
-    if (link.managerId !== callerId) {
+    if (this.getCounterpartId(link) !== callerId) {
       throw new ForbiddenError("Forbidden", "FORBIDDEN");
     }
 
@@ -117,7 +125,27 @@ export class ManagerLinkService {
     });
     await this.historyRepo.save(history);
 
+    // Um investor só pode ter um gestor ativo por vez — o vínculo recém
+    // aprovado substitui qualquer outro que já estivesse ativo.
+    await this.supersedeOtherActiveLinks(link.investorId, link.id!);
+
     return link;
+  }
+
+  async supersedeOtherActiveLinks(investorId: number, keepLinkId: number): Promise<void> {
+    const otherActiveLinks = await this.linkRepo.find({
+      where: { investorId, status: LinkStatus.ACTIVE },
+    });
+
+    for (const other of otherActiveLinks) {
+      if (other.id === keepLinkId) continue;
+
+      other.status = LinkStatus.REVOKED;
+      other.revokedAt = new Date();
+      other.revokeReason = RevokeReason.SUPERSEDED;
+      await this.linkRepo.save(other);
+      await this.closeHistoryCycle(other.id!, investorId);
+    }
   }
 
   async rejectLink({ linkId, callerId }: { linkId: number; callerId: number }) {
@@ -127,7 +155,7 @@ export class ManagerLinkService {
       throw new NotFoundError("Link not found", "NOT_FOUND");
     }
 
-    if (link.managerId !== callerId) {
+    if (this.getCounterpartId(link) !== callerId) {
       throw new ForbiddenError("Forbidden", "FORBIDDEN");
     }
 
@@ -164,8 +192,9 @@ export class ManagerLinkService {
       throw new ConflictError("Link cannot be revoked", "INVALID_STATUS_TRANSITION");
     }
 
-    if (isManager && link.status !== LinkStatus.ACTIVE) {
-      throw new ConflictError("Manager can only revoke active links", "INVALID_STATUS_TRANSITION");
+    const isRequester = link.requestedByUserId === callerId;
+    if (!isRequester && link.status !== LinkStatus.ACTIVE) {
+      throw new ConflictError("Only the requester can cancel a pending link", "INVALID_STATUS_TRANSITION");
     }
 
     const wasActive = link.status === LinkStatus.ACTIVE;
@@ -198,9 +227,43 @@ export class ManagerLinkService {
     await this.historyRepo.save(history);
   }
 
-  async getPendingLinks({ managerId }: { managerId: number }) {
+  getCounterpartId(link: ManagerClientLink): number {
+    return link.requestedByUserId === link.investorId
+      ? link.managerId
+      : link.investorId;
+  }
+
+  async getPendingApprovals({ userId }: { userId: number }) {
     const links = await this.linkRepo.find({
-      where: { managerId, status: LinkStatus.PENDING },
+      where: [
+        { managerId: userId, status: LinkStatus.PENDING, requestedByUserId: Not(userId) },
+        { investorId: userId, status: LinkStatus.PENDING, requestedByUserId: Not(userId) },
+      ],
+      relations: ["investor", "manager"],
+      order: { createdAt: "ASC" },
+    });
+
+    return links.map((link) => {
+      const iAmManager = link.managerId === userId;
+      const counterpart = iAmManager ? link.investor : link.manager;
+
+      return {
+        id: link.id,
+        investorId: link.investorId,
+        managerId: link.managerId,
+        requestedByUserId: link.requestedByUserId,
+        counterpartId: counterpart.id,
+        counterpartName: counterpart.name,
+        counterpartEmail: counterpart.email,
+        counterpartRole: iAmManager ? "investor" : "manager",
+        createdAt: link.createdAt,
+      };
+    });
+  }
+
+  async getSentRequests({ managerId }: { managerId: number }) {
+    const links = await this.linkRepo.find({
+      where: { managerId, status: LinkStatus.PENDING, requestedByUserId: managerId },
       relations: ["investor"],
       order: { createdAt: "ASC" },
     });

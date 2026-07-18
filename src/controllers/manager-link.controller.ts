@@ -13,21 +13,29 @@ export const createLink = async (
 ): Promise<void> => {
   const callerId = getAuthenticatedUserId(req);
 
-  if (
-    req.user?.role === UserRole.MANAGER ||
-    req.user?.role === UserRole.ADMIN
-  ) {
-    throw new ForbiddenError("Managers and admins cannot request links", "FORBIDDEN");
-  }
-
   const result = CreateLinkDto.safeParse(req.body);
   if (!result.success) {
     return handleZodError(res, result.error);
   }
 
+  const { targetUserId, asRole } = result.data;
+
+  if (asRole === "manager" && req.user?.role === UserRole.INVESTOR) {
+    throw new ForbiddenError(
+      "Investors cannot request to manage another account",
+      "FORBIDDEN",
+    );
+  }
+
+  const { investorId, managerId } =
+    asRole === "investor"
+      ? { investorId: callerId, managerId: targetUserId }
+      : { investorId: targetUserId, managerId: callerId };
+
   const link = await managerLinkService.createLink({
-    investorId: callerId,
-    managerId: result.data.managerId,
+    investorId,
+    managerId,
+    requestedByUserId: callerId,
   });
 
   res.status(201).json({
@@ -59,12 +67,21 @@ export const getMyHistory = async (
   res.json({ data });
 };
 
-export const getPendingLinks = async (
+export const getPendingApprovals = async (
+  req: Request,
+  res: Response,
+): Promise<void> => {
+  const userId = getAuthenticatedUserId(req);
+  const data = await managerLinkService.getPendingApprovals({ userId });
+  res.json({ data });
+};
+
+export const getSentRequests = async (
   req: Request,
   res: Response,
 ): Promise<void> => {
   const managerId = getAuthenticatedUserId(req);
-  const data = await managerLinkService.getPendingLinks({ managerId });
+  const data = await managerLinkService.getSentRequests({ managerId });
   res.json({ data });
 };
 
