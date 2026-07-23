@@ -79,13 +79,12 @@ npm start
 
 ## Next steps (portfolio roadmap)
 
-The next major feature is a full manager–investor relationship system. Key planned work:
+The manager–investor relationship system (RBAC) described in earlier roadmaps has been fully implemented — roles, bidirectional link requests/approval, manager read access via `resolveEffectiveUserId`, manager dashboard, link history, role guards, and an expanded seed covering all roles. See `docs/done/rbac-feature.md` and `docs/done/bugs-16-07-fixes.md`.
 
-1. **User roles** — introduce `investor`, `manager`, and `admin` roles; admin assigns manager role manually.
-2. **Link management** — investors request a link to a manager; manager accepts or rejects; links can be revoked by either party or by a system rule.
-3. **Manager read access** — managers can view the full portfolio of each linked investor (read-only), with the exception of editing asset type target allocation percentages.
-4. **Manager dashboard** — consolidated view with portfolio metrics across all active clients.
-5. **Link history** — preserve full history of past manager–investor relationships including dates and initial/final wealth per cycle.
-6. **Role-based authorization guards** — protect all new endpoints with role checks.
-7. **Soft delete** — LGPD-compliant user deletion flow.
-8. **Expanded seed** — seed data covering all roles and populated wealth/history records for every profile.
+Remaining work:
+
+1. **Crypto tracking & price refresh** — connect Ethereum wallets and Mercado Bitcoin accounts, auto-sync balances as assets. Not started — see `docs/crypto-tracking-price-refresh.md`.
+2. **CI/CD automation** — GitHub Actions pipelines for lint/test/build and auto-deploy on push. Rate limiting, caching, and manual deploy are already done — see `docs/done/plano-objetivo-deploy-cicd.md` — only the automation step remains.
+3. **Soft delete** — LGPD-compliant user deletion flow.
+4. **Item 7 investigation** — intermittent missing goals/positions in the manager's view of a client's portfolio, only in production; root cause still unknown (schema/migration already ruled out). See `docs/done/bugs-16-07-fixes.md`, section 10.
+5. **Security follow-ups** — a few audit items still require manual verification: cross-user IDOR test, login timing attack, distributed brute-force lockout, `npm audit`, and audit logging for sensitive operations. See `docs/done/security-owasp-design.md`.
