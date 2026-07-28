@@ -101,6 +101,10 @@ const marketIndicesLimiter = createHeavyLimiter(
   config.rateLimitMedium,
 );
 const summaryLimiter = createHeavyLimiter("high", config.rateLimitHigh);
+const cryptoSyncLimiter = createHeavyLimiter(
+  "low",
+  config.rateLimitCryptoSync,
+);
 
 export {
   appLimiter,
@@ -109,4 +113,5 @@ export {
   refreshLimiter,
   marketIndicesLimiter,
   summaryLimiter,
+  cryptoSyncLimiter,
 };

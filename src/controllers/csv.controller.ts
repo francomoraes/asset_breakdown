@@ -6,7 +6,7 @@ import { Asset } from "../models/asset";
 import { AppDataSource } from "../config/data-source";
 import { csvAssetSchema } from "../dtos/csv.dto";
 import { getAuthenticatedUserId } from "../utils/get-authenticated-user-id";
-import { getMarketPriceCentsBatch } from "../utils/get-market-price-batch";
+import { marketPriceService } from "../services/market-price.service";
 import { AssetType } from "models/asset-type";
 import { AssetClass } from "models/asset-class";
 import { Institution } from "models/institution";
@@ -69,7 +69,7 @@ export const uploadCsv = async (req: Request, res: Response): Promise<void> => {
         const currencyMap = new Map<string, string>(
           validatedRows.map((r) => [r.ticker, r.currency]),
         );
-        const pricesMap = await getMarketPriceCentsBatch(
+        const pricesMap = await marketPriceService.getPricesCentsBatch(
           allTickers,
           currencyMap,
         );

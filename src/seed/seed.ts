@@ -8,7 +8,7 @@ import { User } from "../models/user";
 import { UserRole } from "../enums/role.enum";
 import { ManagerClientLink, LinkStatus, RevokeReason } from "../models/manager-client-link";
 import { ManagerClientHistory, HistoryCycleStatus } from "../models/manager-client-history";
-import { getMarketPriceCentsBatch } from "../utils/get-market-price-batch";
+import { marketPriceService } from "../services/market-price.service";
 import { calculateDerivedFields } from "../utils/calculate-derived-fields";
 import { recalculatePortfolio } from "../utils/recalculate-portfolio";
 import { ensureDataSource } from "../utils/ensure-data-source";
@@ -151,7 +151,7 @@ AppDataSource.initialize()
 
     // ─── Instituições para cada usuário ───────────────────────────────────────
 
-    const institutionNames = ["Avenue", "XP Investimentos", "Binance"];
+    const institutionNames = ["Avenue", "XP Investimentos", "Binance", "Mercado Bitcoin"];
 
     for (const user of seedUsers) {
       for (const name of institutionNames) {
@@ -190,7 +190,13 @@ AppDataSource.initialize()
 
     console.log("🔍 Buscando preços em batch...");
     const allTickers = seedAssets.map((a) => a.ticker);
-    const pricesMap = await getMarketPriceCentsBatch(allTickers);
+    const seedCurrencyMap = new Map(
+      seedAssets.map((a) => [a.ticker, a.currency]),
+    );
+    const pricesMap = await marketPriceService.getPricesCentsBatch(
+      allTickers,
+      seedCurrencyMap,
+    );
     console.log(`✅ ${pricesMap.size} preços obtidos`);
 
     for (const { ticker, type, quantity, averagePrice, currency, institution } of seedAssets) {

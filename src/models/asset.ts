@@ -2,6 +2,7 @@ import { Column, Entity, ManyToOne } from "typeorm";
 import { AssetType } from "./asset-type";
 import { Institution } from "models/institution";
 import { BaseEntity } from "models/base/base-entity";
+import { AssetSource } from "enums/asset-source.enum";
 
 @Entity("asset")
 export class Asset extends BaseEntity {
@@ -48,4 +49,10 @@ export class Asset extends BaseEntity {
 
   @Column({ default: false })
   priceUnavailable!: boolean;
+
+  @Column({ type: "enum", enum: AssetSource, default: AssetSource.MANUAL })
+  source!: AssetSource;
+
+  @Column("int", { nullable: true })
+  connectedAccountId!: number | null;
 }

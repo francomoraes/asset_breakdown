@@ -5,11 +5,11 @@ import { Asset } from "../models/asset";
 import { AssetType } from "../models/asset-type";
 import { Repository } from "typeorm";
 import { calculateDerivedFields } from "../utils/calculate-derived-fields";
-import { getMarketPriceCents } from "../utils/get-market-price";
+import { marketPriceService } from "../services/market-price.service";
 import { recalculatePortfolio } from "../utils/recalculate-portfolio";
 import { Institution } from "models/institution";
-import { getMarketPriceCentsBatch } from "utils/get-market-price-batch";
 import { ALLOWED_SORT_FIELDS } from "enums/allowedSortFields.enum";
+import { AssetSource } from "enums/asset-source.enum";
 import { PaginatedResponseDto } from "dtos/pagination.dto";
 import { FindOptionsOrder } from "typeorm";
 import { PriceCache } from "models/price-cache";
@@ -120,6 +120,18 @@ export class AssetService {
       );
     }
 
+    if (
+      existingAsset.source !== AssetSource.MANUAL &&
+      (updateData.quantity !== undefined ||
+        updateData.ticker !== undefined ||
+        updateData.currency !== undefined)
+    ) {
+      throw new ConflictError(
+        `Ativo ${existingAsset.ticker} é sincronizado automaticamente e não permite edição manual de quantidade, ticker ou moeda`,
+        "CONNECTED_ASSET_QUANTITY_LOCKED",
+      );
+    }
+
     let currentPriceCents = existingAsset.currentPriceCents;
     let priceUnavailable = existingAsset.priceUnavailable ?? false;
 
@@ -129,7 +141,7 @@ export class AssetService {
     const currencyForPrice = updateData.currency ?? existingAsset.currency;
 
     try {
-      currentPriceCents = await getMarketPriceCents(
+      currentPriceCents = await marketPriceService.getPriceCents(
         newTicker,
         currencyForPrice,
       );
@@ -284,7 +296,7 @@ export class AssetService {
     let priceUnavailable = false;
 
     try {
-      currentPriceCents = await getMarketPriceCents(ticker, currency);
+      currentPriceCents = await marketPriceService.getPriceCents(ticker, currency);
     } catch {
       currentPriceCents = averagePriceCents;
       priceUnavailable = true;
@@ -376,7 +388,7 @@ export class AssetService {
       );
     }
 
-    const currentPriceCents = await getMarketPriceCents(
+    const currentPriceCents = await marketPriceService.getPriceCents(
       asset.ticker,
       asset.currency,
     );
@@ -457,7 +469,11 @@ export class AssetService {
     });
 
     const cacheByTicker = new Map(
-      cachedPrices.map((entry) => [entry.ticker, entry]),
+      cachedPrices
+        .filter(
+          (entry) => entry.currency === (currencyMap.get(entry.ticker) ?? "USD"),
+        )
+        .map((entry) => [entry.ticker, entry]),
     );
     const cacheTtlMs = config.marketPriceTtlHours * 60 * 60 * 1000;
     const now = Date.now();
@@ -484,7 +500,10 @@ export class AssetService {
       }
     }
 
-    const results = await getMarketPriceCentsBatch(tickers, currencyMap);
+    const results = await marketPriceService.getPricesCentsBatch(
+      tickers,
+      currencyMap,
+    );
 
     const assetsToUpdate: Asset[] = [];
     const failedTickers: string[] = [];

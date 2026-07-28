@@ -24,6 +24,16 @@ export const config = {
   rateLimitMedium: Number(process.env.RL_LIMIT_MEDIUM || 20),
   rateLimitHigh: Number(process.env.RL_LIMIT_HIGH || 30),
   yahooMaxConcurrency: Number(process.env.YAHOO_MAX_CONCURRENCY || 2),
+  coingeckoMaxConcurrency: Number(process.env.COINGECKO_MAX_CONCURRENCY || 2),
+  mercadoBitcoinMaxConcurrency: Number(
+    process.env.MERCADO_BITCOIN_MAX_CONCURRENCY || 2,
+  ),
+  rateLimitCryptoSync: Number(process.env.RL_LIMIT_CRYPTO_SYNC || 5),
+
+  coingeckoApiUrl:
+    process.env.COINGECKO_API_URL || "https://api.coingecko.com/api/v3",
+  coingeckoApiKey: process.env.COINGECKO_API_KEY || "",
+  cryptoMasterKey: process.env.CRYPTO_MASTER_KEY || "",
 
   isDevelopment: process.env.NODE_ENV === "development",
   isDemo: process.env.NODE_ENV === "demo",

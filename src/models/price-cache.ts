@@ -5,6 +5,9 @@ export class PriceCache {
   @PrimaryColumn("text")
   ticker!: string;
 
+  @PrimaryColumn("text")
+  currency!: string;
+
   @Column("int")
   value!: number;
 

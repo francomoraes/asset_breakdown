@@ -14,6 +14,7 @@ import { ExchangeRateCache } from "../models/exchange-rate-cache";
 import { MarketIndexCache } from "../models/market-index-cache";
 import { ManagerClientLink } from "../models/manager-client-link";
 import { ManagerClientHistory } from "../models/manager-client-history";
+import { MercadoBitcoinAccount } from "../models/mercado-bitcoin-account";
 
 const shouldDropSchema = process.argv.includes("--drop-schema");
 
@@ -50,5 +51,6 @@ export const AppDataSource = new DataSource({
     MarketIndexCache,
     ManagerClientLink,
     ManagerClientHistory,
+    MercadoBitcoinAccount,
   ],
 });
