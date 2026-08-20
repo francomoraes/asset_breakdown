@@ -1,4 +1,14 @@
 import { z } from "zod";
+import { passwordSchema } from "./auth.dto";
+
+export const CreateUserDto = z
+  .object({
+    name: z.string().min(2).max(100),
+    email: z.string().email(),
+    password: passwordSchema,
+    role: z.enum(["investor", "manager", "admin"]),
+  })
+  .strict();
 
 export const UpdateUserRoleDto = z.object({
   role: z.enum(["investor", "manager", "admin"]),

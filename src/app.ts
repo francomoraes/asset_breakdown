@@ -36,6 +36,7 @@ import adminRoutes from "./routes/admin.routes";
 import managerLinkRoutes from "./routes/manager-link.routes";
 import managerRoutes from "./routes/manager.routes";
 import investorRoutes from "./routes/investor.routes";
+import userRoutes from "./routes/user.routes";
 
 const app = express();
 app.set("trust proxy", 1);
@@ -79,6 +80,12 @@ app.use(
   authMiddleware,
   requireRole(UserRole.MANAGER, UserRole.ADMIN),
   investorRoutes,
+);
+app.use(
+  "/api/users",
+  authMiddleware,
+  requireRole(UserRole.MANAGER, UserRole.ADMIN),
+  userRoutes,
 );
 
 // Arquivos estáticos de uploads — CORS restrito ao frontend configurado

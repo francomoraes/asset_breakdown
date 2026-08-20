@@ -5,6 +5,7 @@ import { handleZodError } from "../utils/handle-zod-error";
 import { getAuthenticatedUserId } from "utils/get-authenticated-user-id";
 import { storageAdapter } from "config/storage";
 import { config } from "config/environment";
+import { ForbiddenError } from "../errors/app-error";
 
 // In production, frontend (Vercel) and backend (Railway) are different sites,
 // so SameSite must be "none" (with Secure) for the cookie to be sent cross-site.
@@ -31,6 +32,13 @@ function clearRefreshCookie(res: Response) {
 }
 
 export const register = async (req: Request, res: Response) => {
+  if (!config.selfRegistrationEnabled) {
+    throw new ForbiddenError(
+      "Self-registration is disabled",
+      "SELF_REGISTRATION_DISABLED",
+    );
+  }
+
   const result = RegisterDTO.safeParse(req.body);
   if (!result.success) {
     return handleZodError(res, result.error);
@@ -50,10 +58,12 @@ export const login = async (req: Request, res: Response) => {
 
   const { user, token, refreshToken } = await authService.login(result.data);
 
-  console.log({ user });
-
   setRefreshCookie(res, refreshToken);
   res.json({ user, token });
+};
+
+export const getConfig = (_req: Request, res: Response) => {
+  res.json({ selfRegistrationEnabled: config.selfRegistrationEnabled });
 };
 
 export const refresh = async (req: Request, res: Response) => {

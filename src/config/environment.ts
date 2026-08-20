@@ -39,6 +39,8 @@ export const config = {
   isDemo: process.env.NODE_ENV === "demo",
   isProduction: process.env.NODE_ENV === "production",
 
+  selfRegistrationEnabled: process.env.SELF_REGISTRATION_ENABLED === "true",
+
   logLevel:
     process.env.LOG_LEVEL ||
     (process.env.NODE_ENV === "development" ? "debug" : "info"),

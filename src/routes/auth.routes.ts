@@ -1,4 +1,5 @@
 import {
+  getConfig,
   login,
   logout,
   refresh,
@@ -18,6 +19,7 @@ const router = express.Router();
 
 router.post("/register", register);
 router.post("/login", authLimiter, login);
+router.get("/config", getConfig);
 router.post("/refresh", refresh);
 router.post("/logout", logout);
 router.post(

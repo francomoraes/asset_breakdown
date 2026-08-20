@@ -1,16 +1,18 @@
 import { z } from "zod";
 
+export const passwordSchema = z
+  .string()
+  .min(6)
+  .max(100)
+  .regex(
+    /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/,
+    "Password must contain uppercase, lowercase, numbers and symbols",
+  );
+
 export const RegisterDTO = z
   .object({
     email: z.string().email(),
-    password: z
-      .string()
-      .min(6)
-      .max(100)
-      .regex(
-        /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/,
-        "Password must contain uppercase, lowercase, numbers and symbols",
-      ),
+    password: passwordSchema,
     name: z.string().min(2).max(100),
     locale: z.string().optional(),
   })
@@ -20,6 +22,7 @@ export const LoginDTO = z
   .object({
     email: z.string().email(),
     password: z.string().min(6).max(100),
+    loginAs: z.enum(["investor", "manager"]).optional(),
   })
   .strict();
 
@@ -28,15 +31,7 @@ export const UpdateUserDto = z.object({
   email: z.string().email().optional(),
   name: z.string().min(2).max(100).optional(),
   profilePictureUrl: z.string().url().optional().nullable(),
-  newPassword: z
-    .string()
-    .min(6)
-    .max(100)
-    .regex(
-      /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/,
-      "Password must contain uppercase, lowercase, numbers and symbols",
-    )
-    .optional(),
+  newPassword: passwordSchema.optional(),
   currentPassword: z.preprocess(
     (val) => (val === "" ? undefined : val),
     z.string().min(6).max(100).optional(),
