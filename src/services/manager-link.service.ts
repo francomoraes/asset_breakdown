@@ -125,27 +125,7 @@ export class ManagerLinkService {
     });
     await this.historyRepo.save(history);
 
-    // Um investor só pode ter um gestor ativo por vez — o vínculo recém
-    // aprovado substitui qualquer outro que já estivesse ativo.
-    await this.supersedeOtherActiveLinks(link.investorId, link.id!);
-
     return link;
-  }
-
-  async supersedeOtherActiveLinks(investorId: number, keepLinkId: number): Promise<void> {
-    const otherActiveLinks = await this.linkRepo.find({
-      where: { investorId, status: LinkStatus.ACTIVE },
-    });
-
-    for (const other of otherActiveLinks) {
-      if (other.id === keepLinkId) continue;
-
-      other.status = LinkStatus.REVOKED;
-      other.revokedAt = new Date();
-      other.revokeReason = RevokeReason.SUPERSEDED;
-      await this.linkRepo.save(other);
-      await this.closeHistoryCycle(other.id!, investorId);
-    }
   }
 
   async rejectLink({ linkId, callerId }: { linkId: number; callerId: number }) {
