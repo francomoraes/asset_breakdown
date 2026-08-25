@@ -7,14 +7,14 @@ import { createPaginationQueryDto } from "dtos/pagination.dto";
 import { ALLOWED_SORT_FIELDS_FIXED_INCOME } from "enums/allowedSortFieldsFIxedIncome.enum";
 import { Request, Response } from "express";
 import { fixedIncomeAssetService } from "services/fixed-income-asset.service";
-import { getAuthenticatedUserId } from "utils/get-authenticated-user-id";
+import { getEffectiveUserId } from "utils/get-effective-user-id";
 import { handleZodError } from "utils/handle-zod-error";
 
 export const getFixedIncomeAssetsByUser = async (
   req: Request,
   res: Response,
 ): Promise<void> => {
-  const userId = getAuthenticatedUserId(req);
+  const userId = getEffectiveUserId(req);
 
   const PaginationQueryDto = createPaginationQueryDto(
     ALLOWED_SORT_FIELDS_FIXED_INCOME,
@@ -39,7 +39,7 @@ export const createFixedIncomeAsset = async (
   req: Request,
   res: Response,
 ): Promise<void> => {
-  const userId = getAuthenticatedUserId(req);
+  const userId = getEffectiveUserId(req);
 
   const result = CreateFixedIncomeAssetDto.safeParse(req.body);
 
@@ -60,7 +60,7 @@ export const updateFixedIncomeAsset = async (
   req: Request,
   res: Response,
 ): Promise<void> => {
-  const userId = getAuthenticatedUserId(req);
+  const userId = getEffectiveUserId(req);
 
   const result = UpdateFixedIncomeAssetDto.safeParse({
     ...req.body,
@@ -85,7 +85,7 @@ export const deleteFixedIncomeAsset = async (
   req: Request,
   res: Response,
 ): Promise<void> => {
-  const userId = getAuthenticatedUserId(req);
+  const userId = getEffectiveUserId(req);
 
   const result = DeleteFixedIncomeAssetDto.safeParse({
     id: req.params.id,

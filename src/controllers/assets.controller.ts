@@ -7,7 +7,7 @@ import {
   DeleteAssetDto,
   UpdateAssetDto,
 } from "../dtos/asset.dto";
-import { getAuthenticatedUserId } from "../utils/get-authenticated-user-id";
+import { getEffectiveUserId } from "../utils/get-effective-user-id";
 import { PaginationQueryDto } from "dtos/pagination.dto";
 import { AppDataSource } from "../config/data-source";
 import { PriceCache } from "../models/price-cache";
@@ -16,7 +16,7 @@ export const getAssetsByUser = async (
   req: Request,
   res: Response,
 ): Promise<void> => {
-  const userId = getAuthenticatedUserId(req);
+  const userId = getEffectiveUserId(req);
 
   const paginationParams = PaginationQueryDto.safeParse(req.query);
 
@@ -37,7 +37,7 @@ export const updateAsset = async (
   req: Request,
   res: Response,
 ): Promise<void> => {
-  const userId = getAuthenticatedUserId(req);
+  const userId = getEffectiveUserId(req);
 
   const result = UpdateAssetDto.safeParse({
     id: req.params.id,
@@ -62,7 +62,7 @@ export const deleteAsset = async (
   req: Request,
   res: Response,
 ): Promise<void> => {
-  const userId = getAuthenticatedUserId(req);
+  const userId = getEffectiveUserId(req);
 
   const result = DeleteAssetDto.safeParse({
     id: req.params.id,
@@ -82,7 +82,7 @@ export const createAsset = async (
   req: Request,
   res: Response,
 ): Promise<void> => {
-  const userId = getAuthenticatedUserId(req);
+  const userId = getEffectiveUserId(req);
 
   const result = CreateAssetDto.safeParse(req.body);
 
@@ -103,7 +103,7 @@ export const exportAssetCsv = async (
   req: Request,
   res: Response,
 ): Promise<void> => {
-  const userId = getAuthenticatedUserId(req);
+  const userId = getEffectiveUserId(req);
 
   const csv = await assetService.exportAssetsToCsv({ userId: Number(userId) });
 
@@ -116,7 +116,7 @@ export const retryAssetPrice = async (
   req: Request,
   res: Response,
 ): Promise<void> => {
-  const userId = getAuthenticatedUserId(req);
+  const userId = getEffectiveUserId(req);
   const assetId = Number(req.params.id);
 
   const asset = await assetService.retryAssetPrice({
@@ -134,7 +134,7 @@ export const refreshMarketPrices = async (
   req: Request,
   res: Response,
 ): Promise<void> => {
-  const userId = getAuthenticatedUserId(req);
+  const userId = getEffectiveUserId(req);
 
   const result = await assetService.updateUserAssetsPrices(userId);
 

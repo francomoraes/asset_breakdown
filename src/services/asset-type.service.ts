@@ -87,8 +87,8 @@ export class AssetTypeService {
     userId,
   }: {
     id: string;
-    name: string;
-    targetPercentage: number;
+    name?: string;
+    targetPercentage?: number;
     assetClassId?: number;
     userId: number;
   }) {

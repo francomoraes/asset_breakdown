@@ -7,14 +7,14 @@ import {
   UpdateAssetTypeDto,
 } from "../dtos/asset-type.dto";
 
-import { getAuthenticatedUserId } from "../utils/get-authenticated-user-id";
+import { getEffectiveUserId } from "../utils/get-effective-user-id";
 import { ConflictError, NotFoundError } from "../errors/app-error";
 
 export const createAssetType = async (
   req: Request,
   res: Response,
 ): Promise<void> => {
-  const userId = getAuthenticatedUserId(req);
+  const userId = getEffectiveUserId(req);
 
   const dtoData = {
     name: req.body.name,
@@ -47,7 +47,7 @@ export const getAssetTypes = async (
   req: Request,
   res: Response,
 ): Promise<void> => {
-  const userId = getAuthenticatedUserId(req);
+  const userId = getEffectiveUserId(req);
 
   const assetTypes = await assetTypeService.getAssetTypes({ userId });
 
@@ -58,7 +58,7 @@ export const getAssetTypeById = async (
   req: Request,
   res: Response,
 ): Promise<void> => {
-  const userId = getAuthenticatedUserId(req);
+  const userId = getEffectiveUserId(req);
   const id = req.params.id;
   const assetType = await assetTypeService.getAssetTypeById({ id, userId });
 
@@ -72,7 +72,7 @@ export const updateAssetType = async (
   req: Request,
   res: Response,
 ): Promise<void> => {
-  const userId = getAuthenticatedUserId(req);
+  const userId = getEffectiveUserId(req);
 
   const dtoData = {
     id: req.params.id,
@@ -91,9 +91,9 @@ export const updateAssetType = async (
 
   const assetType = await assetTypeService.updateAssetType({
     id,
-    name: name || "",
-    targetPercentage: targetPercentage || 0,
-    assetClassId: assetClassId,
+    name,
+    targetPercentage,
+    assetClassId,
     userId,
   });
   res.json({ message: "Asset type updated successfully", assetType });
@@ -103,7 +103,7 @@ export const deleteAssetType = async (
   req: Request,
   res: Response,
 ): Promise<void> => {
-  const userId = getAuthenticatedUserId(req);
+  const userId = getEffectiveUserId(req);
 
   const dtoData = {
     id: req.params.id,

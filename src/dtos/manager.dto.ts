@@ -46,3 +46,7 @@ export const ListActiveClientsQueryDto = z.object({
 export const UpdateTargetPercentageDto = z.object({
   targetPercentage: z.number().min(0).max(100),
 });
+
+export const UpdateAutonomyDto = z.object({
+  enabled: z.boolean(),
+});

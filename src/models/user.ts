@@ -28,4 +28,7 @@ export class User extends BaseEntity {
 
   @Column("int", { nullable: true })
   managerClientLimit!: number | null;
+
+  @Column({ default: false })
+  selfServiceEnabled!: boolean;
 }

@@ -4,6 +4,7 @@ import { User } from "models/user";
 import { ListManagersQueryDto } from "dtos/manager.dto";
 import { getAuthenticatedUserId } from "utils/get-authenticated-user-id";
 import { handleZodError } from "utils/handle-zod-error";
+import { UserRole } from "enums/role.enum";
 import { ILike, Not } from "typeorm";
 
 export const listInvestors = async (
@@ -21,10 +22,10 @@ export const listInvestors = async (
 
   const where = search
     ? [
-        { id: Not(callerId), name: ILike(`%${search}%`) },
-        { id: Not(callerId), email: ILike(`%${search}%`) },
+        { id: Not(callerId), role: UserRole.INVESTOR, name: ILike(`%${search}%`) },
+        { id: Not(callerId), role: UserRole.INVESTOR, email: ILike(`%${search}%`) },
       ]
-    : { id: Not(callerId) };
+    : { id: Not(callerId), role: UserRole.INVESTOR };
 
   const [investors, total] = await userRepo.findAndCount({
     where,

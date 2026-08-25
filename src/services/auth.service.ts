@@ -110,12 +110,23 @@ export class AuthService {
       name,
       locale,
       role: UserRole.INVESTOR,
+      selfServiceEnabled: false,
     });
 
     const token = this.generateAccessToken(user);
     const refreshToken = this.generateRefreshToken(user.id!);
 
-    return { user, token, refreshToken };
+    const userData = {
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      profilePictureUrl: user.profilePictureUrl,
+      locale: user.locale,
+      role: user.role,
+      selfServiceEnabled: user.selfServiceEnabled,
+    };
+
+    return { user: userData, token, refreshToken };
   }
 
   async login({
@@ -137,6 +148,7 @@ export class AuthService {
         "profilePictureUrl",
         "locale",
         "role",
+        "selfServiceEnabled",
       ],
     });
 
@@ -180,6 +192,7 @@ export class AuthService {
       profilePictureUrl: user.profilePictureUrl,
       locale: user.locale,
       role: user.role,
+      selfServiceEnabled: user.selfServiceEnabled,
     };
 
     return { user: userData, token, refreshToken };
@@ -213,7 +226,15 @@ export class AuthService {
 
     const user = await this.userRepository.findOne({
       where: { id: userId },
-      select: ["id", "email", "name", "profilePictureUrl", "locale", "role"],
+      select: [
+        "id",
+        "email",
+        "name",
+        "profilePictureUrl",
+        "locale",
+        "role",
+        "selfServiceEnabled",
+      ],
     });
 
     if (!user) {
@@ -230,6 +251,7 @@ export class AuthService {
       profilePictureUrl: user.profilePictureUrl,
       locale: user.locale,
       role: user.role,
+      selfServiceEnabled: user.selfServiceEnabled,
     };
 
     return { user: userData, token, refreshToken: newRefreshToken };
@@ -263,6 +285,7 @@ export class AuthService {
         "locale",
         "profilePictureUrl",
         "role",
+        "selfServiceEnabled",
       ],
     });
 
@@ -320,6 +343,7 @@ export class AuthService {
         profilePictureUrl: updatedUser.profilePictureUrl,
         locale: updatedUser.locale,
         role: updatedUser.role,
+        selfServiceEnabled: updatedUser.selfServiceEnabled,
       },
       token,
       refreshToken,

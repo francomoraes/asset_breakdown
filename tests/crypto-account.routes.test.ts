@@ -96,6 +96,7 @@ const fakeAssetRepo = (__getFakeRepo as any)("Asset");
 const fakeAssetTypeRepo = (__getFakeRepo as any)("AssetType");
 const fakeInstitutionRepo = (__getFakeRepo as any)("Institution");
 const fakeMbAccountRepo = (__getFakeRepo as any)("MercadoBitcoinAccount");
+const fakeUserRepo = (__getFakeRepo as any)("User");
 
 const AUTH_USER_1 = "Bearer token-user-1";
 const AUTH_USER_2 = "Bearer token-user-2";
@@ -106,6 +107,7 @@ describe("crypto-account routes", () => {
     config.cryptoMasterKey = Buffer.alloc(32, 7).toString("base64");
     fakeAssetRepo.find.mockResolvedValue([]);
     fakeAssetRepo.save.mockImplementation(async (e: any) => e);
+    fakeUserRepo.findOne.mockResolvedValue({ id: 1, selfServiceEnabled: true });
   });
 
   it("POST /crypto-accounts cria a conta e GET nunca retorna credenciais", async () => {

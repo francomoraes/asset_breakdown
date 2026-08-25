@@ -52,11 +52,11 @@ AppDataSource.initialize()
 
     const userRepository = AppDataSource.getRepository(User);
     const seedUsersData = [
-      { email: "admin@test.com",      password: "Admin123!",   name: "Admin User",     locale: "pt-br", role: UserRole.ADMIN,     managerClientLimit: null },
-      { email: "user@test.com",       password: "User123!",    name: "Regular User",   locale: "pt-br", role: UserRole.INVESTOR,  managerClientLimit: null },
-      { email: "manager1@test.com",   password: "Manager123!", name: "Manager One",    locale: "pt-br", role: UserRole.MANAGER,   managerClientLimit: null },
-      { email: "manager2@test.com",   password: "Manager123!", name: "Manager Two",    locale: "pt-br", role: UserRole.MANAGER,   managerClientLimit: 5 },
-      { email: "investor2@test.com",  password: "User123!",    name: "Investor Two",   locale: "pt-br", role: UserRole.INVESTOR,  managerClientLimit: null },
+      { email: "admin@test.com",      password: "Admin123!",   name: "Admin User",     locale: "pt-br", role: UserRole.ADMIN,     managerClientLimit: null, selfServiceEnabled: false },
+      { email: "user@test.com",       password: "User123!",    name: "Regular User",   locale: "pt-br", role: UserRole.INVESTOR,  managerClientLimit: null, selfServiceEnabled: false },
+      { email: "manager1@test.com",   password: "Manager123!", name: "Manager One",    locale: "pt-br", role: UserRole.MANAGER,   managerClientLimit: null, selfServiceEnabled: false },
+      { email: "manager2@test.com",   password: "Manager123!", name: "Manager Two",    locale: "pt-br", role: UserRole.MANAGER,   managerClientLimit: 5,    selfServiceEnabled: false },
+      { email: "investor2@test.com",  password: "User123!",    name: "Investor Two",   locale: "pt-br", role: UserRole.INVESTOR,  managerClientLimit: null, selfServiceEnabled: true },
     ];
 
     const seedUsers: User[] = [];
@@ -73,6 +73,7 @@ AppDataSource.initialize()
           locale: userData.locale,
           role: userData.role,
           managerClientLimit: userData.managerClientLimit,
+          selfServiceEnabled: userData.selfServiceEnabled,
         });
         await userRepository.save(user);
         console.log(`✅ User created: ${userData.email} (${userData.role})`);
@@ -80,6 +81,7 @@ AppDataSource.initialize()
         // Update role and limit in case seed was run before without RBAC
         user.role = userData.role;
         user.managerClientLimit = userData.managerClientLimit;
+        user.selfServiceEnabled = userData.selfServiceEnabled;
         await userRepository.save(user);
         console.log(`ℹ️ User already exists: ${userData.email}`);
       }
@@ -127,6 +129,8 @@ AppDataSource.initialize()
 
     // Create asset classes and types for all users
     for (const user of seedUsers) {
+      if (user.role === UserRole.MANAGER) continue;
+
       for (const name of assetClassNames) {
         const existing = await assetClassRepository.findOneBy({ name, userId: user.id });
         if (!existing) {
@@ -154,6 +158,8 @@ AppDataSource.initialize()
     const institutionNames = ["Avenue", "XP Investimentos", "Binance", "Mercado Bitcoin"];
 
     for (const user of seedUsers) {
+      if (user.role === UserRole.MANAGER) continue;
+
       for (const name of institutionNames) {
         const existing = await institutionsRepository.findOneBy({ name, userId: user.id });
         if (!existing) {
@@ -250,15 +256,6 @@ AppDataSource.initialize()
         { description: "Tesouro Prefixado 2027", startDate: new Date("2024-01-05"), maturityDate: new Date("2027-01-01"), interestRate: 12.0,  investedValueCents: 800000,  currency: "BRL", institution: "XP Investimentos", type: "Pré-fixado" },
         { description: "CDB Banco Inter 110%",   startDate: new Date("2024-02-10"), maturityDate: new Date("2025-02-10"), interestRate: 15.0,  investedValueCents: 300000,  currency: "BRL", institution: "XP Investimentos", type: "Pós-fixado" },
       ],
-      "manager1@test.com": [
-        { description: "CDB Manager1 100% CDI",  startDate: new Date("2024-01-15"), maturityDate: new Date("2026-01-15"), interestRate: 13.65, investedValueCents: 2000000, currency: "BRL", institution: "XP Investimentos", type: "Pós-fixado" },
-        { description: "LCI Manager1 XP",        startDate: new Date("2024-03-20"), maturityDate: new Date("2026-03-20"), interestRate: 11.2,  investedValueCents: 3000000, currency: "BRL", institution: "XP Investimentos", type: "Pós-fixado" },
-        { description: "Tesouro IPCA Manager1",  startDate: new Date("2023-06-10"), maturityDate: new Date("2029-05-15"), interestRate: 6.5,   investedValueCents: 1500000, currency: "BRL", institution: "XP Investimentos", type: "Inflação" },
-      ],
-      "manager2@test.com": [
-        { description: "CDB Manager2 110% CDI",  startDate: new Date("2024-02-01"), maturityDate: new Date("2026-02-01"), interestRate: 14.0,  investedValueCents: 1800000, currency: "BRL", institution: "XP Investimentos", type: "Pós-fixado" },
-        { description: "LCI Manager2 XP",        startDate: new Date("2024-04-01"), maturityDate: new Date("2026-04-01"), interestRate: 11.0,  investedValueCents: 2500000, currency: "BRL", institution: "XP Investimentos", type: "Pós-fixado" },
-      ],
       "investor2@test.com": [
         { description: "CDB Investor2 100% CDI", startDate: new Date("2024-01-15"), maturityDate: new Date("2026-01-15"), interestRate: 13.65, investedValueCents: 1500000, currency: "BRL", institution: "XP Investimentos", type: "Pós-fixado" },
         { description: "Tesouro IPCA Investor2", startDate: new Date("2023-06-10"), maturityDate: new Date("2029-05-15"), interestRate: 6.5,   investedValueCents: 1000000, currency: "BRL", institution: "XP Investimentos", type: "Inflação" },
@@ -318,8 +315,6 @@ AppDataSource.initialize()
     // Base values per user (BRL cents, monthly for 14 months starting 2024-01)
     const wealthHistoryByUser: Record<string, number[]> = {
       "user@test.com":      [5000000, 5250000, 5550000, 5800000, 6100000, 6400000, 6700000, 6950000, 7250000, 7600000, 7950000, 8300000, 8600000, 8950000],
-      "manager1@test.com":  [7000000, 7200000, 7500000, 7800000, 8100000, 8500000, 8900000, 9200000, 9600000, 9900000, 10200000, 10600000, 11000000, 11400000],
-      "manager2@test.com":  [4500000, 4700000, 4900000, 5100000, 5350000, 5600000, 5900000, 6100000, 6400000, 6700000, 7000000, 7300000, 7600000, 7900000],
       "investor2@test.com": [3000000, 3100000, 3200000, 3350000, 3500000, 3650000, 3800000, 3950000, 4100000, 4250000, 4400000, 4550000, 4700000, 4850000],
     };
 

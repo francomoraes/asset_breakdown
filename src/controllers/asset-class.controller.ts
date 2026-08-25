@@ -7,13 +7,13 @@ import {
 import { Request, Response } from "express";
 import { assetClassService } from "../services/asset-class.service";
 import { handleZodError } from "../utils/handle-zod-error";
-import { getAuthenticatedUserId } from "../utils/get-authenticated-user-id";
+import { getEffectiveUserId } from "../utils/get-effective-user-id";
 
 export const createAssetClass = async (
   req: Request,
   res: Response,
 ): Promise<void> => {
-  const userId = getAuthenticatedUserId(req);
+  const userId = getEffectiveUserId(req);
 
   const result = CreateAssetClassDto.safeParse({
     name: req.body.name,
@@ -39,7 +39,7 @@ export const getAssetClasses = async (
   req: Request,
   res: Response,
 ): Promise<void> => {
-  const userId = getAuthenticatedUserId(req);
+  const userId = getEffectiveUserId(req);
 
   const assetClasses = await assetClassService.getAssetClasses({ userId });
 
@@ -50,7 +50,7 @@ export const getAssetClassById = async (
   req: Request,
   res: Response,
 ): Promise<void> => {
-  const userId = getAuthenticatedUserId(req);
+  const userId = getEffectiveUserId(req);
   const { id } = req.params;
 
   const assetClass = await assetClassService.getAssetClassById({
@@ -65,7 +65,7 @@ export const updateAssetClass = async (
   req: Request,
   res: Response,
 ): Promise<void> => {
-  const userId = getAuthenticatedUserId(req);
+  const userId = getEffectiveUserId(req);
 
   const dtoData = {
     id: req.params.id,
@@ -93,7 +93,7 @@ export const deleteAssetClass = async (
   req: Request,
   res: Response,
 ): Promise<void> => {
-  const userId = getAuthenticatedUserId(req);
+  const userId = getEffectiveUserId(req);
 
   const parsedParams = DeleteAssetClassDto.safeParse({
     id: req.params.id,

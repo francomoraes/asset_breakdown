@@ -2,17 +2,13 @@ import { Request, Response } from "express";
 import { managerLinkService } from "services/manager-link.service";
 import { managerDashboardService } from "services/manager-dashboard.service";
 import { assetTypeService } from "services/asset-type.service";
-import { assetService } from "services/asset.service";
-import { fixedIncomeAssetService } from "services/fixed-income-asset.service";
 import { summaryService } from "services/summary.service";
-import { wealthHistoryService } from "services/wealth-history.service";
 import {
   ListActiveClientsQueryDto,
   ListManagersQueryDto,
+  UpdateAutonomyDto,
   UpdateTargetPercentageDto,
 } from "dtos/manager.dto";
-import { PaginationQueryDto, createPaginationQueryDto } from "dtos/pagination.dto";
-import { ALLOWED_SORT_FIELDS_FIXED_INCOME } from "enums/allowedSortFieldsFIxedIncome.enum";
 import { UserRole } from "enums/role.enum";
 import { getAuthenticatedUserId } from "utils/get-authenticated-user-id";
 import { getEffectiveUserId } from "utils/get-effective-user-id";
@@ -94,7 +90,14 @@ export const getInvestorProfile = async (
 
   const user = await userRepo.findOne({
     where: { id: investorId },
-    select: ["id", "name", "email", "locale", "profilePictureUrl"],
+    select: [
+      "id",
+      "name",
+      "email",
+      "locale",
+      "profilePictureUrl",
+      "selfServiceEnabled",
+    ],
   });
 
   if (!user) {
@@ -125,54 +128,30 @@ export const getInvestorSummary = async (
   res.json(summary);
 };
 
-export const getInvestorAssets = async (
+export const updateClientAutonomy = async (
   req: Request,
   res: Response,
 ): Promise<void> => {
-  const userId = getEffectiveUserId(req);
+  const investorId = getEffectiveUserId(req);
 
-  const paginationParams = PaginationQueryDto.safeParse(req.query);
-  if (!paginationParams.success) {
-    return handleZodError(res, paginationParams.error, 409);
+  const result = UpdateAutonomyDto.safeParse(req.body);
+  if (!result.success) {
+    return handleZodError(res, result.error);
   }
 
-  const assets = await assetService.getAssetsByUser({
-    userId,
-    ...paginationParams.data,
-    currentPage: paginationParams.data.page ?? 1,
-  } as Parameters<typeof assetService.getAssetsByUser>[0]);
+  const userRepo = AppDataSource.getRepository(User);
+  const user = await userRepo.findOne({ where: { id: investorId } });
 
-  res.json(assets);
-};
-
-export const getInvestorFixedIncomeAssets = async (
-  req: Request,
-  res: Response,
-): Promise<void> => {
-  const userId = getEffectiveUserId(req);
-
-  const PaginationQueryDtoFI = createPaginationQueryDto(ALLOWED_SORT_FIELDS_FIXED_INCOME);
-  const paginationParams = PaginationQueryDtoFI.safeParse(req.query);
-  if (!paginationParams.success) {
-    return handleZodError(res, paginationParams.error, 409);
+  if (!user) {
+    throw new NotFoundError("Investor not found", "NOT_FOUND");
   }
 
-  const assets = await fixedIncomeAssetService.getAssetsByUser({
-    userId,
-    ...paginationParams.data,
-    currentPage: paginationParams.data.page ?? 1,
-  } as Parameters<typeof fixedIncomeAssetService.getAssetsByUser>[0]);
+  user.selfServiceEnabled = result.data.enabled;
+  await userRepo.save(user);
 
-  res.json(assets);
-};
-
-export const getInvestorWealthHistory = async (
-  req: Request,
-  res: Response,
-): Promise<void> => {
-  const userId = getEffectiveUserId(req);
-  const history = await wealthHistoryService.getWealthHistoryByUser(userId);
-  res.json(history);
+  res.json({
+    user: { id: user.id, selfServiceEnabled: user.selfServiceEnabled },
+  });
 };
 
 export const updateInvestorTargetPercentage = async (
