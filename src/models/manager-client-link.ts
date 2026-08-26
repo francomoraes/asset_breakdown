@@ -14,6 +14,7 @@ export enum RevokeReason {
   MANUAL_BY_MANAGER = "manual_by_manager",
   ROLE_REMOVED = "role_removed",
   SUPERSEDED = "superseded",
+  STALE_PENDING_MIGRATION = "stale_pending_migration",
 }
 
 @Entity("manager_client_link")

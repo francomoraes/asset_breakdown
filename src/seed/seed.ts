@@ -415,9 +415,9 @@ AppDataSource.initialize()
         createdAt: new Date(threeMonthsAgo.getTime() - 2 * 24 * 60 * 60 * 1000),
       },
       {
-        investorId: userMain!.id!, managerId: manager2!.id!, status: LinkStatus.PENDING,
-        requestedByUserId: userMain!.id!, respondedByUserId: null,
-        activatedAt: null, revokedAt: null, revokeReason: null,
+        investorId: userMain!.id!, managerId: manager2!.id!, status: LinkStatus.ACTIVE,
+        requestedByUserId: manager2!.id!, respondedByUserId: null,
+        activatedAt: yesterday, revokedAt: null, revokeReason: null,
         createdAt: yesterday,
       },
       {
@@ -472,7 +472,7 @@ AppDataSource.initialize()
     const wealthUserMain = await calcWealthForSeed(userMain!.id!);
     const wealthInvestor2 = await calcWealthForSeed(investor2!.id!);
 
-    const [linkUserMainMgr1, linkInvestor2Mgr1, , linkInvestor2Mgr2Revoked] = savedLinks;
+    const [linkUserMainMgr1, linkInvestor2Mgr1, linkUserMainMgr2, linkInvestor2Mgr2Revoked] = savedLinks;
 
     type HistorySeed = {
       linkId: number;
@@ -504,6 +504,15 @@ AppDataSource.initialize()
         initialWealthCents: 3_500_000,
         finalWealthCents: null,
         currentWealthCents: wealthInvestor2,
+      },
+      {
+        linkId: linkUserMainMgr2!.id!,
+        investorId: userMain!.id!, managerId: manager2!.id!,
+        status: HistoryCycleStatus.ACTIVE,
+        cycleStartAt: yesterday, cycleEndAt: null,
+        initialWealthCents: wealthUserMain,
+        finalWealthCents: null,
+        currentWealthCents: wealthUserMain,
       },
       {
         linkId: linkInvestor2Mgr2Revoked!.id!,

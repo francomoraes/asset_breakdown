@@ -3,7 +3,7 @@ import { managerLinkService } from "services/manager-link.service";
 import { managerHistoryService } from "services/manager-history.service";
 import { CreateLinkDto } from "dtos/manager.dto";
 import { UserRole } from "enums/role.enum";
-import { ForbiddenError } from "errors/app-error";
+import { BadRequestError } from "errors/app-error";
 import { getAuthenticatedUserId } from "utils/get-authenticated-user-id";
 import { handleZodError } from "utils/handle-zod-error";
 
@@ -12,25 +12,27 @@ export const createLink = async (
   res: Response,
 ): Promise<void> => {
   const callerId = getAuthenticatedUserId(req);
+  const callerRole = req.user!.role;
 
   const result = CreateLinkDto.safeParse(req.body);
   if (!result.success) {
     return handleZodError(res, result.error);
   }
 
-  const { targetUserId, asRole } = result.data;
+  const { investorId, managerId: bodyManagerId } = result.data;
 
-  if (asRole === "manager" && req.user?.role === UserRole.INVESTOR) {
-    throw new ForbiddenError(
-      "Investors cannot request to manage another account",
-      "FORBIDDEN",
-    );
+  let managerId: number;
+  if (callerRole === UserRole.ADMIN) {
+    if (!bodyManagerId) {
+      throw new BadRequestError(
+        "managerId is required when caller is admin",
+        "MANAGER_ID_REQUIRED",
+      );
+    }
+    managerId = bodyManagerId;
+  } else {
+    managerId = callerId;
   }
-
-  const { investorId, managerId } =
-    asRole === "investor"
-      ? { investorId: callerId, managerId: targetUserId }
-      : { investorId: targetUserId, managerId: callerId };
 
   const link = await managerLinkService.createLink({
     investorId,
@@ -44,6 +46,7 @@ export const createLink = async (
       investorId: link.investorId,
       managerId: link.managerId,
       status: link.status,
+      activatedAt: link.activatedAt,
       createdAt: link.createdAt,
     },
   });
@@ -67,60 +70,19 @@ export const getMyHistory = async (
   res.json({ data });
 };
 
-export const getPendingApprovals = async (
-  req: Request,
-  res: Response,
-): Promise<void> => {
-  const userId = getAuthenticatedUserId(req);
-  const data = await managerLinkService.getPendingApprovals({ userId });
-  res.json({ data });
-};
-
-export const getSentRequests = async (
-  req: Request,
-  res: Response,
-): Promise<void> => {
-  const managerId = getAuthenticatedUserId(req);
-  const data = await managerLinkService.getSentRequests({ managerId });
-  res.json({ data });
-};
-
-export const approveLink = async (
-  req: Request,
-  res: Response,
-): Promise<void> => {
-  const callerId = getAuthenticatedUserId(req);
-  const linkId = Number(req.params.linkId);
-
-  const link = await managerLinkService.approveLink({ linkId, callerId });
-
-  res.json({
-    link: { id: link.id, status: link.status, activatedAt: link.activatedAt },
-  });
-};
-
-export const rejectLink = async (
-  req: Request,
-  res: Response,
-): Promise<void> => {
-  const callerId = getAuthenticatedUserId(req);
-  const linkId = Number(req.params.linkId);
-
-  const link = await managerLinkService.rejectLink({ linkId, callerId });
-
-  res.json({
-    link: { id: link.id, status: link.status, rejectedAt: link.rejectedAt },
-  });
-};
-
 export const revokeLink = async (
   req: Request,
   res: Response,
 ): Promise<void> => {
   const callerId = getAuthenticatedUserId(req);
+  const callerRole = req.user!.role;
   const linkId = Number(req.params.linkId);
 
-  const link = await managerLinkService.revokeLink({ linkId, callerId });
+  const link = await managerLinkService.revokeLink({
+    linkId,
+    callerId,
+    callerRole,
+  });
 
   res.json({
     link: {

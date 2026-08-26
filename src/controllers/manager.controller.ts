@@ -29,18 +29,26 @@ export const listManagers = async (
   }
 
   const callerId = getAuthenticatedUserId(req);
+  const callerRole = req.user!.role;
   const { search, page, itemsPerPage } = result.data;
   const userRepo = AppDataSource.getRepository(User);
 
+  // Admin pode se atribuir clientes ("gestor global", decisão 4.5 do PRD),
+  // então não se auto-exclui daqui. Manager comum continua sem se ver na
+  // própria lista (esse endpoint hoje só alimenta o seletor de gestor do
+  // admin, mas mantém o filtro por segurança/consistência caso ganhe outro
+  // consumidor).
+  const idFilter = callerRole === UserRole.ADMIN ? {} : { id: Not(callerId) };
+
   const where: any[] = [
-    { id: Not(callerId), role: UserRole.MANAGER, ...(search ? { name: ILike(`%${search}%`) } : {}) },
-    { id: Not(callerId), role: UserRole.ADMIN, ...(search ? { name: ILike(`%${search}%`) } : {}) },
+    { ...idFilter, role: UserRole.MANAGER, ...(search ? { name: ILike(`%${search}%`) } : {}) },
+    { ...idFilter, role: UserRole.ADMIN, ...(search ? { name: ILike(`%${search}%`) } : {}) },
   ];
 
   if (search) {
     where.push(
-      { id: Not(callerId), role: UserRole.MANAGER, email: ILike(`%${search}%`) },
-      { id: Not(callerId), role: UserRole.ADMIN, email: ILike(`%${search}%`) },
+      { ...idFilter, role: UserRole.MANAGER, email: ILike(`%${search}%`) },
+      { ...idFilter, role: UserRole.ADMIN, email: ILike(`%${search}%`) },
     );
   }
 

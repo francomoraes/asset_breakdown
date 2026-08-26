@@ -1,4 +1,4 @@
-import { Not, Repository } from "typeorm";
+import { Repository } from "typeorm";
 import { AppDataSource } from "config/data-source";
 import { ManagerClientLink, LinkStatus, RevokeReason } from "models/manager-client-link";
 import { ManagerClientHistory, HistoryCycleStatus } from "models/manager-client-history";
@@ -13,6 +13,7 @@ import {
 import { calculateInvestorWealthCents } from "./manager-dashboard.service";
 
 const DEFAULT_MANAGER_LIMIT = 10;
+const UNIQUE_VIOLATION_CODE = "23505";
 
 export class ManagerLinkService {
   constructor(
@@ -34,8 +35,12 @@ export class ManagerLinkService {
       throw new BadRequestError("Cannot link to yourself", "SELF_LINK_NOT_ALLOWED");
     }
 
-    const manager = await this.userRepo.findOne({ where: { id: managerId } });
+    const investor = await this.userRepo.findOne({ where: { id: investorId } });
+    if (!investor || investor.role !== UserRole.INVESTOR) {
+      throw new NotFoundError("Investor not found", "INVESTOR_NOT_FOUND");
+    }
 
+    const manager = await this.userRepo.findOne({ where: { id: managerId } });
     if (
       !manager ||
       (manager.role !== UserRole.MANAGER && manager.role !== UserRole.ADMIN)
@@ -43,125 +48,78 @@ export class ManagerLinkService {
       throw new NotFoundError("Manager not found", "MANAGER_NOT_FOUND");
     }
 
-    const pendingLink = await this.linkRepo.findOne({
-      where: { investorId, managerId, status: LinkStatus.PENDING },
-    });
-    if (pendingLink) {
-      throw new ConflictError("Pending link already exists", "PENDING_LINK_EXISTS");
-    }
-
-    const activeLink = await this.linkRepo.findOne({
-      where: { investorId, managerId, status: LinkStatus.ACTIVE },
-    });
-    if (activeLink) {
-      throw new ConflictError("Active link already exists", "ACTIVE_LINK_EXISTS");
-    }
-
-    const activeCount = await this.linkRepo.count({
-      where: { managerId, status: LinkStatus.ACTIVE },
-    });
     const limit = manager.managerClientLimit ?? DEFAULT_MANAGER_LIMIT;
-    if (activeCount >= limit) {
-      throw new ConflictError("Manager has reached client limit", "MANAGER_CLIENT_LIMIT_REACHED");
-    }
 
-    const link = this.linkRepo.create({
-      investorId,
-      managerId,
-      status: LinkStatus.PENDING,
-      requestedByUserId,
+    return this.linkRepo.manager.transaction(async (txManager) => {
+      const activeLink = await txManager.findOne(ManagerClientLink, {
+        where: { investorId, managerId, status: LinkStatus.ACTIVE },
+      });
+      if (activeLink) {
+        throw new ConflictError("Active link already exists", "ACTIVE_LINK_EXISTS");
+      }
+
+      const activeCount = await txManager.count(ManagerClientLink, {
+        where: { managerId, status: LinkStatus.ACTIVE },
+      });
+      if (activeCount >= limit) {
+        throw new ConflictError("Manager has reached client limit", "MANAGER_CLIENT_LIMIT_REACHED");
+      }
+
+      const now = new Date();
+      const link = txManager.create(ManagerClientLink, {
+        investorId,
+        managerId,
+        status: LinkStatus.ACTIVE,
+        requestedByUserId,
+        activatedAt: now,
+      });
+
+      let saved: ManagerClientLink;
+      try {
+        saved = await txManager.save(link);
+      } catch (error) {
+        if (
+          error instanceof Error &&
+          (error as { code?: string }).code === UNIQUE_VIOLATION_CODE
+        ) {
+          throw new ConflictError("Active link already exists", "ACTIVE_LINK_EXISTS");
+        }
+        throw error;
+      }
+
+      const wealthCents = await calculateInvestorWealthCents(investorId);
+      const history = txManager.create(ManagerClientHistory, {
+        investorId,
+        managerId,
+        linkId: saved.id!,
+        status: HistoryCycleStatus.ACTIVE,
+        cycleStartAt: now,
+        initialWealthCents: wealthCents,
+        currentWealthCents: wealthCents,
+      });
+      await txManager.save(history);
+
+      return saved;
     });
-
-    await this.linkRepo.save(link);
-    return link;
   }
 
-  async approveLink({ linkId, callerId }: { linkId: number; callerId: number }) {
+  async revokeLink({
+    linkId,
+    callerId,
+    callerRole,
+  }: {
+    linkId: number;
+    callerId: number;
+    callerRole: UserRole;
+  }) {
     const link = await this.linkRepo.findOne({ where: { id: linkId } });
 
     if (!link) {
       throw new NotFoundError("Link not found", "NOT_FOUND");
     }
 
-    if (this.getCounterpartId(link) !== callerId) {
-      throw new ForbiddenError("Forbidden", "FORBIDDEN");
-    }
-
-    if (link.status !== LinkStatus.PENDING) {
-      throw new ConflictError("Link is not pending", "INVALID_STATUS_TRANSITION");
-    }
-
-    const manager = await this.userRepo.findOneBy({ id: link.managerId });
-    if (!manager) {
-      throw new NotFoundError("Manager not found", "NOT_FOUND");
-    }
-
-    if (manager.role !== UserRole.MANAGER && manager.role !== UserRole.ADMIN) {
-      throw new BadRequestError("Manager no longer has eligible role", "MANAGER_NOT_ELIGIBLE");
-    }
-
-    const activeCount = await this.linkRepo.count({
-      where: { managerId: link.managerId, status: LinkStatus.ACTIVE },
-    });
-    const limit = manager.managerClientLimit ?? DEFAULT_MANAGER_LIMIT;
-    if (activeCount >= limit) {
-      throw new ConflictError("Manager has reached client limit", "MANAGER_CLIENT_LIMIT_REACHED");
-    }
-
-    link.status = LinkStatus.ACTIVE;
-    link.activatedAt = new Date();
-    link.respondedByUserId = callerId;
-    await this.linkRepo.save(link);
-
-    const wealthCents = await calculateInvestorWealthCents(link.investorId);
-    const history = this.historyRepo.create({
-      investorId: link.investorId,
-      managerId: link.managerId,
-      linkId: link.id!,
-      status: HistoryCycleStatus.ACTIVE,
-      cycleStartAt: new Date(),
-      initialWealthCents: wealthCents,
-      currentWealthCents: wealthCents,
-    });
-    await this.historyRepo.save(history);
-
-    return link;
-  }
-
-  async rejectLink({ linkId, callerId }: { linkId: number; callerId: number }) {
-    const link = await this.linkRepo.findOne({ where: { id: linkId } });
-
-    if (!link) {
-      throw new NotFoundError("Link not found", "NOT_FOUND");
-    }
-
-    if (this.getCounterpartId(link) !== callerId) {
-      throw new ForbiddenError("Forbidden", "FORBIDDEN");
-    }
-
-    if (link.status !== LinkStatus.PENDING) {
-      throw new ConflictError("Link is not pending", "INVALID_STATUS_TRANSITION");
-    }
-
-    link.status = LinkStatus.REJECTED;
-    link.rejectedAt = new Date();
-    link.respondedByUserId = callerId;
-    await this.linkRepo.save(link);
-
-    return link;
-  }
-
-  async revokeLink({ linkId, callerId }: { linkId: number; callerId: number }) {
-    const link = await this.linkRepo.findOne({ where: { id: linkId } });
-
-    if (!link) {
-      throw new NotFoundError("Link not found", "NOT_FOUND");
-    }
-
-    const isInvestor = link.investorId === callerId;
-    const isManager = link.managerId === callerId;
-
-    if (!isInvestor && !isManager) {
+    const isOwnerManager = link.managerId === callerId;
+    if (callerRole !== UserRole.ADMIN && !isOwnerManager) {
       throw new ForbiddenError("Forbidden", "FORBIDDEN");
     }
 
@@ -172,18 +130,11 @@ export class ManagerLinkService {
       throw new ConflictError("Link cannot be revoked", "INVALID_STATUS_TRANSITION");
     }
 
-    const isRequester = link.requestedByUserId === callerId;
-    if (!isRequester && link.status !== LinkStatus.ACTIVE) {
-      throw new ConflictError("Only the requester can cancel a pending link", "INVALID_STATUS_TRANSITION");
-    }
-
     const wasActive = link.status === LinkStatus.ACTIVE;
 
     link.status = LinkStatus.REVOKED;
     link.revokedAt = new Date();
-    link.revokeReason = isInvestor
-      ? RevokeReason.MANUAL_BY_INVESTOR
-      : RevokeReason.MANUAL_BY_MANAGER;
+    link.revokeReason = RevokeReason.MANUAL_BY_MANAGER;
     await this.linkRepo.save(link);
 
     if (wasActive) {
@@ -205,56 +156,6 @@ export class ManagerLinkService {
     history.finalWealthCents = wealthCents;
     history.currentWealthCents = null;
     await this.historyRepo.save(history);
-  }
-
-  getCounterpartId(link: ManagerClientLink): number {
-    return link.requestedByUserId === link.investorId
-      ? link.managerId
-      : link.investorId;
-  }
-
-  async getPendingApprovals({ userId }: { userId: number }) {
-    const links = await this.linkRepo.find({
-      where: [
-        { managerId: userId, status: LinkStatus.PENDING, requestedByUserId: Not(userId) },
-        { investorId: userId, status: LinkStatus.PENDING, requestedByUserId: Not(userId) },
-      ],
-      relations: ["investor", "manager"],
-      order: { createdAt: "ASC" },
-    });
-
-    return links.map((link) => {
-      const iAmManager = link.managerId === userId;
-      const counterpart = iAmManager ? link.investor : link.manager;
-
-      return {
-        id: link.id,
-        investorId: link.investorId,
-        managerId: link.managerId,
-        requestedByUserId: link.requestedByUserId,
-        counterpartId: counterpart.id,
-        counterpartName: counterpart.name,
-        counterpartEmail: counterpart.email,
-        counterpartRole: iAmManager ? "investor" : "manager",
-        createdAt: link.createdAt,
-      };
-    });
-  }
-
-  async getSentRequests({ managerId }: { managerId: number }) {
-    const links = await this.linkRepo.find({
-      where: { managerId, status: LinkStatus.PENDING, requestedByUserId: managerId },
-      relations: ["investor"],
-      order: { createdAt: "ASC" },
-    });
-
-    return links.map((link) => ({
-      id: link.id,
-      investorId: link.investorId,
-      investorName: link.investor.name,
-      investorEmail: link.investor.email,
-      createdAt: link.createdAt,
-    }));
   }
 
   async getMyLinks({ investorId }: { investorId: number }) {

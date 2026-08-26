@@ -1,24 +1,20 @@
 import { Router } from "express";
+import { requireRole } from "middlewares/require-role.middleware";
+import { UserRole } from "enums/role.enum";
 import {
-  approveLink,
   createLink,
   getMyHistory,
   getMyLinks,
-  getPendingApprovals,
-  getSentRequests,
-  rejectLink,
   revokeLink,
 } from "controllers/manager-link.controller";
 
 const router = Router();
 
-router.post("/", createLink);
+const managerOrAdmin = requireRole(UserRole.MANAGER, UserRole.ADMIN);
+
+router.post("/", managerOrAdmin, createLink);
 router.get("/me", getMyLinks);
 router.get("/me/history", getMyHistory);
-router.get("/pending", getPendingApprovals);
-router.get("/sent", getSentRequests);
-router.patch("/:linkId/approve", approveLink);
-router.patch("/:linkId/reject", rejectLink);
-router.patch("/:linkId/revoke", revokeLink);
+router.patch("/:linkId/revoke", managerOrAdmin, revokeLink);
 
 export default router;

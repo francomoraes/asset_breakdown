@@ -19,14 +19,21 @@ export const UpdateManagerClientLimitDto = z.object({
 });
 
 export const CreateLinkDto = z.object({
-  targetUserId: z.number().int().positive(),
-  asRole: z.enum(["investor", "manager"]),
+  investorId: z.number().int().positive(),
+  managerId: z.number().int().positive().optional(),
 });
 
 export const ListManagersQueryDto = z.object({
   search: z.string().optional(),
   page: z.coerce.number().int().min(1).default(1),
   itemsPerPage: z.coerce.number().int().min(1).max(100).default(20),
+});
+
+export const ListInvestorsQueryDto = z.object({
+  search: z.string().optional(),
+  page: z.coerce.number().int().min(1).default(1),
+  itemsPerPage: z.coerce.number().int().min(1).max(100).default(20),
+  excludeManagerId: z.coerce.number().int().positive().optional(),
 });
 
 export const ListUsersQueryDto = z.object({
