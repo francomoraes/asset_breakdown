@@ -230,6 +230,7 @@ export class ManagerLinkService {
         activatedAt: link.activatedAt,
         currentWealthCents: await calculateInvestorWealthCents(link.investorId),
         linkId: link.id,
+        riskProfile: link.investor.riskProfile,
       })),
     );
 

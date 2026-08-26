@@ -7,6 +7,7 @@ import {
   ListActiveClientsQueryDto,
   ListManagersQueryDto,
   UpdateAutonomyDto,
+  UpdateRiskProfileDto,
   UpdateTargetPercentageDto,
 } from "dtos/manager.dto";
 import { UserRole } from "enums/role.enum";
@@ -105,6 +106,8 @@ export const getInvestorProfile = async (
       "locale",
       "profilePictureUrl",
       "selfServiceEnabled",
+      "riskProfile",
+      "riskProfileUpdatedAt",
     ],
   });
 
@@ -159,6 +162,38 @@ export const updateClientAutonomy = async (
 
   res.json({
     user: { id: user.id, selfServiceEnabled: user.selfServiceEnabled },
+  });
+};
+
+export const updateClientRiskProfile = async (
+  req: Request,
+  res: Response,
+): Promise<void> => {
+  const investorId = getEffectiveUserId(req);
+
+  const result = UpdateRiskProfileDto.safeParse(req.body);
+  if (!result.success) {
+    return handleZodError(res, result.error);
+  }
+
+  const userRepo = AppDataSource.getRepository(User);
+  const user = await userRepo.findOne({ where: { id: investorId } });
+
+  if (!user) {
+    throw new NotFoundError("Investor not found", "NOT_FOUND");
+  }
+
+  user.riskProfile = result.data.riskProfile;
+  user.riskProfileUpdatedAt = new Date();
+  user.riskProfileSetByUserId = getAuthenticatedUserId(req);
+  await userRepo.save(user);
+
+  res.json({
+    user: {
+      id: user.id,
+      riskProfile: user.riskProfile,
+      riskProfileUpdatedAt: user.riskProfileUpdatedAt,
+    },
   });
 };
 

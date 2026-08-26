@@ -8,6 +8,7 @@ import {
   listActiveClients,
   listManagers,
   updateClientAutonomy,
+  updateClientRiskProfile,
   updateInvestorTargetPercentage,
 } from "controllers/manager.controller";
 import { UserRole } from "enums/role.enum";
@@ -49,6 +50,12 @@ router.patch(
   managerOrAdmin,
   resolveEffectiveUserId,
   updateClientAutonomy,
+);
+router.patch(
+  "/me/clients/:investorId/risk-profile",
+  managerOrAdmin,
+  resolveEffectiveUserId,
+  updateClientRiskProfile,
 );
 
 router.use(

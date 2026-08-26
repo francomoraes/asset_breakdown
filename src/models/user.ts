@@ -1,6 +1,7 @@
 import { BaseEntity } from "models/base/base-entity";
 import { Column, Entity } from "typeorm";
 import { UserRole } from "enums/role.enum";
+import { RiskProfile } from "enums/risk-profile.enum";
 
 @Entity("user")
 export class User extends BaseEntity {
@@ -31,4 +32,17 @@ export class User extends BaseEntity {
 
   @Column({ default: false })
   selfServiceEnabled!: boolean;
+
+  @Column({
+    type: "enum",
+    enum: RiskProfile,
+    nullable: true,
+  })
+  riskProfile!: RiskProfile | null;
+
+  @Column({ type: "timestamp", nullable: true })
+  riskProfileUpdatedAt!: Date | null;
+
+  @Column("int", { nullable: true })
+  riskProfileSetByUserId!: number | null;
 }

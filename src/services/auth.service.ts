@@ -124,6 +124,7 @@ export class AuthService {
       locale: user.locale,
       role: user.role,
       selfServiceEnabled: user.selfServiceEnabled,
+      riskProfile: user.riskProfile,
     };
 
     return { user: userData, token, refreshToken };
@@ -149,6 +150,7 @@ export class AuthService {
         "locale",
         "role",
         "selfServiceEnabled",
+        "riskProfile",
       ],
     });
 
@@ -193,6 +195,7 @@ export class AuthService {
       locale: user.locale,
       role: user.role,
       selfServiceEnabled: user.selfServiceEnabled,
+      riskProfile: user.riskProfile,
     };
 
     return { user: userData, token, refreshToken };
@@ -234,6 +237,7 @@ export class AuthService {
         "locale",
         "role",
         "selfServiceEnabled",
+        "riskProfile",
       ],
     });
 
@@ -286,6 +290,7 @@ export class AuthService {
         "profilePictureUrl",
         "role",
         "selfServiceEnabled",
+        "riskProfile",
       ],
     });
 
@@ -344,6 +349,7 @@ export class AuthService {
         locale: updatedUser.locale,
         role: updatedUser.role,
         selfServiceEnabled: updatedUser.selfServiceEnabled,
+        riskProfile: updatedUser.riskProfile,
       },
       token,
       refreshToken,

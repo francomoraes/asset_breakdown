@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { passwordSchema } from "./auth.dto";
+import { RiskProfile } from "enums/risk-profile.enum";
 
 export const CreateUserDto = z
   .object({
@@ -56,4 +57,8 @@ export const UpdateTargetPercentageDto = z.object({
 
 export const UpdateAutonomyDto = z.object({
   enabled: z.boolean(),
+});
+
+export const UpdateRiskProfileDto = z.object({
+  riskProfile: z.nativeEnum(RiskProfile),
 });

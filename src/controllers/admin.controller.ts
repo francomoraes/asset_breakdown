@@ -1,5 +1,6 @@
 import { Request, Response } from "express";
 import { roleManagementService } from "services/role-management.service";
+import { adminDashboardService } from "services/admin-dashboard.service";
 import { ListUsersQueryDto, UpdateManagerClientLimitDto, UpdateUserRoleDto } from "dtos/manager.dto";
 import { UserRole } from "enums/role.enum";
 import { handleZodError } from "utils/handle-zod-error";
@@ -75,4 +76,12 @@ export const updateManagerClientLimit = async (
   });
 
   res.json({ user: { id: user.id, managerClientLimit: user.managerClientLimit } });
+};
+
+export const getAdminDashboard = async (
+  _req: Request,
+  res: Response,
+): Promise<void> => {
+  const dashboard = await adminDashboardService.getGlobalDashboard();
+  res.json(dashboard);
 };
