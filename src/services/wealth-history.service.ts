@@ -1,7 +1,7 @@
 import { AppDataSource } from "../config/data-source";
 import { NotFoundError, ConflictError } from "../errors/app-error";
 import { WealthHistory } from "../models/wealth-history";
-import { Repository } from "typeorm";
+import { In, Repository } from "typeorm";
 import { normalizeDate } from "../utils/normalize-date";
 
 function formatDateBR(isoDate: string): string {
@@ -151,6 +151,50 @@ export class WealthHistoryService {
         totalWealthCents,
       );
     }
+  }
+
+  // Variação mensal = patrimônio atual (já calculado pelo caller, com cotação
+  // real) vs. o snapshot do início do mês corrente em WealthHistory (gravado
+  // pelo cron mensal). null quando ainda não existe snapshot deste mês
+  // (cliente recém-vinculado) — diferente de 0%, que é uma variação real.
+  async getMonthlyVariationBulk(
+    userIds: number[],
+    currentWealthByUser: Map<number, number>,
+  ): Promise<Map<number, number | null>> {
+    const result = new Map<number, number | null>();
+    if (userIds.length === 0) return result;
+
+    const today = new Date();
+    const beginningOfMonth = normalizeDate(
+      new Date(today.getFullYear(), today.getMonth(), 1),
+    );
+
+    const snapshots = await this.wealthHistoryRepo.find({
+      where: { userId: In(userIds), date: beginningOfMonth },
+    });
+
+    const snapshotByUser = new Map<number, number>();
+    for (const snapshot of snapshots) {
+      snapshotByUser.set(snapshot.userId, Number(snapshot.totalWealthCents));
+    }
+
+    for (const userId of userIds) {
+      const previousWealthCents = snapshotByUser.get(userId);
+      if (previousWealthCents === undefined) {
+        result.set(userId, null);
+        continue;
+      }
+      if (previousWealthCents === 0) {
+        result.set(userId, 0);
+        continue;
+      }
+      const currentWealthCents = currentWealthByUser.get(userId) ?? 0;
+      const percentageVariation =
+        ((currentWealthCents - previousWealthCents) / previousWealthCents) * 100;
+      result.set(userId, Number(percentageVariation.toFixed(2)));
+    }
+
+    return result;
   }
 
 }

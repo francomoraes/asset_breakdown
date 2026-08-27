@@ -2,9 +2,29 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 
 vi.mock("./manager-dashboard.service", () => ({
   calculateInvestorWealthCents: vi.fn().mockResolvedValue(100_000),
+  calculateInvestorWealthCentsBulk: vi.fn(),
+}));
+
+vi.mock("./summary.service", () => ({
+  summaryService: { getAdherenceBulk: vi.fn() },
+}));
+
+vi.mock("./wealth-history.service", () => ({
+  wealthHistoryService: { getMonthlyVariationBulk: vi.fn() },
+}));
+
+vi.mock("./fixed-income-asset.service", () => ({
+  fixedIncomeAssetService: { refreshValues: vi.fn().mockResolvedValue(undefined) },
+}));
+
+vi.mock("utils/get-brl-to-usd-rate", () => ({
+  getBRLtoUSDRate: vi.fn().mockResolvedValue(0.2),
 }));
 
 import { ManagerLinkService } from "./manager-link.service";
+import { calculateInvestorWealthCentsBulk } from "./manager-dashboard.service";
+import { summaryService } from "./summary.service";
+import { wealthHistoryService } from "./wealth-history.service";
 import { LinkStatus, RevokeReason } from "models/manager-client-link";
 import { HistoryCycleStatus } from "models/manager-client-history";
 import { UserRole } from "enums/role.enum";
@@ -247,6 +267,104 @@ describe("ManagerLinkService", () => {
           callerRole: UserRole.MANAGER,
         }),
       ).rejects.toBeInstanceOf(NotFoundError);
+    });
+  });
+
+  describe("getActiveClients", () => {
+    function makeLink(investorId: number, name: string) {
+      return {
+        id: investorId + 1000,
+        investorId,
+        investor: { name, email: `${name}@test.com`, riskProfile: null },
+        activatedAt: new Date("2026-01-01"),
+      };
+    }
+
+    function mockLinks(links: ReturnType<typeof makeLink>[]) {
+      fakeLinkRepo.createQueryBuilder = vi.fn().mockReturnValue({
+        leftJoinAndSelect: vi.fn().mockReturnThis(),
+        where: vi.fn().mockReturnThis(),
+        andWhere: vi.fn().mockReturnThis(),
+        getMany: vi.fn().mockResolvedValue(links),
+      });
+    }
+
+    it("ordena por índice de aderência DESC, com null sempre no fim", async () => {
+      const links = [
+        makeLink(1, "A"),
+        makeLink(2, "B"),
+        makeLink(3, "C"),
+      ];
+      mockLinks(links);
+
+      (calculateInvestorWealthCentsBulk as any).mockResolvedValue(
+        new Map([[1, 1000], [2, 2000], [3, 3000]]),
+      );
+      (summaryService.getAdherenceBulk as any).mockResolvedValue(
+        new Map([[1, 10], [2, null], [3, 25]]),
+      );
+      (wealthHistoryService.getMonthlyVariationBulk as any).mockResolvedValue(
+        new Map([[1, 1], [2, 2], [3, 3]]),
+      );
+
+      const result = await service.getActiveClients({
+        managerId: MANAGER_ID,
+        sortBy: "adherenceIndex",
+        order: "DESC",
+      });
+
+      expect(result.data.map((c) => c.investorId)).toEqual([3, 1, 2]);
+    });
+
+    it("ordena por variação mensal ASC, com null sempre no fim", async () => {
+      const links = [makeLink(1, "A"), makeLink(2, "B"), makeLink(3, "C")];
+      mockLinks(links);
+
+      (calculateInvestorWealthCentsBulk as any).mockResolvedValue(
+        new Map([[1, 1000], [2, 2000], [3, 3000]]),
+      );
+      (summaryService.getAdherenceBulk as any).mockResolvedValue(
+        new Map([[1, 1], [2, 2], [3, 3]]),
+      );
+      (wealthHistoryService.getMonthlyVariationBulk as any).mockResolvedValue(
+        new Map([[1, 5], [2, null], [3, -2]]),
+      );
+
+      const result = await service.getActiveClients({
+        managerId: MANAGER_ID,
+        sortBy: "monthlyVariation",
+        order: "ASC",
+      });
+
+      expect(result.data.map((c) => c.investorId)).toEqual([3, 1, 2]);
+    });
+
+    it("ordena por patrimônio DESC", async () => {
+      const links = [makeLink(1, "A"), makeLink(2, "B"), makeLink(3, "C")];
+      mockLinks(links);
+
+      (calculateInvestorWealthCentsBulk as any).mockResolvedValue(
+        new Map([[1, 1000], [2, 3000], [3, 2000]]),
+      );
+      (summaryService.getAdherenceBulk as any).mockResolvedValue(new Map());
+      (wealthHistoryService.getMonthlyVariationBulk as any).mockResolvedValue(new Map());
+
+      const result = await service.getActiveClients({
+        managerId: MANAGER_ID,
+        sortBy: "wealth",
+        order: "DESC",
+      });
+
+      expect(result.data.map((c) => c.investorId)).toEqual([2, 3, 1]);
+    });
+
+    it("sem vínculos ativos → retorna lista vazia sem chamar as queries em lote", async () => {
+      mockLinks([]);
+
+      const result = await service.getActiveClients({ managerId: MANAGER_ID });
+
+      expect(result).toEqual({ data: [], meta: { total: 0, page: 1, itemsPerPage: 20 } });
+      expect(calculateInvestorWealthCentsBulk).not.toHaveBeenCalled();
     });
   });
 });

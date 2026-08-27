@@ -172,12 +172,14 @@ AppDataSource.initialize()
 
     console.log("✅ Instituições criadas para todos os usuários");
 
-    // ─── Ativos com preço de mercado (apenas user@test.com) ───────────────────
+    // ─── Ativos com preço de mercado ───────────────────────────────────────────
 
     const mainUser = seedUsers[1]; // user@test.com
+    const investor2User = seedUsers[4]; // investor2@test.com
     const avenuMainUser = await institutionsRepository.findOneBy({ name: "Avenue", userId: mainUser.id });
     const xpMainUser = await institutionsRepository.findOneBy({ name: "XP Investimentos", userId: mainUser.id });
     const binanceMainUser = await institutionsRepository.findOneBy({ name: "Binance", userId: mainUser.id });
+    const avenueInvestor2 = await institutionsRepository.findOneBy({ name: "Avenue", userId: investor2User.id });
 
     const seedAssets = [
       { type: "Bonds Curtos", ticker: "SHV",     quantity: 23.28, averagePrice: 110.35, currency: "USD", institution: avenuMainUser!.name },
@@ -196,6 +198,14 @@ AppDataSource.initialize()
       { type: "Stocks",       ticker: "SPGP",    quantity: 0.68,  averagePrice: 94.7,   currency: "USD", institution: avenuMainUser!.name },
     ];
 
+    // investor2 reaproveita tickers já buscados no batch acima (IAU, VNQ) —
+    // dá posição em mais de uma AssetClass além de renda fixa, útil pra testar
+    // o índice de aderência num segundo cliente, sem precisar de outro fetch.
+    const investor2Assets = [
+      { type: "Ouro",  ticker: "IAU", quantity: 30.0, averagePrice: 36.10, currency: "USD", institution: avenueInvestor2!.name },
+      { type: "Reits", ticker: "VNQ", quantity: 8.0,  averagePrice: 82.30, currency: "USD", institution: avenueInvestor2!.name },
+    ];
+
     console.log("🔍 Buscando preços em batch...");
     const allTickers = seedAssets.map((a) => a.ticker);
     const seedCurrencyMap = new Map(
@@ -207,87 +217,147 @@ AppDataSource.initialize()
     );
     console.log(`✅ ${pricesMap.size} preços obtidos`);
 
-    for (const { ticker, type, quantity, averagePrice, currency, institution } of seedAssets) {
-      const assetType = await assetTypeRepository.findOneBy({ name: type, userId: mainUser.id });
-      if (!assetType) { console.warn(`Asset type ${type} not found`); continue; }
+    async function saveSeedAssets(
+      user: User,
+      assets: { type: string; ticker: string; quantity: number; averagePrice: number; currency: string; institution: string }[],
+    ) {
+      for (const { ticker, type, quantity, averagePrice, currency, institution } of assets) {
+        const assetType = await assetTypeRepository.findOneBy({ name: type, userId: user.id });
+        if (!assetType) { console.warn(`Asset type ${type} not found for ${user.email}`); continue; }
 
-      const assetInstitution = await institutionsRepository.findOneBy({ name: institution, userId: mainUser.id });
-      if (!assetInstitution) { console.warn(`Institution ${institution} not found`); continue; }
+        const assetInstitution = await institutionsRepository.findOneBy({ name: institution, userId: user.id });
+        if (!assetInstitution) { console.warn(`Institution ${institution} not found for ${user.email}`); continue; }
 
-      const currentPriceCents = pricesMap.get(ticker);
-      if (!currentPriceCents) { console.warn(`⚠️ Preço não encontrado para ${ticker}, pulando...`); continue; }
+        const currentPriceCents = pricesMap.get(ticker);
+        if (!currentPriceCents) { console.warn(`⚠️ Preço não encontrado para ${ticker}, pulando...`); continue; }
 
-      const averagePriceCents = Math.round(averagePrice * 100);
-      const { investedValueCents, currentValueCents, resultCents, returnPercentage } =
-        calculateDerivedFields(quantity, averagePriceCents, currentPriceCents);
+        const averagePriceCents = Math.round(averagePrice * 100);
+        const { investedValueCents, currentValueCents, resultCents, returnPercentage } =
+          calculateDerivedFields(quantity, averagePriceCents, currentPriceCents);
 
-      const existing = await assetRepository.findOneBy({ ticker, userId: mainUser.id });
-      if (!existing) {
-        await assetRepository.save(
-          assetRepository.create({
-            ticker, quantity, averagePriceCents, currentPriceCents,
-            investedValueCents, currentValueCents, resultCents, returnPercentage,
-            portfolioPercentage: 0, institution: assetInstitution, currency,
-            type: assetType, userId: mainUser.id,
-          }),
-        );
-        console.log(`✅ Ativo criado: ${ticker}`);
-      } else {
-        console.log(`ℹ️ Ativo já existe: ${ticker}`);
+        const existing = await assetRepository.findOneBy({ ticker, userId: user.id });
+        if (!existing) {
+          await assetRepository.save(
+            assetRepository.create({
+              ticker, quantity, averagePriceCents, currentPriceCents,
+              investedValueCents, currentValueCents, resultCents, returnPercentage,
+              portfolioPercentage: 0, institution: assetInstitution, currency,
+              type: assetType, userId: user.id,
+            }),
+          );
+          console.log(`✅ Ativo criado: ${ticker} (${user.email})`);
+        } else {
+          console.log(`ℹ️ Ativo já existe: ${ticker} (${user.email})`);
+        }
       }
     }
 
-    // ─── AssetTransaction de exemplo (compra + provento) ───────────────────────
+    await saveSeedAssets(mainUser, seedAssets);
+    await saveSeedAssets(investor2User, investor2Assets);
+
+    // ─── AssetTransaction de exemplo (compras, vendas, proventos) ─────────────
+    // Histórico ilustrativo pra exercitar cashFlow (aporte líquido, proventos
+    // não reinvestidos) — não reconcilia matematicamente com quantity/
+    // averagePriceCents do Asset (que já vem "pronto" de seedAssets acima),
+    // então não usar essas transações pra validar a posição atual do ativo.
 
     const transactionRepository = AppDataSource.getRepository(AssetTransaction);
-    const trxf11 = await assetRepository.findOneBy({ ticker: "TRXF11", userId: mainUser.id });
 
-    if (trxf11) {
-      const existingTransactions = await transactionRepository.count({
-        where: { assetId: trxf11.id },
-      });
+    type TxSeed = {
+      type: AssetTransactionType;
+      date: string;
+      quantity: number | null;
+      unitPriceCents: number | null;
+      feesCents: number;
+      totalAmountCents: number;
+    };
 
-      if (existingTransactions === 0) {
-        await transactionRepository.save([
-          transactionRepository.create({
-            assetId: trxf11.id!,
-            userId: mainUser.id,
-            type: AssetTransactionType.BUY,
-            date: normalizeDate(new Date("2025-03-10")),
-            quantity: 10,
-            unitPriceCents: 9762,
-            feesCents: 0,
-            totalAmountCents: 97620,
-          }),
-          transactionRepository.create({
-            assetId: trxf11.id!,
-            userId: mainUser.id,
-            type: AssetTransactionType.DIVIDEND,
-            date: normalizeDate(new Date("2025-08-10")),
-            quantity: null,
-            unitPriceCents: null,
-            feesCents: 0,
-            totalAmountCents: 4500,
-          }),
-        ]);
+    const transactionsByTickerForMainUser: Record<string, TxSeed[]> = {
+      TRXF11: [
+        { type: AssetTransactionType.BUY, date: "2025-03-10", quantity: 10, unitPriceCents: 9762, feesCents: 0, totalAmountCents: 97620 },
+        { type: AssetTransactionType.DIVIDEND, date: "2025-08-10", quantity: null, unitPriceCents: null, feesCents: 0, totalAmountCents: 4500 },
+      ],
+      CDII11: [
+        { type: AssetTransactionType.BUY, date: "2024-11-15", quantity: 50, unitPriceCents: 10500, feesCents: 0, totalAmountCents: 525000 },
+        { type: AssetTransactionType.BUY, date: "2025-04-15", quantity: 30, unitPriceCents: 10800, feesCents: 0, totalAmountCents: 324000 },
+        { type: AssetTransactionType.DIVIDEND, date: "2025-06-15", quantity: null, unitPriceCents: null, feesCents: 0, totalAmountCents: 12000 },
+      ],
+      B5P211: [
+        { type: AssetTransactionType.BUY, date: "2024-09-05", quantity: 40, unitPriceCents: 8600, feesCents: 0, totalAmountCents: 344000 },
+        { type: AssetTransactionType.DIVIDEND, date: "2025-05-05", quantity: null, unitPriceCents: null, feesCents: 0, totalAmountCents: 8000 },
+      ],
+      SPY: [
+        { type: AssetTransactionType.BUY, date: "2024-09-20", quantity: 0.2, unitPriceCents: 37800, feesCents: 199, totalAmountCents: 7560 },
+        { type: AssetTransactionType.SELL, date: "2025-03-10", quantity: 0.1, unitPriceCents: 40500, feesCents: 199, totalAmountCents: 4050 },
+        { type: AssetTransactionType.DIVIDEND, date: "2025-06-20", quantity: null, unitPriceCents: null, feesCents: 0, totalAmountCents: 1800 },
+      ],
+      "BTC-USD": [
+        { type: AssetTransactionType.BUY, date: "2024-12-01", quantity: 0.01, unitPriceCents: 4200000, feesCents: 500, totalAmountCents: 42000 },
+        { type: AssetTransactionType.BUY, date: "2025-04-15", quantity: 0.015, unitPriceCents: 4500000, feesCents: 750, totalAmountCents: 67500 },
+      ],
+    };
 
-        const dividendsCentsAccumulated = 4500;
-        const derived = calculateDerivedFields(
-          trxf11.quantity,
-          trxf11.averagePriceCents,
-          trxf11.currentPriceCents,
-          dividendsCentsAccumulated,
-        );
-        await assetRepository.update(trxf11.id!, {
-          dividendsCentsAccumulated,
-          ...derived,
+    const transactionsByTickerForInvestor2: Record<string, TxSeed[]> = {
+      IAU: [
+        { type: AssetTransactionType.BUY, date: "2025-01-20", quantity: 15, unitPriceCents: 3550, feesCents: 0, totalAmountCents: 53250 },
+      ],
+      VNQ: [
+        { type: AssetTransactionType.BUY, date: "2024-10-05", quantity: 5, unitPriceCents: 8100, feesCents: 99, totalAmountCents: 40500 },
+        { type: AssetTransactionType.DIVIDEND, date: "2025-07-05", quantity: null, unitPriceCents: null, feesCents: 0, totalAmountCents: 2200 },
+      ],
+    };
+
+    async function saveSeedTransactions(
+      user: User,
+      transactionsByTicker: Record<string, TxSeed[]>,
+    ) {
+      for (const [ticker, txs] of Object.entries(transactionsByTicker)) {
+        const asset = await assetRepository.findOneBy({ ticker, userId: user.id });
+        if (!asset) { console.warn(`Asset ${ticker} not found for ${user.email}`); continue; }
+
+        const existingTransactions = await transactionRepository.count({
+          where: { assetId: asset.id },
         });
+        if (existingTransactions > 0) {
+          console.log(`ℹ️ AssetTransaction de ${ticker} já existem (${user.email})`);
+          continue;
+        }
 
-        console.log("✅ AssetTransaction de exemplo criadas para TRXF11 (compra + provento)");
-      } else {
-        console.log("ℹ️ AssetTransaction de TRXF11 já existem");
+        await transactionRepository.save(
+          txs.map((tx) =>
+            transactionRepository.create({
+              assetId: asset.id!,
+              userId: user.id,
+              type: tx.type,
+              date: normalizeDate(new Date(tx.date)),
+              quantity: tx.quantity,
+              unitPriceCents: tx.unitPriceCents,
+              feesCents: tx.feesCents,
+              totalAmountCents: tx.totalAmountCents,
+            }),
+          ),
+        );
+
+        const dividendsCentsAccumulated = txs
+          .filter((tx) => tx.type === AssetTransactionType.DIVIDEND)
+          .reduce((sum, tx) => sum + tx.totalAmountCents, 0);
+
+        if (dividendsCentsAccumulated > 0) {
+          const derived = calculateDerivedFields(
+            asset.quantity,
+            asset.averagePriceCents,
+            asset.currentPriceCents,
+            dividendsCentsAccumulated,
+          );
+          await assetRepository.update(asset.id!, { dividendsCentsAccumulated, ...derived });
+        }
+
+        console.log(`✅ AssetTransaction criadas para ${ticker} (${user.email})`);
       }
     }
+
+    await saveSeedTransactions(mainUser, transactionsByTickerForMainUser);
+    await saveSeedTransactions(investor2User, transactionsByTickerForInvestor2);
 
     // ─── Renda fixa para todos os usuários ────────────────────────────────────
 
@@ -366,15 +436,18 @@ AppDataSource.initialize()
 
     // ─── Wealth history ───────────────────────────────────────────────────────
 
-    // Base values per user (BRL cents, monthly for 14 months starting 2024-01)
+    // Base values per user (BRL cents, monthly for 20 meses a partir de
+    // 2024-01) — inclui alguns meses de queda de propósito (não só
+    // crescimento monotônico), pra "Evolução Patrimonial" ficar mais realista.
     const wealthHistoryByUser: Record<string, number[]> = {
-      "user@test.com":      [5000000, 5250000, 5550000, 5800000, 6100000, 6400000, 6700000, 6950000, 7250000, 7600000, 7950000, 8300000, 8600000, 8950000],
-      "investor2@test.com": [3000000, 3100000, 3200000, 3350000, 3500000, 3650000, 3800000, 3950000, 4100000, 4250000, 4400000, 4550000, 4700000, 4850000],
+      "user@test.com":      [5000000, 5250000, 5550000, 5800000, 6100000, 6400000, 6700000, 6950000, 7250000, 7600000, 7950000, 8300000, 8600000, 8950000, 8700000, 8500000, 8900000, 9300000, 9150000, 9600000],
+      "investor2@test.com": [3000000, 3100000, 3200000, 3350000, 3500000, 3650000, 3800000, 3950000, 4100000, 4250000, 4400000, 4550000, 4700000, 4850000, 4750000, 4900000, 5100000, 4950000, 5250000, 5500000],
     };
 
     const wealthDates = [
       "2024-01-01","2024-02-01","2024-03-01","2024-04-01","2024-05-01","2024-06-01","2024-07-01",
       "2024-08-01","2024-09-01","2024-10-01","2024-11-01","2024-12-01","2025-01-01","2025-02-01",
+      "2025-03-01","2025-04-01","2025-05-01","2025-06-01","2025-07-01","2025-08-01",
     ];
 
     for (const user of seedUsers) {
@@ -522,6 +595,39 @@ AppDataSource.initialize()
 
     const wealthUserMain = await calcWealthForSeed(userMain!.id!);
     const wealthInvestor2 = await calcWealthForSeed(investor2!.id!);
+
+    // ─── Snapshot do mês atual ─────────────────────────────────────────────
+    // WealthHistory acima só vai até 2025-08 fixo — sem um registro no
+    // início do mês corrente, "Variação mensal" (índice de aderência,
+    // .docs/indice-aderencia.md) sempre mostra "—" até alguém rodar o cron
+    // manualmente. Insere direto um snapshot com um delta proposital do
+    // patrimônio atual: um cliente sobe (variação positiva), outro cai
+    // (negativa) — dá pra ver as duas cores sem precisar rodar o job.
+    const beginningOfCurrentMonth = normalizeDate(
+      new Date(now.getFullYear(), now.getMonth(), 1),
+    );
+    const currentMonthSnapshots = [
+      { userId: userMain!.id!, snapshotCents: Math.round(wealthUserMain * 0.9) },   // ~+11% no mês
+      { userId: investor2!.id!, snapshotCents: Math.round(wealthInvestor2 * 1.08) }, // ~-7% no mês
+    ];
+
+    for (const { userId, snapshotCents } of currentMonthSnapshots) {
+      const existing = await wealthHistoryRepository.findOne({
+        where: { userId, date: beginningOfCurrentMonth },
+      });
+      if (!existing) {
+        await wealthHistoryRepository.save(
+          wealthHistoryRepository.create({
+            userId,
+            date: beginningOfCurrentMonth,
+            totalWealthCents: snapshotCents,
+          }),
+        );
+        console.log(`✅ Snapshot do mês atual criado (userId=${userId})`);
+      } else {
+        console.log(`ℹ️ Snapshot do mês atual já existe (userId=${userId})`);
+      }
+    }
 
     const [linkUserMainMgr1, linkInvestor2Mgr1, linkUserMainMgr2, linkInvestor2Mgr2Revoked] = savedLinks;
 

@@ -2,15 +2,41 @@ import { AppDataSource } from "../config/data-source";
 import { Asset } from "../models/asset";
 import { FixedIncomeAsset } from "../models/fixed-income-asset";
 import { AssetTransaction } from "../models/asset-transaction";
-import { Repository } from "typeorm";
+import { AssetType } from "../models/asset-type";
+import { In, Repository } from "typeorm";
 import { getBRLtoUSDRate } from "../utils/get-brl-to-usd-rate";
 import { fixedIncomeAssetService } from "./fixed-income-asset.service";
+
+type AdherenceByType = {
+  assetTypeId: number;
+  assetTypeName: string;
+  assetClassId: number;
+  assetClassName: string;
+  targetPercentage: number;
+  actualPercentage: number;
+  deviationPp: number;
+};
+
+type AdherenceByClass = {
+  assetClassId: number;
+  assetClassName: string;
+  targetPercentage: number;
+  actualPercentage: number;
+  deviationPp: number;
+};
+
+export type AdherenceResult = {
+  byType: AdherenceByType[];
+  byClass: AdherenceByClass[];
+  totalPp: number | null;
+};
 
 export class SummaryService {
   constructor(
     private assetRepo: Repository<Asset>,
     private fixedIncomeRepo: Repository<FixedIncomeAsset>,
     private transactionRepo: Repository<AssetTransaction>,
+    private assetTypeRepo: Repository<AssetType>,
   ) {}
 
   async getCashFlow({
@@ -20,6 +46,9 @@ export class SummaryService {
     userId: number;
     usdToBrlRate: number;
   }) {
+    // Join com Asset só para ler a moeda de cada transação (AssetTransaction não
+    // denormaliza currency) — sem isso, compra em USD e venda em BRL seriam
+    // somadas como se fossem a mesma unidade.
     const totals = await this.transactionRepo
       .createQueryBuilder("t")
       .innerJoin("t.asset", "asset")
@@ -56,6 +85,13 @@ export class SummaryService {
 
   async getSummary({ userId }: { userId: number }) {
     await fixedIncomeAssetService.refreshValues(userId);
+
+    // Taxa de câmbio buscada antes de agregar — total e actualPercentage
+    // precisam converter posições em USD pra BRL antes de somar, senão cents
+    // de moedas diferentes são somados como se fossem a mesma unidade (bug
+    // histórico, corrigido aqui).
+    const brlToUsdRate = await getBRLtoUSDRate();
+    const usdToBrlRate = 1 / brlToUsdRate;
 
     // Buscar summary de Assets regulares
     const rawSummary = await this.assetRepo
@@ -113,29 +149,29 @@ export class SummaryService {
 
     const mergedSummary = Array.from(groupedMap.values());
 
-    const total = mergedSummary.reduce(
-      (acc, item) => acc + Number(item.totalValueCents),
-      0,
-    );
+    // Total em BRL — cada linha convertida antes de somar (ver comentário acima).
+    const total = mergedSummary.reduce((acc, item) => {
+      const cents = Number(item.totalValueCents);
+      const brlCents =
+        item.currency === "USD" ? Math.round(cents * usdToBrlRate) : cents;
+      return acc + brlCents;
+    }, 0);
 
     const summary = mergedSummary.map((item) => {
+      const cents = Number(item.totalValueCents);
+      const brlCents =
+        item.currency === "USD" ? Math.round(cents * usdToBrlRate) : cents;
       const actualPercentage =
-        total > 0
-          ? Number((Number(item.totalValueCents) / total).toFixed(4))
-          : 0;
+        total > 0 ? Number((brlCents / total).toFixed(4)) : 0;
 
       return {
         ...item,
-        totalValueCents: Number(item.totalValueCents),
+        totalValueCents: cents,
         totalResultCents: Number(item.totalResultCents),
         targetPercentage: Number(item.targetPercentage),
         actualPercentage,
       };
     });
-
-    // Buscar taxa de câmbio USD para BRL
-    const brlToUsdRate = await getBRLtoUSDRate();
-    const usdToBrlRate = 1 / brlToUsdRate;
 
     const totalPnlCents = summary.reduce((acc, item) => {
       const resultBRL =
@@ -146,6 +182,7 @@ export class SummaryService {
     }, 0);
 
     const cashFlow = await this.getCashFlow({ userId, usdToBrlRate });
+    const adherence = await this.getAdherence(userId, usdToBrlRate);
 
     return {
       data: summary,
@@ -155,7 +192,170 @@ export class SummaryService {
       },
       totalPnlCents,
       cashFlow,
+      adherence,
     };
+  }
+
+  async getAdherence(
+    userId: number,
+    usdToBrlRate: number,
+  ): Promise<AdherenceResult> {
+    const types = await this.assetTypeRepo.find({ where: { userId } });
+
+    if (types.length === 0) {
+      return { byType: [], byClass: [], totalPp: null };
+    }
+
+    const valueByUserAndType = await this.getAllocationByTypeId(
+      [userId],
+      usdToBrlRate,
+    );
+
+    return this.buildAdherence(types, valueByUserAndType.get(userId) ?? new Map());
+  }
+
+  async getAdherenceBulk(
+    userIds: number[],
+    usdToBrlRate: number,
+  ): Promise<Map<number, number | null>> {
+    const result = new Map<number, number | null>();
+    if (userIds.length === 0) return result;
+
+    const types = await this.assetTypeRepo.find({
+      where: { userId: In(userIds) },
+    });
+
+    const typesByUser = new Map<number, AssetType[]>();
+    for (const type of types) {
+      const list = typesByUser.get(type.userId) ?? [];
+      list.push(type);
+      typesByUser.set(type.userId, list);
+    }
+
+    const valueByUserAndType = await this.getAllocationByTypeId(
+      userIds,
+      usdToBrlRate,
+    );
+
+    for (const userId of userIds) {
+      const userTypes = typesByUser.get(userId) ?? [];
+      if (userTypes.length === 0) {
+        result.set(userId, null);
+        continue;
+      }
+      const { totalPp } = this.buildAdherence(
+        userTypes,
+        valueByUserAndType.get(userId) ?? new Map(),
+      );
+      result.set(userId, totalPp);
+    }
+
+    return result;
+  }
+
+  // Alocação real por AssetType, já convertida pra BRL, agrupada por usuário —
+  // reaproveitada tanto pelo detalhe (um userId) quanto pela lista de clientes
+  // (vários userIds de uma vez, decisão 4.3 da spec). Não chama refreshValues:
+  // isso é responsabilidade de quem chama (getSummary já chamou; getAdherenceBulk
+  // espera que o caller tenha chamado uma vez por userId antes, decisão 4.6).
+  private async getAllocationByTypeId(
+    userIds: number[],
+    usdToBrlRate: number,
+  ): Promise<Map<number, Map<number, number>>> {
+    const rawAsset = await this.assetRepo
+      .createQueryBuilder("asset")
+      .leftJoin("asset.type", "type")
+      .select("asset.userId", "userId")
+      .addSelect("type.id", "typeId")
+      .addSelect("asset.currency", "currency")
+      .addSelect("SUM(asset.currentValueCents)", "cents")
+      .where("asset.userId IN (:...userIds)", { userIds })
+      .groupBy("asset.userId, type.id, asset.currency")
+      .getRawMany();
+
+    const rawFixedIncome = await this.fixedIncomeRepo
+      .createQueryBuilder("fixedIncome")
+      .leftJoin("fixedIncome.type", "type")
+      .select("fixedIncome.userId", "userId")
+      .addSelect("type.id", "typeId")
+      .addSelect("fixedIncome.currency", "currency")
+      .addSelect("SUM(fixedIncome.currentValueCents)", "cents")
+      .where("fixedIncome.userId IN (:...userIds)", { userIds })
+      .groupBy("fixedIncome.userId, type.id, fixedIncome.currency")
+      .getRawMany();
+
+    const result = new Map<number, Map<number, number>>();
+    for (const row of [...rawAsset, ...rawFixedIncome]) {
+      const userId = Number(row.userId);
+      const typeId = Number(row.typeId);
+      const cents = Number(row.cents);
+      const brlCents =
+        row.currency === "USD" ? Math.round(cents * usdToBrlRate) : cents;
+
+      const userMap = result.get(userId) ?? new Map<number, number>();
+      userMap.set(typeId, (userMap.get(typeId) ?? 0) + brlCents);
+      result.set(userId, userMap);
+    }
+
+    return result;
+  }
+
+  private buildAdherence(
+    types: AssetType[],
+    valueByTypeId: Map<number, number>,
+  ): AdherenceResult {
+    const totalBRL = Array.from(valueByTypeId.values()).reduce(
+      (acc, v) => acc + v,
+      0,
+    );
+
+    const byType: AdherenceByType[] = types.map((type) => {
+      const actualValueBRL = valueByTypeId.get(type.id!) ?? 0;
+      const actualPercentage = totalBRL > 0 ? actualValueBRL / totalBRL : 0;
+      const targetPercentage = Number(type.targetPercentage);
+      const deviationPp = Math.abs(
+        actualPercentage * 100 - targetPercentage * 100,
+      );
+
+      return {
+        assetTypeId: type.id!,
+        assetTypeName: type.name,
+        assetClassId: type.assetClass.id!,
+        assetClassName: type.assetClass.name,
+        targetPercentage,
+        actualPercentage: Number(actualPercentage.toFixed(4)),
+        deviationPp: Number(deviationPp.toFixed(2)),
+      };
+    });
+
+    const byClassMap = new Map<number, AdherenceByClass>();
+    for (const t of byType) {
+      const existing = byClassMap.get(t.assetClassId);
+      if (existing) {
+        existing.targetPercentage += t.targetPercentage;
+        existing.actualPercentage += t.actualPercentage;
+        existing.deviationPp += t.deviationPp;
+      } else {
+        byClassMap.set(t.assetClassId, {
+          assetClassId: t.assetClassId,
+          assetClassName: t.assetClassName,
+          targetPercentage: t.targetPercentage,
+          actualPercentage: t.actualPercentage,
+          deviationPp: t.deviationPp,
+        });
+      }
+    }
+
+    const byClass = Array.from(byClassMap.values()).map((c) => ({
+      ...c,
+      deviationPp: Number(c.deviationPp.toFixed(2)),
+    }));
+
+    const totalPp = Number(
+      byType.reduce((acc, t) => acc + t.deviationPp, 0).toFixed(2),
+    );
+
+    return { byType, byClass, totalPp };
   }
 
   async getOverviewByCurrency({ userId }: { userId: number }) {
@@ -233,4 +433,5 @@ export const summaryService = new SummaryService(
   AppDataSource.getRepository(Asset),
   AppDataSource.getRepository(FixedIncomeAsset),
   AppDataSource.getRepository(AssetTransaction),
+  AppDataSource.getRepository(AssetType),
 );
