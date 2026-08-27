@@ -363,8 +363,68 @@ describe("ManagerLinkService", () => {
 
       const result = await service.getActiveClients({ managerId: MANAGER_ID });
 
-      expect(result).toEqual({ data: [], meta: { total: 0, page: 1, itemsPerPage: 20 } });
+      expect(result).toEqual({
+        data: [],
+        meta: {
+          totalItems: 0,
+          currentPage: 1,
+          itemsPerPage: 20,
+          totalPages: 0,
+          hasNextPage: false,
+          hasPreviousPage: false,
+        },
+      });
       expect(calculateInvestorWealthCentsBulk).not.toHaveBeenCalled();
+    });
+
+    it("página exata (10 clientes, itemsPerPage 10) → 1 página, sem próxima/anterior", async () => {
+      const links = Array.from({ length: 10 }, (_, i) => makeLink(i + 1, `C${i}`));
+      mockLinks(links);
+
+      (calculateInvestorWealthCentsBulk as any).mockResolvedValue(new Map());
+      (summaryService.getAdherenceBulk as any).mockResolvedValue(new Map());
+      (wealthHistoryService.getMonthlyVariationBulk as any).mockResolvedValue(new Map());
+
+      const result = await service.getActiveClients({
+        managerId: MANAGER_ID,
+        page: 1,
+        itemsPerPage: 10,
+      });
+
+      expect(result.data).toHaveLength(10);
+      expect(result.meta).toEqual({
+        totalItems: 10,
+        currentPage: 1,
+        itemsPerPage: 10,
+        totalPages: 1,
+        hasNextPage: false,
+        hasPreviousPage: false,
+      });
+    });
+
+    it("última página parcial → hasNextPage false, hasPreviousPage true", async () => {
+      const links = Array.from({ length: 25 }, (_, i) => makeLink(i + 1, `C${i}`));
+      mockLinks(links);
+
+      (calculateInvestorWealthCentsBulk as any).mockResolvedValue(new Map());
+      (summaryService.getAdherenceBulk as any).mockResolvedValue(new Map());
+      (wealthHistoryService.getMonthlyVariationBulk as any).mockResolvedValue(new Map());
+
+      const result = await service.getActiveClients({
+        managerId: MANAGER_ID,
+        page: 3,
+        itemsPerPage: 10,
+      });
+
+      expect(result.data).toHaveLength(5);
+      expect(result.meta).toEqual({
+        totalItems: 25,
+        currentPage: 3,
+        itemsPerPage: 10,
+        totalPages: 3,
+        hasNextPage: false,
+        hasPreviousPage: true,
+      });
     });
   });
 });

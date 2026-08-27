@@ -245,7 +245,17 @@ export class ManagerLinkService {
     const investorIds = links.map((link) => link.investorId);
 
     if (investorIds.length === 0) {
-      return { data: [], meta: { total: 0, page, itemsPerPage } };
+      return {
+        data: [],
+        meta: {
+          totalItems: 0,
+          currentPage: page,
+          itemsPerPage,
+          totalPages: 0,
+          hasNextPage: false,
+          hasPreviousPage: false,
+        },
+      };
     }
 
     // refreshValues rodado uma única vez por cliente antes das 3 queries em
@@ -281,11 +291,23 @@ export class ManagerLinkService {
     }));
 
     const sorted = this.sortClients(enriched, sortBy, order);
-    const total = sorted.length;
-    const start = (page - 1) * itemsPerPage;
+    const totalItems = sorted.length;
+    const totalPages = Math.ceil(totalItems / itemsPerPage);
+    const validPage = Math.min(Math.max(page, 1), totalPages || 1);
+    const start = (validPage - 1) * itemsPerPage;
     const data = sorted.slice(start, start + itemsPerPage);
 
-    return { data, meta: { total, page, itemsPerPage } };
+    return {
+      data,
+      meta: {
+        totalItems,
+        currentPage: validPage,
+        itemsPerPage,
+        totalPages,
+        hasNextPage: validPage < totalPages,
+        hasPreviousPage: validPage > 1,
+      },
+    };
   }
 
   private sortClients(
