@@ -2,6 +2,7 @@ import path from "path";
 import { DataSource } from "typeorm";
 import { config } from "./environment";
 import { Asset } from "../models/asset";
+import { AssetTransaction } from "../models/asset-transaction";
 import { AssetType } from "../models/asset-type";
 import { AssetClass } from "../models/asset-class";
 import { PriceCache } from "../models/price-cache";
@@ -39,6 +40,7 @@ export const AppDataSource = new DataSource({
   migrations: [path.join(__dirname, "..", "migrations", "*.{ts,js}")],
   entities: [
     Asset,
+    AssetTransaction,
     AssetType,
     AssetClass,
     PriceCache,

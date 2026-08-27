@@ -1,6 +1,7 @@
 import { AppDataSource } from "../config/data-source";
 import { Asset } from "../models/asset";
 import { FixedIncomeAsset } from "../models/fixed-income-asset";
+import { AssetTransaction } from "../models/asset-transaction";
 import { Repository } from "typeorm";
 import { getBRLtoUSDRate } from "../utils/get-brl-to-usd-rate";
 import { fixedIncomeAssetService } from "./fixed-income-asset.service";
@@ -9,7 +10,49 @@ export class SummaryService {
   constructor(
     private assetRepo: Repository<Asset>,
     private fixedIncomeRepo: Repository<FixedIncomeAsset>,
+    private transactionRepo: Repository<AssetTransaction>,
   ) {}
+
+  async getCashFlow({
+    userId,
+    usdToBrlRate,
+  }: {
+    userId: number;
+    usdToBrlRate: number;
+  }) {
+    const totals = await this.transactionRepo
+      .createQueryBuilder("t")
+      .innerJoin("t.asset", "asset")
+      .select("t.type", "type")
+      .addSelect("asset.currency", "currency")
+      .addSelect("SUM(t.totalAmountCents)", "total")
+      .where("t.userId = :userId", { userId })
+      .groupBy("t.type")
+      .addGroupBy("asset.currency")
+      .getRawMany();
+
+    const sumInBRL = (type: string) =>
+      totals
+        .filter((r) => r.type === type)
+        .reduce((acc, r) => {
+          const totalCents = Number(r.total);
+          const totalBRL =
+            r.currency === "USD"
+              ? Math.round(totalCents * usdToBrlRate)
+              : totalCents;
+          return acc + totalBRL;
+        }, 0);
+
+    const totalBuys = sumInBRL("buy");
+    const totalSells = sumInBRL("sell");
+    const totalDividends = sumInBRL("dividend");
+
+    return {
+      netContributionCents: Math.max(0, totalBuys - totalSells - totalDividends),
+      unreinvestedDividendsCents: Math.max(0, totalDividends - (totalBuys - totalSells)),
+      totalDividendsCents: totalDividends,
+    };
+  }
 
   async getSummary({ userId }: { userId: number }) {
     await fixedIncomeAssetService.refreshValues(userId);
@@ -102,6 +145,8 @@ export class SummaryService {
       return acc + resultBRL;
     }, 0);
 
+    const cashFlow = await this.getCashFlow({ userId, usdToBrlRate });
+
     return {
       data: summary,
       exchangeRate: {
@@ -109,6 +154,7 @@ export class SummaryService {
         brlToUsd: Number(brlToUsdRate.toFixed(4)),
       },
       totalPnlCents,
+      cashFlow,
     };
   }
 
@@ -186,4 +232,5 @@ export class SummaryService {
 export const summaryService = new SummaryService(
   AppDataSource.getRepository(Asset),
   AppDataSource.getRepository(FixedIncomeAsset),
+  AppDataSource.getRepository(AssetTransaction),
 );

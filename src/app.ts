@@ -24,6 +24,7 @@ import { UserRole } from "./enums/role.enum";
 
 import assetClassRoutes from "./routes/asset-class.routes";
 import assetRoutes from "./routes/assets.routes";
+import assetTransactionRoutes from "./routes/asset-transaction.routes";
 import assetTypeRoutes from "./routes/asset-type.routes";
 import authRoutes from "./routes/auth.routes";
 import csvRoutes from "./routes/csv.routes";
@@ -65,6 +66,7 @@ app.get("/health", (_req, res) => {
 app.use("/api/auth", authRoutes);
 app.use("/api/csv", authMiddleware, strictLimiter, csvRoutes);
 app.use("/api/assets", authMiddleware, assetRoutes);
+app.use("/api/asset-transactions", authMiddleware, assetTransactionRoutes);
 app.use("/api/fixed-income-assets", authMiddleware, fixedIncomeAssetRoutes);
 app.use("/api/summary", authMiddleware, summaryRoutes);
 app.use("/api/wealth-history", authMiddleware, wealthHistoryRoutes);

@@ -2,6 +2,11 @@ import { AppDataSource } from "../config/data-source";
 import { NotFoundError, ConflictError } from "../errors/app-error";
 import { WealthHistory } from "../models/wealth-history";
 import { Repository } from "typeorm";
+import { normalizeDate } from "../utils/normalize-date";
+
+function formatDateBR(isoDate: string): string {
+  return isoDate.split("-").reverse().join("/");
+}
 
 export class WealthHistoryService {
   constructor(private wealthHistoryRepo: Repository<WealthHistory>) {}
@@ -36,29 +41,29 @@ export class WealthHistoryService {
 
   async createWealthHistory(
     userId: number,
-    date: Date,
+    date: Date | string,
     totalWealthCents: number,
   ): Promise<WealthHistory> {
+    const normalizedDate = normalizeDate(date);
+
     // Check if entry already exists for this date
     const existing = await this.wealthHistoryRepo.findOne({
       where: {
         userId,
-        date: this.normalizeDate(date),
+        date: normalizedDate,
       },
     });
 
     if (existing) {
       throw new ConflictError(
-        `Já existe um registro de patrimônio para a data ${date.toLocaleDateString(
-          "pt-BR",
-        )}`,
+        `Já existe um registro de patrimônio para a data ${formatDateBR(normalizedDate)}`,
         "WEALTH_HISTORY_DATE_CONFLICT",
       );
     }
 
     const wealthHistory = this.wealthHistoryRepo.create({
       userId,
-      date: this.normalizeDate(date),
+      date: normalizedDate,
       totalWealthCents,
     });
 
@@ -68,7 +73,7 @@ export class WealthHistoryService {
   async updateWealthHistory(
     userId: number,
     id: number,
-    updates: { date?: Date; totalWealthCents?: number },
+    updates: { date?: Date | string; totalWealthCents?: number },
   ): Promise<WealthHistory> {
     const wealthHistory = await this.wealthHistoryRepo.findOne({
       where: { id, userId },
@@ -82,7 +87,7 @@ export class WealthHistoryService {
     }
 
     if (updates.date) {
-      const normalizedDate = this.normalizeDate(updates.date);
+      const normalizedDate = normalizeDate(updates.date);
       const existing = await this.wealthHistoryRepo.findOne({
         where: {
           userId,
@@ -93,9 +98,7 @@ export class WealthHistoryService {
 
       if (existing) {
         throw new ConflictError(
-          `Já existe um registro de patrimônio para a data ${normalizedDate.toLocaleDateString(
-            "pt-BR",
-          )}`,
+          `Já existe um registro de patrimônio para a data ${formatDateBR(normalizedDate)}`,
           "WEALTH_HISTORY_DATE_CONFLICT",
         );
       }
@@ -130,7 +133,9 @@ export class WealthHistoryService {
     totalWealthCents: number,
   ): Promise<void> {
     const today = new Date();
-    const beginningOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+    const beginningOfMonth = normalizeDate(
+      new Date(today.getFullYear(), today.getMonth(), 1),
+    );
 
     const existing = await this.wealthHistoryRepo.findOne({
       where: {
@@ -148,10 +153,6 @@ export class WealthHistoryService {
     }
   }
 
-  private normalizeDate(date: Date): Date {
-    const d = new Date(date);
-    return new Date(d.getFullYear(), d.getMonth(), d.getDate());
-  }
 }
 
 export const wealthHistoryService = new WealthHistoryService(

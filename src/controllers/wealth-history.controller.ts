@@ -37,7 +37,7 @@ export const createWealthHistory = async (
 
   const wealthHistory = await wealthHistoryService.createWealthHistory(
     userId,
-    new Date(result.data.date),
+    result.data.date,
     result.data.totalWealthCents,
   );
 
@@ -62,7 +62,7 @@ export const updateWealthHistory = async (
 
   const updates: any = {};
   if (result.data.date) {
-    updates.date = new Date(result.data.date);
+    updates.date = result.data.date;
   }
   if (result.data.totalWealthCents !== undefined) {
     updates.totalWealthCents = result.data.totalWealthCents;

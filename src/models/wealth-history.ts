@@ -9,7 +9,7 @@ export class WealthHistory extends BaseEntity {
   userId!: number;
 
   @Column("date")
-  date!: Date;
+  date!: string;
 
   @Column("decimal", { precision: 15, scale: 2 })
   totalWealthCents!: number;

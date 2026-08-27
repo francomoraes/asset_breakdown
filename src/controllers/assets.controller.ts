@@ -3,12 +3,12 @@ import { handleZodError } from "../utils/handle-zod-error";
 import { assetService } from "../services/asset.service";
 
 import {
+  AssetListQueryDto,
   CreateAssetDto,
   DeleteAssetDto,
   UpdateAssetDto,
 } from "../dtos/asset.dto";
 import { getEffectiveUserId } from "../utils/get-effective-user-id";
-import { PaginationQueryDto } from "dtos/pagination.dto";
 import { AppDataSource } from "../config/data-source";
 import { PriceCache } from "../models/price-cache";
 
@@ -18,7 +18,7 @@ export const getAssetsByUser = async (
 ): Promise<void> => {
   const userId = getEffectiveUserId(req);
 
-  const paginationParams = PaginationQueryDto.safeParse(req.query);
+  const paginationParams = AssetListQueryDto.safeParse(req.query);
 
   if (!paginationParams.success) {
     return handleZodError(res, paginationParams.error, 409);

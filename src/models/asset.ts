@@ -3,6 +3,7 @@ import { AssetType } from "./asset-type";
 import { Institution } from "models/institution";
 import { BaseEntity } from "models/base/base-entity";
 import { AssetSource } from "enums/asset-source.enum";
+import { decimalColumnTransformer } from "../utils/decimal-column.transformer";
 
 @Entity("asset")
 export class Asset extends BaseEntity {
@@ -15,7 +16,11 @@ export class Asset extends BaseEntity {
   @Column("text")
   ticker!: string;
 
-  @Column("decimal", { precision: 18, scale: 8 })
+  @Column("decimal", {
+    precision: 18,
+    scale: 8,
+    transformer: decimalColumnTransformer,
+  })
   quantity!: number;
 
   @Column("int")
@@ -32,6 +37,9 @@ export class Asset extends BaseEntity {
 
   @Column("int")
   resultCents!: number;
+
+  @Column("int", { default: 0 })
+  dividendsCentsAccumulated!: number;
 
   @Column("decimal", { precision: 12, scale: 2 })
   returnPercentage!: number;

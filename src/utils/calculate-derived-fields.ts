@@ -9,10 +9,12 @@ export function calculateDerivedFields(
   quantity: number,
   averagePriceCents: number,
   currentPriceCents: number,
+  dividendsCentsAccumulated: number = 0,
 ): DerivedFields {
   const investedValueCents = Math.round(quantity * averagePriceCents);
   const currentValueCents = Math.round(quantity * currentPriceCents);
-  const resultCents = currentValueCents - investedValueCents;
+  const resultCents =
+    currentValueCents - investedValueCents + dividendsCentsAccumulated;
 
   const returnPercentage =
     investedValueCents > 0

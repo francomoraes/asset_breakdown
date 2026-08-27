@@ -13,11 +13,13 @@ import {
 } from "controllers/manager.controller";
 import { UserRole } from "enums/role.enum";
 import assetRoutes from "routes/assets.routes";
+import assetTransactionRoutes from "routes/asset-transaction.routes";
 import assetTypeRoutes from "routes/asset-type.routes";
 import assetClassRoutes from "routes/asset-class.routes";
 import fixedIncomeAssetRoutes from "routes/fixed-income-asset.routes";
 import institutionRoutes from "routes/institution.routes";
 import wealthHistoryRoutes from "routes/wealth-history.routes";
+import csvRoutes from "routes/csv.routes";
 
 const router = Router();
 
@@ -65,6 +67,12 @@ router.use(
   assetRoutes,
 );
 router.use(
+  "/me/clients/:investorId/asset-transactions",
+  managerOrAdmin,
+  resolveEffectiveUserId,
+  assetTransactionRoutes,
+);
+router.use(
   "/me/clients/:investorId/asset-types",
   managerOrAdmin,
   resolveEffectiveUserId,
@@ -93,6 +101,12 @@ router.use(
   managerOrAdmin,
   resolveEffectiveUserId,
   wealthHistoryRoutes,
+);
+router.use(
+  "/me/clients/:investorId/csv",
+  managerOrAdmin,
+  resolveEffectiveUserId,
+  csvRoutes,
 );
 
 export default router;

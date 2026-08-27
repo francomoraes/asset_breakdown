@@ -2,6 +2,9 @@ import { AppDataSource } from "../config/data-source";
 import { AssetClass } from "../models/asset-class";
 import { AssetType } from "../models/asset-type";
 import { Asset } from "../models/asset";
+import { AssetTransaction } from "../models/asset-transaction";
+import { AssetTransactionType } from "../enums/asset-transaction-type.enum";
+import { normalizeDate } from "../utils/normalize-date";
 import { FixedIncomeAsset } from "../models/fixed-income-asset";
 import { WealthHistory } from "../models/wealth-history";
 import { User } from "../models/user";
@@ -78,7 +81,6 @@ AppDataSource.initialize()
         await userRepository.save(user);
         console.log(`✅ User created: ${userData.email} (${userData.role})`);
       } else {
-        // Update role and limit in case seed was run before without RBAC
         user.role = userData.role;
         user.managerClientLimit = userData.managerClientLimit;
         user.selfServiceEnabled = userData.selfServiceEnabled;
@@ -235,6 +237,58 @@ AppDataSource.initialize()
       }
     }
 
+    // ─── AssetTransaction de exemplo (compra + provento) ───────────────────────
+
+    const transactionRepository = AppDataSource.getRepository(AssetTransaction);
+    const trxf11 = await assetRepository.findOneBy({ ticker: "TRXF11", userId: mainUser.id });
+
+    if (trxf11) {
+      const existingTransactions = await transactionRepository.count({
+        where: { assetId: trxf11.id },
+      });
+
+      if (existingTransactions === 0) {
+        await transactionRepository.save([
+          transactionRepository.create({
+            assetId: trxf11.id!,
+            userId: mainUser.id,
+            type: AssetTransactionType.BUY,
+            date: normalizeDate(new Date("2025-03-10")),
+            quantity: 10,
+            unitPriceCents: 9762,
+            feesCents: 0,
+            totalAmountCents: 97620,
+          }),
+          transactionRepository.create({
+            assetId: trxf11.id!,
+            userId: mainUser.id,
+            type: AssetTransactionType.DIVIDEND,
+            date: normalizeDate(new Date("2025-08-10")),
+            quantity: null,
+            unitPriceCents: null,
+            feesCents: 0,
+            totalAmountCents: 4500,
+          }),
+        ]);
+
+        const dividendsCentsAccumulated = 4500;
+        const derived = calculateDerivedFields(
+          trxf11.quantity,
+          trxf11.averagePriceCents,
+          trxf11.currentPriceCents,
+          dividendsCentsAccumulated,
+        );
+        await assetRepository.update(trxf11.id!, {
+          dividendsCentsAccumulated,
+          ...derived,
+        });
+
+        console.log("✅ AssetTransaction de exemplo criadas para TRXF11 (compra + provento)");
+      } else {
+        console.log("ℹ️ AssetTransaction de TRXF11 já existem");
+      }
+    }
+
     // ─── Renda fixa para todos os usuários ────────────────────────────────────
 
     type FIAssetDef = {
@@ -328,8 +382,7 @@ AppDataSource.initialize()
       if (!wealthValues) continue;
 
       for (let i = 0; i < wealthDates.length; i++) {
-        const date = new Date(wealthDates[i]!);
-        const normalizedDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+        const normalizedDate = normalizeDate(wealthDates[i]!);
 
         const existing = await wealthHistoryRepository.findOne({ where: { userId: user.id, date: normalizedDate } });
         if (!existing) {
@@ -451,9 +504,7 @@ AppDataSource.initialize()
           revokedAt: linkData.revokedAt,
           revokeReason: linkData.revokeReason,
         });
-        // Override createdAt via queryRunner for seed accuracy
         const saved = await linkRepository.save(link);
-        // Update createdAt manually since TypeORM doesn't allow it via save
         await linkRepository.query(
           `UPDATE "manager_client_link" SET "createdAt" = $1 WHERE id = $2`,
           [linkData.createdAt, saved.id],

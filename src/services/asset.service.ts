@@ -14,7 +14,7 @@ import { PaginatedResponseDto } from "dtos/pagination.dto";
 import { FindOptionsOrder } from "typeorm";
 import { PriceCache } from "models/price-cache";
 import { config } from "config/environment";
-import { In } from "typeorm";
+import { In, MoreThan } from "typeorm";
 
 type UpdateAssetData = {
   id: number;
@@ -41,6 +41,7 @@ export class AssetService {
     sortBy = ALLOWED_SORT_FIELDS.TICKER,
     order = "ASC",
     skipPagination = false,
+    includeZeroQuantity = true,
   }: {
     userId: number;
     currentPage?: number;
@@ -48,13 +49,18 @@ export class AssetService {
     sortBy?: ALLOWED_SORT_FIELDS;
     order?: "ASC" | "DESC";
     skipPagination?: boolean;
+    includeZeroQuantity?: boolean;
   }): Promise<PaginatedResponseDto<Asset>> {
     const allowedSortFields = Object.values(ALLOWED_SORT_FIELDS);
     const safeSortBy = allowedSortFields.includes(sortBy)
       ? sortBy
       : ALLOWED_SORT_FIELDS.TICKER;
 
-    const totalItems = await this.assetRepo.count({ where: { userId } });
+    const where = includeZeroQuantity
+      ? { userId }
+      : { userId, quantity: MoreThan(0) };
+
+    const totalItems = await this.assetRepo.count({ where });
     const effectiveItemsPerPage = skipPagination ? totalItems : itemsPerPage;
     const totalPages = Math.ceil(totalItems / effectiveItemsPerPage);
     const validPage = Math.min(Math.max(currentPage, 1), totalPages || 1);
@@ -73,7 +79,7 @@ export class AssetService {
           : { [safeSortBy]: order };
 
     const [assets, _] = await this.assetRepo.findAndCount({
-      where: { userId },
+      where,
       relations: {
         type: {
           assetClass: true,
@@ -184,6 +190,7 @@ export class AssetService {
       newQuantity,
       newAveragePriceCents,
       currentPriceCents,
+      existingAsset.dividendsCentsAccumulated,
     );
 
     const assetTypeRepository = this.assetTypeRepo;
@@ -348,6 +355,7 @@ export class AssetService {
         currentValueCents,
         resultCents,
         returnPercentage,
+        dividendsCentsAccumulated: 0,
         portfolioPercentage: 0,
         institution,
         currency,
@@ -402,6 +410,7 @@ export class AssetService {
       asset.quantity,
       asset.averagePriceCents,
       currentPriceCents,
+      asset.dividendsCentsAccumulated,
     );
 
     Object.assign(asset, {
@@ -525,6 +534,7 @@ export class AssetService {
         asset.quantity,
         asset.averagePriceCents,
         currentPriceCents,
+        asset.dividendsCentsAccumulated,
       );
 
       asset.currentPriceCents = currentPriceCents;

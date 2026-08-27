@@ -2,6 +2,7 @@ import express from "express";
 import multer from "multer";
 
 import { uploadCsv } from "../controllers/csv.controller";
+import { requireOwnPortfolioWriteAllowed } from "../middlewares/require-own-portfolio-write-allowed.middleware";
 
 const upload = multer({ dest: "src/uploads/" });
 const router = express.Router();
@@ -23,6 +24,11 @@ router.get("/csv-template", (_req, res) => {
   res.send(csvContent);
 });
 
-router.post("/upload-csv", upload.single("file"), uploadCsv);
+router.post(
+  "/upload-csv",
+  requireOwnPortfolioWriteAllowed,
+  upload.single("file"),
+  uploadCsv,
+);
 
 export default router;

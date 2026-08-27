@@ -5,7 +5,7 @@ import fs from "fs";
 import { Asset } from "../models/asset";
 import { AppDataSource } from "../config/data-source";
 import { csvAssetSchema } from "../dtos/csv.dto";
-import { getAuthenticatedUserId } from "../utils/get-authenticated-user-id";
+import { getEffectiveUserId } from "../utils/get-effective-user-id";
 import { marketPriceService } from "../services/market-price.service";
 import { AssetType } from "models/asset-type";
 import { AssetClass } from "models/asset-class";
@@ -27,7 +27,7 @@ function parseLocalNumber(str: string): number {
 }
 
 export const uploadCsv = async (req: Request, res: Response): Promise<void> => {
-  const userId = getAuthenticatedUserId(req);
+  const userId = getEffectiveUserId(req);
 
   const file = req.file;
 
