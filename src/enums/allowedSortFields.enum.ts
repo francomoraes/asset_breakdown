@@ -9,4 +9,5 @@ export enum ALLOWED_SORT_FIELDS {
   INSTITUTION = "institution",
   RETURN_PERCENTAGE = "returnPercentage",
   PORTFOLIO_PERCENTAGE = "portfolioPercentage",
+  DIVIDENDS_CENTS_ACCUMULATED = "dividendsCentsAccumulated",
 }

@@ -3,6 +3,7 @@ import { ensureDataSource } from "../utils/ensure-data-source";
 import { User } from "../models/user";
 import { wealthHistoryService } from "../services/wealth-history.service";
 import { summaryService } from "../services/summary.service";
+import { getBRLtoUSDRate } from "../utils/get-brl-to-usd-rate";
 import { logger } from "../utils/logger";
 
 /**
@@ -24,6 +25,12 @@ async function runMonthlyWealthSnapshot() {
     const userRepository = AppDataSource.getRepository(User);
     const users = await userRepository.find();
 
+    // Cotação buscada uma vez por execução — não muda entre um usuário e
+    // outro na mesma rodada do job (decisão 4.7 da spec de índice de
+    // aderência: substitui a taxa aproximada hardcoded que existia aqui).
+    const brlToUsdRate = await getBRLtoUSDRate();
+    const usdToBrlRate = 1 / brlToUsdRate;
+
     let successCount = 0;
     let errorCount = 0;
 
@@ -41,9 +48,7 @@ async function runMonthlyWealthSnapshot() {
           if (item.currency === "BRL") {
             totalInBRL += item.totalCents;
           } else if (item.currency === "USD") {
-            // Converter USD para BRL (aproximadamente)
-            // Usar taxa de câmbio aproximada ou buscar a taxa atual
-            totalInBRL += Math.round(item.totalCents * 5.5); // Aproximação, ajustar conforme necessário
+            totalInBRL += Math.round(item.totalCents * usdToBrlRate);
           }
         }
 

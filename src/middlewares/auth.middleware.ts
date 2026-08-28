@@ -1,17 +1,3 @@
-declare global {
-  namespace Express {
-    interface Request {
-      user?: {
-        userId: number;
-        email: string;
-        name: string;
-        profilePictureUrl: string | null;
-        locale: string | null;
-      };
-    }
-  }
-}
-
 import { NextFunction, Request, Response } from "express";
 import { authService } from "../services/auth.service";
 import { UnauthorizedError } from "../errors/app-error";

@@ -7,13 +7,13 @@ import {
 import { Request, Response } from "express";
 import { institutionService } from "../services/institution.service";
 import { handleZodError } from "../utils/handle-zod-error";
-import { getAuthenticatedUserId } from "../utils/get-authenticated-user-id";
+import { getEffectiveUserId } from "../utils/get-effective-user-id";
 
 export const createInstitution = async (
   req: Request,
   res: Response,
 ): Promise<void> => {
-  const userId = getAuthenticatedUserId(req);
+  const userId = getEffectiveUserId(req);
 
   const result = CreateInstitutionDto.safeParse({
     name: req.body.name,
@@ -39,7 +39,7 @@ export const getInstitutions = async (
   req: Request,
   res: Response,
 ): Promise<void> => {
-  const userId = getAuthenticatedUserId(req);
+  const userId = getEffectiveUserId(req);
 
   const institutions = await institutionService.getInstitutions({ userId });
 
@@ -50,7 +50,7 @@ export const getInstitutionById = async (
   req: Request,
   res: Response,
 ): Promise<void> => {
-  const userId = getAuthenticatedUserId(req);
+  const userId = getEffectiveUserId(req);
   const { id } = req.params;
 
   const institution = await institutionService.getInstitutionById({
@@ -65,7 +65,7 @@ export const updateInstitution = async (
   req: Request,
   res: Response,
 ): Promise<void> => {
-  const userId = getAuthenticatedUserId(req);
+  const userId = getEffectiveUserId(req);
 
   const dtoData = {
     id: req.params.id,
@@ -93,7 +93,7 @@ export const deleteInstitution = async (
   req: Request,
   res: Response,
 ): Promise<void> => {
-  const userId = getAuthenticatedUserId(req);
+  const userId = getEffectiveUserId(req);
 
   const parsedParams = DeleteInstitutionDto.safeParse({
     id: req.params.id,

@@ -47,7 +47,7 @@ export const CRYPTO_BASE_TICKERS = new Set([
   "OMG",
 ]);
 
-export function formatYahooTicker(ticker: string, currency?: string): string {
+export function formatYahooTicker(ticker: string): string {
   if (!ticker) throw new Error("Ticker inválido");
 
   ticker = ticker.toUpperCase();
@@ -65,11 +65,6 @@ export function formatYahooTicker(ticker: string, currency?: string): string {
   if (ticker.length === 6 && ticker.endsWith("11")) {
     // ex: ITUB11
     return `${ticker}.SA`;
-  }
-
-  // Known crypto tickers: append currency suffix so Yahoo Finance resolves correctly
-  if (currency && CRYPTO_BASE_TICKERS.has(ticker)) {
-    return `${ticker}-${currency.toUpperCase()}`;
   }
 
   return ticker;

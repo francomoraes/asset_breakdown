@@ -5,16 +5,16 @@ import { Asset } from "../models/asset";
 import { AssetType } from "../models/asset-type";
 import { Repository } from "typeorm";
 import { calculateDerivedFields } from "../utils/calculate-derived-fields";
-import { getMarketPriceCents } from "../utils/get-market-price";
+import { marketPriceService } from "../services/market-price.service";
 import { recalculatePortfolio } from "../utils/recalculate-portfolio";
 import { Institution } from "models/institution";
-import { getMarketPriceCentsBatch } from "utils/get-market-price-batch";
 import { ALLOWED_SORT_FIELDS } from "enums/allowedSortFields.enum";
+import { AssetSource } from "enums/asset-source.enum";
 import { PaginatedResponseDto } from "dtos/pagination.dto";
 import { FindOptionsOrder } from "typeorm";
 import { PriceCache } from "models/price-cache";
 import { config } from "config/environment";
-import { In } from "typeorm";
+import { In, MoreThan } from "typeorm";
 
 type UpdateAssetData = {
   id: number;
@@ -34,11 +34,6 @@ export class AssetService {
     private institutionRepo: Repository<Institution>,
   ) {}
 
-  async getAsset() {
-    const assets = await this.assetRepo.find();
-    return assets;
-  }
-
   async getAssetsByUser({
     userId,
     currentPage = 1,
@@ -46,6 +41,7 @@ export class AssetService {
     sortBy = ALLOWED_SORT_FIELDS.TICKER,
     order = "ASC",
     skipPagination = false,
+    includeZeroQuantity = true,
   }: {
     userId: number;
     currentPage?: number;
@@ -53,13 +49,18 @@ export class AssetService {
     sortBy?: ALLOWED_SORT_FIELDS;
     order?: "ASC" | "DESC";
     skipPagination?: boolean;
+    includeZeroQuantity?: boolean;
   }): Promise<PaginatedResponseDto<Asset>> {
     const allowedSortFields = Object.values(ALLOWED_SORT_FIELDS);
     const safeSortBy = allowedSortFields.includes(sortBy)
       ? sortBy
       : ALLOWED_SORT_FIELDS.TICKER;
 
-    const totalItems = await this.assetRepo.count({ where: { userId } });
+    const where = includeZeroQuantity
+      ? { userId }
+      : { userId, quantity: MoreThan(0) };
+
+    const totalItems = await this.assetRepo.count({ where });
     const effectiveItemsPerPage = skipPagination ? totalItems : itemsPerPage;
     const totalPages = Math.ceil(totalItems / effectiveItemsPerPage);
     const validPage = Math.min(Math.max(currentPage, 1), totalPages || 1);
@@ -78,7 +79,7 @@ export class AssetService {
           : { [safeSortBy]: order };
 
     const [assets, _] = await this.assetRepo.findAndCount({
-      where: { userId },
+      where,
       relations: {
         type: {
           assetClass: true,
@@ -125,6 +126,18 @@ export class AssetService {
       );
     }
 
+    if (
+      existingAsset.source !== AssetSource.MANUAL &&
+      (updateData.quantity !== undefined ||
+        updateData.ticker !== undefined ||
+        updateData.currency !== undefined)
+    ) {
+      throw new ConflictError(
+        `Ativo ${existingAsset.ticker} é sincronizado automaticamente e não permite edição manual de quantidade, ticker ou moeda`,
+        "CONNECTED_ASSET_QUANTITY_LOCKED",
+      );
+    }
+
     let currentPriceCents = existingAsset.currentPriceCents;
     let priceUnavailable = existingAsset.priceUnavailable ?? false;
 
@@ -134,7 +147,7 @@ export class AssetService {
     const currencyForPrice = updateData.currency ?? existingAsset.currency;
 
     try {
-      currentPriceCents = await getMarketPriceCents(
+      currentPriceCents = await marketPriceService.getPriceCents(
         newTicker,
         currencyForPrice,
       );
@@ -177,10 +190,11 @@ export class AssetService {
       newQuantity,
       newAveragePriceCents,
       currentPriceCents,
+      existingAsset.dividendsCentsAccumulated,
     );
 
     const assetTypeRepository = this.assetTypeRepo;
-    const assetType = await assetTypeRepository.findOneBy({ name: type });
+    const assetType = await assetTypeRepository.findOneBy({ name: type, userId: requestUserId });
 
     if (!assetType) {
       throw new NotFoundError(
@@ -289,7 +303,7 @@ export class AssetService {
     let priceUnavailable = false;
 
     try {
-      currentPriceCents = await getMarketPriceCents(ticker, currency);
+      currentPriceCents = await marketPriceService.getPriceCents(ticker, currency);
     } catch {
       currentPriceCents = averagePriceCents;
       priceUnavailable = true;
@@ -309,6 +323,7 @@ export class AssetService {
 
       const assetType = await this.assetTypeRepo.findOneBy({
         name: type,
+        userId,
       });
 
       if (!assetType) {
@@ -340,6 +355,7 @@ export class AssetService {
         currentValueCents,
         resultCents,
         returnPercentage,
+        dividendsCentsAccumulated: 0,
         portfolioPercentage: 0,
         institution,
         currency,
@@ -361,11 +377,62 @@ export class AssetService {
     }
   }
 
+  async retryAssetPrice({
+    assetId,
+    requestUserId,
+  }: {
+    assetId: number;
+    requestUserId: number;
+  }) {
+    const asset = await this.assetRepo.findOne({
+      where: { id: assetId, userId: requestUserId },
+      relations: ["type", "institution"],
+    });
+
+    if (!asset) {
+      throw new NotFoundError(
+        `Asset ${assetId} not found`,
+        "ASSET_NOT_FOUND",
+      );
+    }
+
+    const currentPriceCents = await marketPriceService.getPriceCents(
+      asset.ticker,
+      asset.currency,
+    );
+
+    const {
+      investedValueCents,
+      currentValueCents,
+      resultCents,
+      returnPercentage,
+    } = calculateDerivedFields(
+      asset.quantity,
+      asset.averagePriceCents,
+      currentPriceCents,
+      asset.dividendsCentsAccumulated,
+    );
+
+    Object.assign(asset, {
+      currentPriceCents,
+      investedValueCents,
+      currentValueCents,
+      resultCents,
+      returnPercentage,
+      priceUnavailable: false,
+    });
+
+    await this.assetRepo.save(asset);
+    await recalculatePortfolio(requestUserId);
+
+    return asset;
+  }
+
   async exportAssetsToCsv({ userId }: { userId: number }) {
     const result = await this.getAssetsByUser({ userId, skipPagination: true });
 
     const data = result.data.map((asset) => ({
-      ticker: asset.ticker,
+      ticker: sanitizeCsvCell(asset.ticker),
       quantity: asset.quantity,
       averagePriceCents: asset.averagePriceCents,
       currentPriceCents: asset.currentPriceCents,
@@ -373,10 +440,10 @@ export class AssetService {
       currentValueCents: asset.currentValueCents,
       resultCents: asset.resultCents,
       returnPercentage: asset.returnPercentage,
-      institution: asset.institution.name,
-      currency: asset.currency,
-      type: asset.type.name,
-      class: asset.type.assetClass.name,
+      institution: sanitizeCsvCell(asset.institution.name),
+      currency: sanitizeCsvCell(asset.currency),
+      type: sanitizeCsvCell(asset.type.name),
+      class: sanitizeCsvCell(asset.type.assetClass.name),
     }));
 
     const parser = new Parser();
@@ -411,7 +478,11 @@ export class AssetService {
     });
 
     const cacheByTicker = new Map(
-      cachedPrices.map((entry) => [entry.ticker, entry]),
+      cachedPrices
+        .filter(
+          (entry) => entry.currency === (currencyMap.get(entry.ticker) ?? "USD"),
+        )
+        .map((entry) => [entry.ticker, entry]),
     );
     const cacheTtlMs = config.marketPriceTtlHours * 60 * 60 * 1000;
     const now = Date.now();
@@ -438,7 +509,10 @@ export class AssetService {
       }
     }
 
-    const results = await getMarketPriceCentsBatch(tickers, currencyMap);
+    const results = await marketPriceService.getPricesCentsBatch(
+      tickers,
+      currencyMap,
+    );
 
     const assetsToUpdate: Asset[] = [];
     const failedTickers: string[] = [];
@@ -460,6 +534,7 @@ export class AssetService {
         asset.quantity,
         asset.averagePriceCents,
         currentPriceCents,
+        asset.dividendsCentsAccumulated,
       );
 
       asset.currentPriceCents = currentPriceCents;
@@ -485,6 +560,13 @@ export class AssetService {
       nextYahooCallAt,
     };
   }
+}
+
+function sanitizeCsvCell(value: string): string {
+  if (/^[=+\-@\t\r]/.test(value)) {
+    return `'${value}`;
+  }
+  return value;
 }
 
 export const assetService = new AssetService(

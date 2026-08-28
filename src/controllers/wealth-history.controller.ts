@@ -5,7 +5,7 @@ import {
   CreateWealthHistoryDto,
   UpdateWealthHistoryDto,
 } from "../dtos/wealth-history.dto";
-import { getAuthenticatedUserId } from "../utils/get-authenticated-user-id";
+import { getEffectiveUserId } from "../utils/get-effective-user-id";
 import { BCBService } from "../services/bcb.service";
 import { IndexType } from "../models/index-rate-cache";
 import { marketIndicesService } from "../services/market-indices.service";
@@ -16,7 +16,7 @@ export const getWealthHistory = async (
   req: Request,
   res: Response,
 ): Promise<void> => {
-  const userId = getAuthenticatedUserId(req);
+  const userId = getEffectiveUserId(req);
 
   const history = await wealthHistoryService.getWealthHistoryByUser(userId);
 
@@ -27,7 +27,7 @@ export const createWealthHistory = async (
   req: Request,
   res: Response,
 ): Promise<void> => {
-  const userId = getAuthenticatedUserId(req);
+  const userId = getEffectiveUserId(req);
 
   const result = CreateWealthHistoryDto.safeParse(req.body);
 
@@ -37,7 +37,7 @@ export const createWealthHistory = async (
 
   const wealthHistory = await wealthHistoryService.createWealthHistory(
     userId,
-    new Date(result.data.date),
+    result.data.date,
     result.data.totalWealthCents,
   );
 
@@ -51,7 +51,7 @@ export const updateWealthHistory = async (
   req: Request,
   res: Response,
 ): Promise<void> => {
-  const userId = getAuthenticatedUserId(req);
+  const userId = getEffectiveUserId(req);
   const { id } = req.params;
 
   const result = UpdateWealthHistoryDto.safeParse(req.body);
@@ -62,7 +62,7 @@ export const updateWealthHistory = async (
 
   const updates: any = {};
   if (result.data.date) {
-    updates.date = new Date(result.data.date);
+    updates.date = result.data.date;
   }
   if (result.data.totalWealthCents !== undefined) {
     updates.totalWealthCents = result.data.totalWealthCents;
@@ -84,7 +84,7 @@ export const deleteWealthHistory = async (
   req: Request,
   res: Response,
 ): Promise<void> => {
-  const userId = getAuthenticatedUserId(req);
+  const userId = getEffectiveUserId(req);
   const { id } = req.params;
 
   await wealthHistoryService.deleteWealthHistory(userId, Number(id));

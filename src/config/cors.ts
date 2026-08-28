@@ -8,11 +8,12 @@ export const corsOptions: cors.CorsOptions = {
         "http://localhost:3001",
         "http://localhost:5173",
         "http://localhost:8080",
-        "http://192.168.1.24:8080", // Rede local
+        "http://192.168.1.24:8080",
       ]
-    : config.frontendUrl === "*"
-      ? true
-      : config.frontendUrl.split(","),
+    : config.frontendUrl
+        .split(",")
+        .map((u) => u.trim())
+        .filter(Boolean),
   credentials: true,
   methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
   allowedHeaders: [

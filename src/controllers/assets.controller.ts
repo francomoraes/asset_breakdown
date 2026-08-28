@@ -3,27 +3,22 @@ import { handleZodError } from "../utils/handle-zod-error";
 import { assetService } from "../services/asset.service";
 
 import {
+  AssetListQueryDto,
   CreateAssetDto,
   DeleteAssetDto,
   UpdateAssetDto,
 } from "../dtos/asset.dto";
-import { getAuthenticatedUserId } from "../utils/get-authenticated-user-id";
-import { PaginationQueryDto } from "dtos/pagination.dto";
+import { getEffectiveUserId } from "../utils/get-effective-user-id";
 import { AppDataSource } from "../config/data-source";
 import { PriceCache } from "../models/price-cache";
-
-export const getAssets = async (req: Request, res: Response) => {
-  const assets = await assetService.getAsset();
-  res.json(assets);
-};
 
 export const getAssetsByUser = async (
   req: Request,
   res: Response,
 ): Promise<void> => {
-  const userId = getAuthenticatedUserId(req);
+  const userId = getEffectiveUserId(req);
 
-  const paginationParams = PaginationQueryDto.safeParse(req.query);
+  const paginationParams = AssetListQueryDto.safeParse(req.query);
 
   if (!paginationParams.success) {
     return handleZodError(res, paginationParams.error, 409);
@@ -42,7 +37,7 @@ export const updateAsset = async (
   req: Request,
   res: Response,
 ): Promise<void> => {
-  const userId = getAuthenticatedUserId(req);
+  const userId = getEffectiveUserId(req);
 
   const result = UpdateAssetDto.safeParse({
     id: req.params.id,
@@ -67,7 +62,7 @@ export const deleteAsset = async (
   req: Request,
   res: Response,
 ): Promise<void> => {
-  const userId = getAuthenticatedUserId(req);
+  const userId = getEffectiveUserId(req);
 
   const result = DeleteAssetDto.safeParse({
     id: req.params.id,
@@ -87,7 +82,7 @@ export const createAsset = async (
   req: Request,
   res: Response,
 ): Promise<void> => {
-  const userId = getAuthenticatedUserId(req);
+  const userId = getEffectiveUserId(req);
 
   const result = CreateAssetDto.safeParse(req.body);
 
@@ -108,7 +103,7 @@ export const exportAssetCsv = async (
   req: Request,
   res: Response,
 ): Promise<void> => {
-  const userId = getAuthenticatedUserId(req);
+  const userId = getEffectiveUserId(req);
 
   const csv = await assetService.exportAssetsToCsv({ userId: Number(userId) });
 
@@ -117,17 +112,35 @@ export const exportAssetCsv = async (
   res.send(csv);
 };
 
+export const retryAssetPrice = async (
+  req: Request,
+  res: Response,
+): Promise<void> => {
+  const userId = getEffectiveUserId(req);
+  const assetId = Number(req.params.id);
+
+  const asset = await assetService.retryAssetPrice({
+    assetId,
+    requestUserId: userId,
+  });
+
+  res.json({
+    message: `Cotação de ${asset.ticker} atualizada com sucesso`,
+    asset,
+  });
+};
+
 export const refreshMarketPrices = async (
   req: Request,
   res: Response,
 ): Promise<void> => {
-  const userId = getAuthenticatedUserId(req);
+  const userId = getEffectiveUserId(req);
 
   const result = await assetService.updateUserAssetsPrices(userId);
 
   const message = result.usedCacheOnly
     ? `Atualizacao em cooldown: usando cache de cotacoes (TTL ${result.cooldownHours}h).`
-    : "Market prices refreshed";
+    : "Cotações atualizadas com sucesso";
 
   res.json({
     message,
@@ -141,5 +154,5 @@ export const clearPriceCache = async (
 ): Promise<void> => {
   const repo = AppDataSource.getRepository(PriceCache);
   await repo.clear();
-  res.json({ message: "Price cache cleared" });
+  res.json({ message: "Cache de cotações limpo" });
 };

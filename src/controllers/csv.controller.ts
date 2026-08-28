@@ -5,9 +5,10 @@ import fs from "fs";
 import { Asset } from "../models/asset";
 import { AppDataSource } from "../config/data-source";
 import { csvAssetSchema } from "../dtos/csv.dto";
-import { getAuthenticatedUserId } from "../utils/get-authenticated-user-id";
-import { getMarketPriceCentsBatch } from "../utils/get-market-price-batch";
+import { getEffectiveUserId } from "../utils/get-effective-user-id";
+import { marketPriceService } from "../services/market-price.service";
 import { AssetType } from "models/asset-type";
+import { AssetClass } from "models/asset-class";
 import { Institution } from "models/institution";
 import { recalculatePortfolio } from "../utils/recalculate-portfolio";
 import { calculateDerivedFields } from "../utils/calculate-derived-fields";
@@ -26,7 +27,7 @@ function parseLocalNumber(str: string): number {
 }
 
 export const uploadCsv = async (req: Request, res: Response): Promise<void> => {
-  const userId = getAuthenticatedUserId(req);
+  const userId = getEffectiveUserId(req);
 
   const file = req.file;
 
@@ -37,6 +38,7 @@ export const uploadCsv = async (req: Request, res: Response): Promise<void> => {
 
   const assetRepository = AppDataSource.getRepository(Asset);
   const assetTypeRepository = AppDataSource.getRepository(AssetType);
+  const assetClassRepository = AppDataSource.getRepository(AssetClass);
   const institutionRepository = AppDataSource.getRepository(Institution);
 
   const assets: Asset[] = [];
@@ -67,14 +69,25 @@ export const uploadCsv = async (req: Request, res: Response): Promise<void> => {
         const currencyMap = new Map<string, string>(
           validatedRows.map((r) => [r.ticker, r.currency]),
         );
-        const pricesMap = await getMarketPriceCentsBatch(
+        const pricesMap = await marketPriceService.getPricesCentsBatch(
           allTickers,
           currencyMap,
         );
 
+        const institutionCache = new Map<string, Institution>();
+        const assetClassCache = new Map<string, AssetClass>();
+        const assetTypeCache = new Map<string, AssetType>();
+
+        const autoCreated = {
+          institutions: new Set<string>(),
+          assetClasses: new Set<string>(),
+          assetTypes: new Set<string>(),
+        };
+
         for (const row of validatedRows) {
           const {
             type,
+            assetClass: assetClassName,
             ticker,
             quantity: quantityStr,
             averagePrice: averagePriceStr,
@@ -89,24 +102,56 @@ export const uploadCsv = async (req: Request, res: Response): Promise<void> => {
           const priceUnavailable = !rawCurrentPriceCents;
           const currentPriceCents = rawCurrentPriceCents ?? averagePriceCents;
 
-          const assetType = await assetTypeRepository.findOne({
-            where: { name: type, userId },
-          });
-
-          if (!assetType) {
-            return res.status(400).json({
-              error: `Asset type "${type}" not found for this user`,
-            });
+          let assetClass = assetClassCache.get(assetClassName);
+          if (!assetClass) {
+            assetClass = await assetClassRepository.findOne({
+              where: { name: assetClassName, userId },
+            }) ?? undefined;
+            if (!assetClass) {
+              assetClass = await assetClassRepository.save(
+                assetClassRepository.create({ name: assetClassName, userId }),
+              );
+              autoCreated.assetClasses.add(assetClassName);
+            }
+            assetClassCache.set(assetClassName, assetClass);
           }
 
-          const assetInstitution = await institutionRepository.findOne({
-            where: { name: institutionName, userId },
-          });
+          let assetType = assetTypeCache.get(type);
+          if (!assetType) {
+            assetType = await assetTypeRepository.findOne({
+              where: { name: type, userId },
+              relations: ["assetClass"],
+            }) ?? undefined;
+            if (!assetType) {
+              assetType = await assetTypeRepository.save(
+                assetTypeRepository.create({
+                  name: type,
+                  userId,
+                  targetPercentage: 0,
+                  assetClass,
+                }),
+              );
+              autoCreated.assetTypes.add(type);
+            } else if (assetType.assetClass?.id !== assetClass?.id) {
+              // Tipo existe, mas classe diverge do CSV → corrigir.
+              assetType.assetClass = assetClass!;
+              await assetTypeRepository.save(assetType);
+            }
+            assetTypeCache.set(type, assetType);
+          }
 
+          let assetInstitution = institutionCache.get(institutionName);
           if (!assetInstitution) {
-            return res.status(400).json({
-              error: `Institution "${institutionName}" not found for this user`,
-            });
+            assetInstitution = await institutionRepository.findOne({
+              where: { name: institutionName, userId },
+            }) ?? undefined;
+            if (!assetInstitution) {
+              assetInstitution = await institutionRepository.save(
+                institutionRepository.create({ name: institutionName, userId }),
+              );
+              autoCreated.institutions.add(institutionName);
+            }
+            institutionCache.set(institutionName, assetInstitution);
           }
 
           const {
@@ -171,9 +216,15 @@ export const uploadCsv = async (req: Request, res: Response): Promise<void> => {
           console.error("Error deleting temporary file:", error);
         }
 
-        res
-          .status(201)
-          .json({ message: "CSV file processed successfully", assets });
+        res.status(201).json({
+          message: "CSV file processed successfully",
+          assets,
+          autoCreated: {
+            institutions: [...autoCreated.institutions],
+            assetClasses: [...autoCreated.assetClasses],
+            assetTypes: [...autoCreated.assetTypes],
+          },
+        });
       } catch (error) {
         console.error("Error processing CSV file:", error);
         return res.status(500).json({ error: "Internal server error" });

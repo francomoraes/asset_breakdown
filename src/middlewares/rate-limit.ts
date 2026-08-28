@@ -45,8 +45,16 @@ const authLimiter = rateLimit({
   skipSuccessfulRequests: true,
   standardHeaders: true,
   legacyHeaders: false,
+  // Rate limit by email when available so IP spoofing via X-Forwarded-For doesn't bypass it
+  keyGenerator: (req) => {
+    const email =
+      typeof req.body?.email === "string"
+        ? req.body.email.toLowerCase().trim()
+        : null;
+    return email ? `auth:email:${email}` : `auth:ip:${ipKeyGenerator(req.ip ?? "")}`;
+  },
   message: {
-    error: "Too many login attempts from this IP, please try again later.",
+    error: "Too many login attempts, please try again later.",
     retryAfter: "5 minutes",
   },
 });
@@ -93,6 +101,10 @@ const marketIndicesLimiter = createHeavyLimiter(
   config.rateLimitMedium,
 );
 const summaryLimiter = createHeavyLimiter("high", config.rateLimitHigh);
+const cryptoSyncLimiter = createHeavyLimiter(
+  "low",
+  config.rateLimitCryptoSync,
+);
 
 export {
   appLimiter,
@@ -101,4 +113,5 @@ export {
   refreshLimiter,
   marketIndicesLimiter,
   summaryLimiter,
+  cryptoSyncLimiter,
 };

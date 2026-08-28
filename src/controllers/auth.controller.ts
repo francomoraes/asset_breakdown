@@ -4,16 +4,50 @@ import { LoginDTO, RegisterDTO, UpdateUserDto } from "../dtos/auth.dto";
 import { handleZodError } from "../utils/handle-zod-error";
 import { getAuthenticatedUserId } from "utils/get-authenticated-user-id";
 import { storageAdapter } from "config/storage";
+import { config } from "config/environment";
+import { ForbiddenError } from "../errors/app-error";
+
+// In production, frontend (Vercel) and backend (Railway) are different sites,
+// so SameSite must be "none" (with Secure) for the cookie to be sent cross-site.
+// In development, both run on localhost so "strict" is fine and avoids the Secure requirement.
+const REFRESH_COOKIE_OPTIONS = {
+  httpOnly: true,
+  secure: config.isProduction,
+  sameSite: (config.isProduction ? "none" : "strict") as "none" | "strict",
+  maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+  path: "/api/auth",
+};
+
+function setRefreshCookie(res: Response, refreshToken: string) {
+  res.cookie("refresh_token", refreshToken, REFRESH_COOKIE_OPTIONS);
+}
+
+function clearRefreshCookie(res: Response) {
+  res.clearCookie("refresh_token", {
+    httpOnly: true,
+    secure: config.isProduction,
+    sameSite: config.isProduction ? "none" : "strict",
+    path: "/api/auth",
+  });
+}
 
 export const register = async (req: Request, res: Response) => {
+  if (!config.selfRegistrationEnabled) {
+    throw new ForbiddenError(
+      "Self-registration is disabled",
+      "SELF_REGISTRATION_DISABLED",
+    );
+  }
+
   const result = RegisterDTO.safeParse(req.body);
   if (!result.success) {
     return handleZodError(res, result.error);
   }
 
-  const user = await authService.register(result.data);
+  const { user, token, refreshToken } = await authService.register(result.data);
 
-  res.json(user);
+  setRefreshCookie(res, refreshToken);
+  res.json({ user, token });
 };
 
 export const login = async (req: Request, res: Response) => {
@@ -22,9 +56,37 @@ export const login = async (req: Request, res: Response) => {
     return handleZodError(res, result.error);
   }
 
-  const user = await authService.login(result.data);
+  const { user, token, refreshToken } = await authService.login(result.data);
 
-  res.json(user);
+  setRefreshCookie(res, refreshToken);
+  res.json({ user, token });
+};
+
+export const getConfig = (_req: Request, res: Response) => {
+  res.json({ selfRegistrationEnabled: config.selfRegistrationEnabled });
+};
+
+export const refresh = async (req: Request, res: Response) => {
+  const refreshToken = req.cookies?.refresh_token;
+
+  if (!refreshToken) {
+    res.status(401).json({ message: "No refresh token" });
+    return;
+  }
+
+  const {
+    user,
+    token,
+    refreshToken: newRefreshToken,
+  } = await authService.refreshSession(refreshToken);
+
+  setRefreshCookie(res, newRefreshToken);
+  res.json({ user, token });
+};
+
+export const logout = (_req: Request, res: Response) => {
+  clearRefreshCookie(res);
+  res.json({ message: "Logged out" });
 };
 
 export const uploadProfilePicture = async (req: Request, res: Response) => {
@@ -63,10 +125,11 @@ export const updateUser = async (req: Request, res: Response) => {
     return;
   }
 
-  const updatedUser = await authService.updateUser({
+  const { user, token, refreshToken } = await authService.updateUser({
     id: userId,
     ...result.data,
   });
 
-  res.json(updatedUser);
+  setRefreshCookie(res, refreshToken);
+  res.json({ user, token });
 };

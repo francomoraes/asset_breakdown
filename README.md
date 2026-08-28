@@ -17,22 +17,40 @@ This account is intended for public demo usage only.
 
 ## What this API covers
 
-- JWT authentication and user isolation
-- Asset CRUD for stocks, REITs, crypto, fixed income, and cash positions
-- Portfolio summary and allocation overview endpoints
-- Market refresh flows with cache TTL controls
-- Exchange rate caching and market index historical caching
-- Profile picture upload integrated with Supabase Storage
-- Rate limiting on heavy endpoints and login protection
+- JWT authentication (register, login, token validation) with bcrypt password hashing
+- User-scoped data isolation — every query is filtered by authenticated user
+- Asset CRUD for variable assets (stocks, REITs, ETFs, crypto) and fixed income instruments
+- Institution and asset class/type management with reference data endpoints
+- Portfolio summary with allocation breakdown by asset class and currency
+- Market price refresh via Yahoo Finance 2 with concurrency control and per-asset-type caching
+- Exchange rate caching (TTL-based) for multi-currency portfolio valuation
+- Brazilian Central Bank (BCB) integration for historical financial index data (CDI, SELIC, IPCA, etc.)
+- Market indices tracking and historical series caching
+- Fixed income yield calculation using BCB index rates
+- Automated monthly wealth snapshot job (cron-ready)
+- Wealth history endpoints with paginated responses
+- Bulk asset import via CSV upload and parsing
+- Profile picture upload via Multer, stored in Supabase Storage
+- Multi-tier rate limiting (global limiter + strict limiter on sensitive endpoints)
+- Demo mode middleware that blocks destructive operations in the public demo environment
+- Centralized error handling with custom error classes (NotFoundError, ConflictError, BadRequestError)
+- Structured request logging via Winston
 
 ## Tech stack
 
-- Node.js + Express + TypeScript
+- Node.js + Express 5 + TypeScript
 - PostgreSQL + TypeORM
-- Zod for input validation
-- Yahoo Finance integration for market prices
+- Zod for input validation and DTO schemas
+- bcrypt for password hashing, JWT for session tokens
+- Yahoo Finance 2 for live market prices
+- BCB (Brazilian Central Bank) API for financial index series
 - Supabase Storage for media assets
-- Railway deployment for API and database
+- Multer for file upload handling
+- Winston for structured logging
+- Helmet + CORS + express-rate-limit for security hardening
+- Vitest for unit tests with V8 coverage
+- Newman for API integration tests (Postman collections versioned in the repo)
+- Railway for API and database deployment
 
 ## Key endpoints
 
@@ -61,8 +79,12 @@ npm start
 
 ## Next steps (portfolio roadmap)
 
-1. Implement user roles with a manager profile.
-2. Allow manager users to update target allocation percentages.
-3. Allow manager users to view the portfolios of up to 10-20 users.
-4. Add role-based authorization guards and audit logs for manager actions.
-5. Implement automated tests.
+The manager–investor relationship system (RBAC) described in earlier roadmaps has been fully implemented — roles, bidirectional link requests/approval, manager read access via `resolveEffectiveUserId`, manager dashboard, link history, role guards, and an expanded seed covering all roles. See `docs/done/rbac-feature.md` and `docs/done/bugs-16-07-fixes.md`.
+
+Remaining work:
+
+1. **Crypto tracking & price refresh** — connect Ethereum wallets and Mercado Bitcoin accounts, auto-sync balances as assets. Not started — see `docs/crypto-tracking-price-refresh.md`.
+2. **CI/CD automation** — GitHub Actions pipelines for lint/test/build and auto-deploy on push. Rate limiting, caching, and manual deploy are already done — see `docs/done/plano-objetivo-deploy-cicd.md` — only the automation step remains.
+3. **Soft delete** — LGPD-compliant user deletion flow.
+4. **Item 7 investigation** — intermittent missing goals/positions in the manager's view of a client's portfolio, only in production; root cause still unknown (schema/migration already ruled out). See `docs/done/bugs-16-07-fixes.md`, section 10.
+5. **Security follow-ups** — a few audit items still require manual verification: cross-user IDOR test, login timing attack, distributed brute-force lockout, `npm audit`, and audit logging for sensitive operations. See `docs/done/security-owasp-design.md`.

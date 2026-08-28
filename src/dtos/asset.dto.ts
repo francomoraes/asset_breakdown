@@ -1,4 +1,13 @@
 import { z } from "zod";
+import { PaginationQueryDto } from "./pagination.dto";
+
+export const AssetListQueryDto = PaginationQueryDto.extend({
+  includeZeroQuantity: z
+    .enum(["true", "false"])
+    .optional()
+    .default("true")
+    .transform((val) => val === "true"),
+});
 
 export const UpdateAssetDto = z
   .object({
