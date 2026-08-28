@@ -4,8 +4,12 @@ import { ManagerClientLink, LinkStatus } from "models/manager-client-link";
 import { ManagerClientHistory, HistoryCycleStatus } from "models/manager-client-history";
 import { Asset } from "models/asset";
 import { FixedIncomeAsset } from "models/fixed-income-asset";
+import { User } from "models/user";
+import { UserRole } from "enums/role.enum";
 import { getBRLtoUSDRate } from "utils/get-brl-to-usd-rate";
 import { fixedIncomeAssetService } from "./fixed-income-asset.service";
+
+type DashboardScope = "mine" | "all";
 
 export async function calculateInvestorWealthCents(userId: number): Promise<number> {
   await fixedIncomeAssetService.refreshValues(userId);
@@ -99,9 +103,20 @@ export class ManagerDashboardService {
   constructor(
     private linkRepo: Repository<ManagerClientLink>,
     private historyRepo: Repository<ManagerClientHistory>,
+    private userRepo: Repository<User>,
   ) {}
 
-  async getDashboard({ managerId }: { managerId: number }) {
+  async getDashboard({
+    managerId,
+    scope = "mine",
+  }: {
+    managerId: number;
+    scope?: DashboardScope;
+  }) {
+    if (scope === "all") {
+      return this.getAllInvestorsDashboard();
+    }
+
     const activeLinks = await this.linkRepo.find({
       where: { managerId, status: LinkStatus.ACTIVE },
       relations: ["investor"],
@@ -156,9 +171,65 @@ export class ManagerDashboardService {
       topInvestors,
     };
   }
+
+  // scope "all" é admin-only (garantido no controller) — mesmas 5 métricas,
+  // só o filtro muda: todo investidor da plataforma em vez de só os
+  // vinculados ao admin. "Patrimônio inicial" passa a somar os ciclos ativos
+  // de TODOS os gestores (não só os do admin) — investidor sem nenhum
+  // vínculo/histórico entra com 0 aqui, então seu patrimônio atual conta
+  // inteiro como "variação absoluta"; é uma simplificação aceitável já que
+  // essa tela é mais de descoberta/gestão do que de rentabilidade.
+  private async getAllInvestorsDashboard() {
+    const investors = await this.userRepo.find({
+      where: { role: UserRole.INVESTOR },
+      select: ["id", "name"],
+    });
+    const investorIds = investors.map((investor) => investor.id!);
+
+    const activeHistories = await this.historyRepo.find({
+      where: { status: HistoryCycleStatus.ACTIVE },
+    });
+    const totalInitialWealthCents = activeHistories.reduce(
+      (sum, h) => sum + Number(h.initialWealthCents),
+      0,
+    );
+
+    const wealthByInvestor = await calculateInvestorWealthCentsBulk(investorIds);
+    const totalWealthUnderManagementCents = Array.from(
+      wealthByInvestor.values(),
+    ).reduce((sum, v) => sum + v, 0);
+
+    const absoluteVariationCents =
+      totalWealthUnderManagementCents - totalInitialWealthCents;
+    const percentageVariation =
+      totalInitialWealthCents > 0
+        ? Number(
+            ((absoluteVariationCents / totalInitialWealthCents) * 100).toFixed(2),
+          )
+        : 0;
+
+    const topInvestors = investors
+      .map((investor) => ({
+        investorId: investor.id!,
+        name: investor.name,
+        currentWealthCents: wealthByInvestor.get(investor.id!) ?? 0,
+      }))
+      .sort((a, b) => b.currentWealthCents - a.currentWealthCents)
+      .slice(0, 5);
+
+    return {
+      activeClientsCount: investors.length,
+      totalWealthUnderManagementCents,
+      totalInitialWealthCents,
+      absoluteVariationCents,
+      percentageVariation,
+      topInvestors,
+    };
+  }
 }
 
 export const managerDashboardService = new ManagerDashboardService(
   AppDataSource.getRepository(ManagerClientLink),
   AppDataSource.getRepository(ManagerClientHistory),
+  AppDataSource.getRepository(User),
 );

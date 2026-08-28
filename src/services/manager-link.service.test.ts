@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import { In } from "typeorm";
 
 vi.mock("./manager-dashboard.service", () => ({
   calculateInvestorWealthCents: vi.fn().mockResolvedValue(100_000),
@@ -285,6 +286,7 @@ describe("ManagerLinkService", () => {
         leftJoinAndSelect: vi.fn().mockReturnThis(),
         where: vi.fn().mockReturnThis(),
         andWhere: vi.fn().mockReturnThis(),
+        orderBy: vi.fn().mockReturnThis(),
         getMany: vi.fn().mockResolvedValue(links),
       });
     }
@@ -358,6 +360,62 @@ describe("ManagerLinkService", () => {
       expect(result.data.map((c) => c.investorId)).toEqual([2, 3, 1]);
     });
 
+    it("investidor com vínculo revogado continua na lista por padrão, com linkStatus revoked", async () => {
+      const links = [
+        { ...makeLink(1, "A"), status: LinkStatus.ACTIVE },
+        { ...makeLink(2, "B"), status: LinkStatus.REVOKED },
+      ];
+      mockLinks(links);
+
+      (calculateInvestorWealthCentsBulk as any).mockResolvedValue(new Map());
+      (summaryService.getAdherenceBulk as any).mockResolvedValue(new Map());
+      (wealthHistoryService.getMonthlyVariationBulk as any).mockResolvedValue(new Map());
+
+      const result = await service.getActiveClients({ managerId: MANAGER_ID });
+
+      expect(result.data.map((c) => c.investorId).sort()).toEqual([1, 2]);
+      expect(result.data.find((c) => c.investorId === 2)!.linkStatus).toBe(
+        LinkStatus.REVOKED,
+      );
+    });
+
+    it("activeOnly: true filtra fora os vínculos não ativos", async () => {
+      const links = [
+        { ...makeLink(1, "A"), status: LinkStatus.ACTIVE },
+        { ...makeLink(2, "B"), status: LinkStatus.REVOKED },
+      ];
+      mockLinks(links);
+
+      (calculateInvestorWealthCentsBulk as any).mockResolvedValue(new Map());
+      (summaryService.getAdherenceBulk as any).mockResolvedValue(new Map());
+      (wealthHistoryService.getMonthlyVariationBulk as any).mockResolvedValue(new Map());
+
+      const result = await service.getActiveClients({
+        managerId: MANAGER_ID,
+        activeOnly: true,
+      });
+
+      expect(result.data.map((c) => c.investorId)).toEqual([1]);
+    });
+
+    it("mesmo investidor com múltiplos links históricos → mantém só o mais recente", async () => {
+      const links = [
+        { ...makeLink(1, "A"), id: 201, status: LinkStatus.ACTIVE },
+        { ...makeLink(1, "A"), id: 200, status: LinkStatus.REVOKED },
+      ];
+      mockLinks(links);
+
+      (calculateInvestorWealthCentsBulk as any).mockResolvedValue(new Map());
+      (summaryService.getAdherenceBulk as any).mockResolvedValue(new Map());
+      (wealthHistoryService.getMonthlyVariationBulk as any).mockResolvedValue(new Map());
+
+      const result = await service.getActiveClients({ managerId: MANAGER_ID });
+
+      expect(result.data).toHaveLength(1);
+      expect(result.data[0].linkId).toBe(201);
+      expect(result.data[0].linkStatus).toBe(LinkStatus.ACTIVE);
+    });
+
     it("sem vínculos ativos → retorna lista vazia sem chamar as queries em lote", async () => {
       mockLinks([]);
 
@@ -424,6 +482,59 @@ describe("ManagerLinkService", () => {
         totalPages: 3,
         hasNextPage: false,
         hasPreviousPage: true,
+      });
+    });
+
+    describe("scope: all (admin — todo investidor da plataforma)", () => {
+      function mockAllInvestors(investors: { id: number; name: string; email: string; riskProfile: null }[]) {
+        fakeUserRepo.createQueryBuilder = vi.fn().mockReturnValue({
+          where: vi.fn().mockReturnThis(),
+          andWhere: vi.fn().mockReturnThis(),
+          getMany: vi.fn().mockResolvedValue(investors),
+        });
+      }
+
+      it("investidor sem vínculo com o admin entra com linkId/activatedAt null, investidor vinculado entra com os dados do vínculo", async () => {
+        mockAllInvestors([
+          { id: 1, name: "Linked", email: "linked@test.com", riskProfile: null },
+          { id: 2, name: "Unlinked", email: "unlinked@test.com", riskProfile: null },
+        ]);
+        fakeLinkRepo.find = vi.fn().mockResolvedValue([
+          { id: 555, investorId: 1, activatedAt: new Date("2026-02-01") },
+        ]);
+
+        (calculateInvestorWealthCentsBulk as any).mockResolvedValue(new Map());
+        (summaryService.getAdherenceBulk as any).mockResolvedValue(new Map());
+        (wealthHistoryService.getMonthlyVariationBulk as any).mockResolvedValue(new Map());
+
+        const result = await service.getActiveClients({
+          managerId: ADMIN_ID,
+          scope: "all",
+        });
+
+        const linked = result.data.find((c) => c.investorId === 1)!;
+        const unlinked = result.data.find((c) => c.investorId === 2)!;
+
+        expect(linked.linkId).toBe(555);
+        expect(linked.activatedAt).toEqual(new Date("2026-02-01"));
+        expect(unlinked.linkId).toBeNull();
+        expect(unlinked.activatedAt).toBeNull();
+        expect(fakeLinkRepo.find).toHaveBeenCalledWith({
+          where: { investorId: In([1, 2]), managerId: ADMIN_ID },
+          order: { createdAt: "DESC" },
+        });
+      });
+
+      it("sem nenhum investidor na plataforma → lista vazia sem chamar as queries em lote", async () => {
+        mockAllInvestors([]);
+
+        const result = await service.getActiveClients({
+          managerId: ADMIN_ID,
+          scope: "all",
+        });
+
+        expect(result.data).toEqual([]);
+        expect(calculateInvestorWealthCentsBulk).not.toHaveBeenCalled();
       });
     });
   });

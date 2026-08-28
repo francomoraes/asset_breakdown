@@ -51,6 +51,23 @@ export const ListActiveClientsQueryDto = z.object({
     .enum(["name", "activatedAt", "wealth", "adherenceIndex", "monthlyVariation"])
     .default("name"),
   order: z.enum(["ASC", "DESC"]).default("ASC"),
+  // "all" só tem efeito quando o caller é admin (forçado de volta pra "mine"
+  // no controller pra qualquer outro role) — lista todo investidor da
+  // plataforma, não só os vinculados ao caller.
+  scope: z.enum(["mine", "all"]).default("mine"),
+  // z.coerce.boolean() faz Boolean(valor) — "false" (string) é truthy e
+  // viraria true, quebrando o filtro sempre que o parâmetro está presente
+  // na query (que é sempre, já que o front manda o valor mesmo quando false).
+  activeOnly: z.preprocess(
+    (v) => (typeof v === "string" ? v === "true" : v),
+    z.boolean().default(false),
+  ),
+});
+
+export const GetDashboardQueryDto = z.object({
+  // "all" só tem efeito quando o caller é admin (forçado de volta pra "mine"
+  // no controller pra qualquer outro role), mesma regra de ListActiveClientsQueryDto.
+  scope: z.enum(["mine", "all"]).default("mine"),
 });
 
 export const UpdateTargetPercentageDto = z.object({

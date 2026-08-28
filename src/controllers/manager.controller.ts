@@ -4,6 +4,7 @@ import { managerDashboardService } from "services/manager-dashboard.service";
 import { assetTypeService } from "services/asset-type.service";
 import { summaryService } from "services/summary.service";
 import {
+  GetDashboardQueryDto,
   ListActiveClientsQueryDto,
   ListManagersQueryDto,
   UpdateAutonomyDto,
@@ -69,16 +70,21 @@ export const listActiveClients = async (
   res: Response,
 ): Promise<void> => {
   const managerId = getAuthenticatedUserId(req);
+  const callerRole = req.user!.role;
 
   const result = ListActiveClientsQueryDto.safeParse(req.query);
   if (!result.success) {
     return handleZodError(res, result.error);
   }
 
-  const { page, itemsPerPage, sortBy, order, search } = result.data;
+  const { page, itemsPerPage, sortBy, order, search, scope, activeOnly } =
+    result.data;
+  const effectiveScope = callerRole === UserRole.ADMIN ? scope : "mine";
 
   const response = await managerLinkService.getActiveClients({
     managerId,
+    scope: effectiveScope,
+    activeOnly,
     page,
     itemsPerPage,
     sortBy,
@@ -222,7 +228,18 @@ export const getDashboard = async (
   req: Request,
   res: Response,
 ): Promise<void> => {
+  const result = GetDashboardQueryDto.safeParse(req.query);
+  if (!result.success) {
+    return handleZodError(res, result.error);
+  }
+
   const managerId = getAuthenticatedUserId(req);
-  const dashboard = await managerDashboardService.getDashboard({ managerId });
+  const callerRole = req.user!.role;
+  const effectiveScope = callerRole === UserRole.ADMIN ? result.data.scope : "mine";
+
+  const dashboard = await managerDashboardService.getDashboard({
+    managerId,
+    scope: effectiveScope,
+  });
   res.json(dashboard);
 };

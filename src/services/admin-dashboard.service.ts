@@ -1,16 +1,32 @@
 import { Repository } from "typeorm";
 import { AppDataSource } from "config/data-source";
 import { ManagerClientLink, LinkStatus } from "models/manager-client-link";
+import { ManagerClientHistory, HistoryCycleStatus } from "models/manager-client-history";
 import { calculateInvestorWealthCents } from "services/manager-dashboard.service";
 
 export class AdminDashboardService {
-  constructor(private linkRepo: Repository<ManagerClientLink>) {}
+  constructor(
+    private linkRepo: Repository<ManagerClientLink>,
+    private historyRepo: Repository<ManagerClientHistory>,
+  ) {}
 
   async getGlobalDashboard() {
     const activeLinks = await this.linkRepo.find({
       where: { status: LinkStatus.ACTIVE },
       relations: ["investor", "manager"],
     });
+
+    const activeHistories = await this.historyRepo.find({
+      where: { status: HistoryCycleStatus.ACTIVE },
+    });
+    const initialWealthByManagerId = new Map<number, number>();
+    for (const history of activeHistories) {
+      initialWealthByManagerId.set(
+        history.managerId,
+        (initialWealthByManagerId.get(history.managerId) ?? 0) +
+          Number(history.initialWealthCents),
+      );
+    }
 
     const wealthByInvestorId = new Map<number, number>();
     for (const investorId of new Set(activeLinks.map((link) => link.investorId))) {
@@ -30,16 +46,31 @@ export class AdminDashboardService {
     }
 
     const managerRanking = [...linksByManagerId.entries()]
-      .map(([managerId, links]) => ({
-        managerId,
-        managerName: links[0].manager.name,
-        managerEmail: links[0].manager.email,
-        activeClientsCount: links.length,
-        totalWealthCents: links.reduce(
+      .map(([managerId, links]) => {
+        const totalWealthCents = links.reduce(
           (sum, link) => sum + (wealthByInvestorId.get(link.investorId) ?? 0),
           0,
-        ),
-      }))
+        );
+        const totalInitialWealthCents = initialWealthByManagerId.get(managerId) ?? 0;
+        const absoluteVariationCents = totalWealthCents - totalInitialWealthCents;
+        const percentageVariation =
+          totalInitialWealthCents > 0
+            ? Number(
+                ((absoluteVariationCents / totalInitialWealthCents) * 100).toFixed(2),
+              )
+            : 0;
+
+        return {
+          managerId,
+          managerName: links[0].manager.name,
+          managerEmail: links[0].manager.email,
+          activeClientsCount: links.length,
+          totalWealthCents,
+          totalInitialWealthCents,
+          absoluteVariationCents,
+          percentageVariation,
+        };
+      })
       .sort((a, b) => b.totalWealthCents - a.totalWealthCents);
 
     return {
@@ -53,4 +84,5 @@ export class AdminDashboardService {
 
 export const adminDashboardService = new AdminDashboardService(
   AppDataSource.getRepository(ManagerClientLink),
+  AppDataSource.getRepository(ManagerClientHistory),
 );

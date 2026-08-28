@@ -215,6 +215,35 @@ describe("SummaryService.getAdherence", () => {
     expect(result.totalPp).toBe(100);
   });
 
+  it("desvio da classe vem do target/actual agregados, não da soma dos desvios por tipo (tipos podem se cancelar)", async () => {
+    const types = [
+      { id: 1, name: "TypeA", userId: USER_ID, targetPercentage: 0.3, assetClass: { id: 10, name: "Classe X" } },
+      { id: 2, name: "TypeB", userId: USER_ID, targetPercentage: 0.32, assetClass: { id: 10, name: "Classe X" } },
+      { id: 3, name: "TypeC", userId: USER_ID, targetPercentage: 0.38, assetClass: { id: 20, name: "Classe Y" } },
+    ];
+    // TypeA fica 10pp acima da meta e TypeB fica 10.1pp abaixo — na mesma
+    // classe, isso deveria se cancelar quase totalmente (classe fica só
+    // 0.1pp fora da meta), não somar os dois desvios em módulo.
+    const assetRows = [
+      { userId: USER_ID, typeId: 1, currency: "BRL", cents: "4000" },
+      { userId: USER_ID, typeId: 2, currency: "BRL", cents: "2190" },
+      { userId: USER_ID, typeId: 3, currency: "BRL", cents: "3810" },
+    ];
+
+    const service = makeAdherenceService({ types, assetRows });
+    const result = await service.getAdherence(USER_ID, 5);
+
+    const classX = result.byClass.find((c) => c.assetClassId === 10)!;
+    expect(classX.targetPercentage).toBeCloseTo(0.62, 4);
+    expect(classX.actualPercentage).toBeCloseTo(0.619, 4);
+    expect(classX.deviationPp).toBe(0.1);
+
+    // O índice total continua sendo a soma dos desvios por tipo (não muda) —
+    // maior que o desvio de "Classe X" porque ali os tipos se cancelam
+    // parcialmente no agregado, mas o índice geral não deve esconder isso.
+    expect(result.totalPp).toBe(20.2);
+  });
+
   it("cliente sem nenhum AssetType cadastrado → totalPp null (não 0)", async () => {
     const service = makeAdherenceService({ types: [] });
 

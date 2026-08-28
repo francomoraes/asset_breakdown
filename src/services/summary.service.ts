@@ -334,21 +334,27 @@ export class SummaryService {
       if (existing) {
         existing.targetPercentage += t.targetPercentage;
         existing.actualPercentage += t.actualPercentage;
-        existing.deviationPp += t.deviationPp;
       } else {
         byClassMap.set(t.assetClassId, {
           assetClassId: t.assetClassId,
           assetClassName: t.assetClassName,
           targetPercentage: t.targetPercentage,
           actualPercentage: t.actualPercentage,
-          deviationPp: t.deviationPp,
+          deviationPp: 0,
         });
       }
     }
 
+    // Desvio da classe vem do target/actual já agregados (não da soma dos
+    // desvios de cada tipo) — tipos com desvios em direções opostas dentro
+    // da mesma classe se cancelam no nível da classe, então somar em módulo
+    // superestimava o desvio exibido (ex.: meta 62%, real 61.9%, mas
+    // aparecia 0.6pp em vez de 0.1pp).
     const byClass = Array.from(byClassMap.values()).map((c) => ({
       ...c,
-      deviationPp: Number(c.deviationPp.toFixed(2)),
+      deviationPp: Number(
+        Math.abs(c.actualPercentage * 100 - c.targetPercentage * 100).toFixed(2),
+      ),
     }));
 
     const totalPp = Number(

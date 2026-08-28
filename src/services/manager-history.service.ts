@@ -8,14 +8,15 @@ export class ManagerHistoryService {
   async getInvestorHistory({ investorId }: { investorId: number }) {
     const histories = await this.historyRepo.find({
       where: { investorId },
-      relations: ["manager"],
+      relations: ["manager", "link"],
       order: { cycleStartAt: "DESC" },
     });
 
     return histories.map((h) => ({
       managerId: h.managerId,
       managerName: h.manager.name,
-      status: h.status,
+      managerEmail: h.manager.email,
+      linkStatus: h.link.status,
       cycleStartAt: h.cycleStartAt,
       cycleEndAt: h.cycleEndAt,
       initialWealthCents: Number(h.initialWealthCents),

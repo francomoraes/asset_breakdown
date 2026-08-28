@@ -1,4 +1,4 @@
-import { Repository } from "typeorm";
+import { In, Repository } from "typeorm";
 import { AppDataSource } from "config/data-source";
 import { ManagerClientLink, LinkStatus, RevokeReason } from "models/manager-client-link";
 import { ManagerClientHistory, HistoryCycleStatus } from "models/manager-client-history";
@@ -27,14 +27,20 @@ type ClientSortBy =
   | "adherenceIndex"
   | "monthlyVariation";
 
-type ClientListItem = {
+type ClientScope = "mine" | "all";
+
+type ClientBaseRow = {
   investorId: number;
   investorName: string;
   investorEmail: string;
   activatedAt: Date | null;
-  currentWealthCents: number;
-  linkId: number;
+  linkId: number | null;
+  linkStatus: LinkStatus | null;
   riskProfile: RiskProfile | null;
+};
+
+type ClientListItem = ClientBaseRow & {
+  currentWealthCents: number;
   adherenceIndexPp: number | null;
   monthlyVariationPct: number | null;
 };
@@ -209,6 +215,8 @@ export class ManagerLinkService {
 
   async getActiveClients({
     managerId,
+    scope = "mine",
+    activeOnly = false,
     page = 1,
     itemsPerPage = 20,
     sortBy = "name",
@@ -216,35 +224,24 @@ export class ManagerLinkService {
     search,
   }: {
     managerId: number;
+    scope?: ClientScope;
+    activeOnly?: boolean;
     page?: number;
     itemsPerPage?: number;
     sortBy?: ClientSortBy;
     order?: "ASC" | "DESC";
     search?: string;
   }) {
-    const qb = this.linkRepo
-      .createQueryBuilder("link")
-      .leftJoinAndSelect("link.investor", "investor")
-      .where("link.managerId = :managerId AND link.status = :status", {
-        managerId,
-        status: LinkStatus.ACTIVE,
-      });
+    const allRows =
+      scope === "all"
+        ? await this.getAllInvestorRows(managerId, search)
+        : await this.getMyLinkedInvestorRows(managerId, search);
 
-    if (search) {
-      qb.andWhere(
-        "(LOWER(investor.name) LIKE :search OR LOWER(investor.email) LIKE :search)",
-        { search: `%${search.toLowerCase()}%` },
-      );
-    }
+    const rows = activeOnly
+      ? allRows.filter((row) => row.linkStatus === LinkStatus.ACTIVE)
+      : allRows;
 
-    // Sem ORDER BY/LIMIT no banco: patrimônio, aderência e variação são
-    // calculados em lote a seguir e só então ordenados/paginados em memória
-    // (decisão 4.3 da spec de índice de aderência) — busca (search) continua
-    // filtrando no banco, só a ordenação por métrica calculada é que muda.
-    const links = await qb.getMany();
-    const investorIds = links.map((link) => link.investorId);
-
-    if (investorIds.length === 0) {
+    if (rows.length === 0) {
       return {
         data: [],
         meta: {
@@ -257,6 +254,8 @@ export class ManagerLinkService {
         },
       };
     }
+
+    const investorIds = rows.map((row) => row.investorId);
 
     // refreshValues rodado uma única vez por cliente antes das 3 queries em
     // lote abaixo — cada uma delas assume que os preços já estão atualizados
@@ -278,16 +277,11 @@ export class ManagerLinkService {
       wealthByUser,
     );
 
-    const enriched: ClientListItem[] = links.map((link) => ({
-      investorId: link.investorId,
-      investorName: link.investor.name,
-      investorEmail: link.investor.email,
-      activatedAt: link.activatedAt,
-      currentWealthCents: wealthByUser.get(link.investorId) ?? 0,
-      linkId: link.id!,
-      riskProfile: link.investor.riskProfile,
-      adherenceIndexPp: adherenceByUser.get(link.investorId) ?? null,
-      monthlyVariationPct: variationByUser.get(link.investorId) ?? null,
+    const enriched: ClientListItem[] = rows.map((row) => ({
+      ...row,
+      currentWealthCents: wealthByUser.get(row.investorId) ?? 0,
+      adherenceIndexPp: adherenceByUser.get(row.investorId) ?? null,
+      monthlyVariationPct: variationByUser.get(row.investorId) ?? null,
     }));
 
     const sorted = this.sortClients(enriched, sortBy, order);
@@ -310,6 +304,100 @@ export class ManagerLinkService {
     };
   }
 
+  private async getMyLinkedInvestorRows(
+    managerId: number,
+    search?: string,
+  ): Promise<ClientBaseRow[]> {
+    const qb = this.linkRepo
+      .createQueryBuilder("link")
+      .leftJoinAndSelect("link.investor", "investor")
+      .where("link.managerId = :managerId", { managerId })
+      .orderBy("link.createdAt", "DESC");
+
+    if (search) {
+      qb.andWhere(
+        "(LOWER(investor.name) LIKE :search OR LOWER(investor.email) LIKE :search)",
+        { search: `%${search.toLowerCase()}%` },
+      );
+    }
+
+    const links = await qb.getMany();
+
+    // Um investidor pode ter vários links históricos com o mesmo gestor
+    // (revogado e depois recriado) — sem o filtro por status ACTIVE, o mais
+    // recente (createdAt DESC) já reflete o vínculo atual, ativo ou não,
+    // então basta manter o primeiro encontrado por investidor.
+    const latestByInvestor = new Map<number, (typeof links)[number]>();
+    for (const link of links) {
+      if (!latestByInvestor.has(link.investorId)) {
+        latestByInvestor.set(link.investorId, link);
+      }
+    }
+
+    return Array.from(latestByInvestor.values()).map((link) => ({
+      investorId: link.investorId,
+      investorName: link.investor.name,
+      investorEmail: link.investor.email,
+      activatedAt: link.activatedAt,
+      linkId: link.id!,
+      linkStatus: link.status,
+      riskProfile: link.investor.riskProfile,
+    }));
+  }
+
+  // scope "all" é admin-only (garantido no controller) — lista todo
+  // investidor da plataforma, com o vínculo do próprio admin (se existir)
+  // pra decidir, no front, entre "Ver carteira"/"Encerrar vínculo" (já
+  // cliente do admin) ou "Adicionar Cliente" (ainda não vinculado).
+  private async getAllInvestorRows(
+    managerId: number,
+    search?: string,
+  ): Promise<ClientBaseRow[]> {
+    const qb = this.userRepo
+      .createQueryBuilder("investor")
+      .where("investor.role = :role", { role: UserRole.INVESTOR });
+
+    if (search) {
+      qb.andWhere(
+        "(LOWER(investor.name) LIKE :search OR LOWER(investor.email) LIKE :search)",
+        { search: `%${search.toLowerCase()}%` },
+      );
+    }
+
+    const investors = await qb.getMany();
+    const investorIds = investors.map((investor) => investor.id!);
+
+    const links = investorIds.length
+      ? await this.linkRepo.find({
+          where: { investorId: In(investorIds), managerId },
+          order: { createdAt: "DESC" },
+        })
+      : [];
+
+    // Mesmo caso de múltiplos links históricos por investidor descrito em
+    // getMyLinkedInvestorRows — aqui também o mais recente é o que reflete
+    // o vínculo atual com este gestor/admin.
+    const linkByInvestorId = new Map<number, (typeof links)[number]>();
+    for (const link of links) {
+      if (!linkByInvestorId.has(link.investorId)) {
+        linkByInvestorId.set(link.investorId, link);
+      }
+    }
+
+    return investors.map((investor) => {
+      const link = linkByInvestorId.get(investor.id!);
+      return {
+        investorId: investor.id!,
+        investorName: investor.name,
+        investorEmail: investor.email,
+        activatedAt: link?.activatedAt ?? null,
+        linkId: link?.id ?? null,
+        linkStatus: link?.status ?? null,
+        riskProfile: investor.riskProfile,
+      };
+    });
+  }
+
   private sortClients(
     clients: ClientListItem[],
     sortBy: ClientSortBy,
@@ -330,9 +418,9 @@ export class ManagerLinkService {
     switch (sortBy) {
       case "activatedAt":
         sorted.sort((a, b) => {
-          const aTime = a.activatedAt ? new Date(a.activatedAt).getTime() : 0;
-          const bTime = b.activatedAt ? new Date(b.activatedAt).getTime() : 0;
-          return (aTime - bTime) * dir;
+          const aTime = a.activatedAt ? new Date(a.activatedAt).getTime() : null;
+          const bTime = b.activatedAt ? new Date(b.activatedAt).getTime() : null;
+          return compareNullable(aTime, bTime);
         });
         break;
       case "wealth":

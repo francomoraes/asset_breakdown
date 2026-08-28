@@ -140,7 +140,7 @@ export const refreshMarketPrices = async (
 
   const message = result.usedCacheOnly
     ? `Atualizacao em cooldown: usando cache de cotacoes (TTL ${result.cooldownHours}h).`
-    : "Market prices refreshed";
+    : "Cotações atualizadas com sucesso";
 
   res.json({
     message,
@@ -154,5 +154,5 @@ export const clearPriceCache = async (
 ): Promise<void> => {
   const repo = AppDataSource.getRepository(PriceCache);
   await repo.clear();
-  res.json({ message: "Price cache cleared" });
+  res.json({ message: "Cache de cotações limpo" });
 };
