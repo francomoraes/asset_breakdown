@@ -9,6 +9,7 @@ import {
   UpdateAssetDto,
 } from "../dtos/asset.dto";
 import { getEffectiveUserId } from "../utils/get-effective-user-id";
+import { getAuthenticatedUserId } from "../utils/get-authenticated-user-id";
 import { AppDataSource } from "../config/data-source";
 import { PriceCache } from "../models/price-cache";
 
@@ -38,6 +39,9 @@ export const updateAsset = async (
   res: Response,
 ): Promise<void> => {
   const userId = getEffectiveUserId(req);
+  const actorUserId = getAuthenticatedUserId(req);
+  const actorEmail = req.user!.email;
+  const actorRole = req.user!.role;
 
   const result = UpdateAssetDto.safeParse({
     id: req.params.id,
@@ -50,6 +54,9 @@ export const updateAsset = async (
     ...result.data,
     id: Number(req.params.id),
     requestUserId: userId,
+    actorUserId,
+    actorEmail,
+    actorRole,
   });
 
   res.json({

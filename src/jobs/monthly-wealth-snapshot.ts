@@ -62,6 +62,7 @@ async function runMonthlyWealthSnapshot() {
         await wealthHistoryService.saveMonthlyWealthSnapshot(
           user.id!,
           totalInBRL,
+          { userId: null, email: "sistema", role: "system" },
         );
 
         logger.info(

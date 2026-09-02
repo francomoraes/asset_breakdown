@@ -3,11 +3,26 @@ import { ConflictError, NotFoundError } from "../errors/app-error";
 import { AssetClass } from "../models/asset-class";
 import { AssetType } from "../models/asset-type";
 import { Repository } from "typeorm";
+import { operationLogService } from "./operation-log.service";
+import { OperationLogAction } from "enums/operation-log-action.enum";
+import { OperationLogActorRole } from "enums/operation-log-actor-role.enum";
+
+type Actor = {
+  actorUserId: number;
+  actorEmail: string;
+  actorRole: OperationLogActorRole;
+};
 
 export class AssetClassService {
   constructor(private assetClassRepo: Repository<AssetClass>) {}
 
-  async createAssetClass({ userId, name }: { userId: number; name: string }) {
+  async createAssetClass({
+    userId,
+    name,
+    actorUserId,
+    actorEmail,
+    actorRole,
+  }: { userId: number; name: string } & Actor) {
     const existingAssetClass = await this.assetClassRepo.findOne({
       where: { name, userId },
     });
@@ -25,6 +40,17 @@ export class AssetClassService {
     });
 
     await this.assetClassRepo.save(assetClass);
+
+    await operationLogService.log({
+      clientId: userId,
+      actorUserId,
+      actorEmail,
+      actorRole,
+      action: OperationLogAction.ASSET_CLASS_CREATED,
+      entityType: "AssetClass",
+      entityId: assetClass.id,
+      afterValue: { name: assetClass.name },
+    });
 
     return assetClass;
   }
@@ -52,11 +78,14 @@ export class AssetClassService {
     id,
     userId,
     name,
+    actorUserId,
+    actorEmail,
+    actorRole,
   }: {
     id: string;
     userId: number;
     name: string;
-  }) {
+  } & Actor) {
     const assetClass = await this.assetClassRepo.findOne({
       where: { id: Number(id), userId },
     });
@@ -65,13 +94,33 @@ export class AssetClassService {
       throw new NotFoundError("Asset class not found", "ASSET_CLASS_NOT_FOUND");
     }
 
+    const before = { name: assetClass.name };
+
     if (name !== undefined) assetClass.name = name;
     await this.assetClassRepo.save(assetClass);
+
+    await operationLogService.log({
+      clientId: userId,
+      actorUserId,
+      actorEmail,
+      actorRole,
+      action: OperationLogAction.ASSET_CLASS_UPDATED,
+      entityType: "AssetClass",
+      entityId: assetClass.id,
+      beforeValue: before,
+      afterValue: { name: assetClass.name },
+    });
 
     return assetClass;
   }
 
-  async deleteAssetClass({ id, userId }: { id: string; userId: number }) {
+  async deleteAssetClass({
+    id,
+    userId,
+    actorUserId,
+    actorEmail,
+    actorRole,
+  }: { id: string; userId: number } & Actor) {
     const assetClass = await this.assetClassRepo.findOne({
       where: { id: Number(id), userId },
     });
@@ -95,6 +144,17 @@ export class AssetClassService {
     await this.assetClassRepo.delete({
       id: Number(id),
       userId,
+    });
+
+    await operationLogService.log({
+      clientId: userId,
+      actorUserId,
+      actorEmail,
+      actorRole,
+      action: OperationLogAction.ASSET_CLASS_DELETED,
+      entityType: "AssetClass",
+      entityId: assetClass.id,
+      beforeValue: { name: assetClass.name },
     });
 
     return assetClass;

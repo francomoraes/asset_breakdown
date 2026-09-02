@@ -2,6 +2,8 @@ import { Router } from "express";
 import { requireRole } from "middlewares/require-role.middleware";
 import { resolveEffectiveUserId } from "middlewares/resolve-effective-user.middleware";
 import {
+  getClientLinkHistory,
+  getClientOperationLogs,
   getDashboard,
   getInvestorProfile,
   getInvestorSummary,
@@ -58,6 +60,18 @@ router.patch(
   managerOrAdmin,
   resolveEffectiveUserId,
   updateClientRiskProfile,
+);
+router.get(
+  "/me/clients/:investorId/operation-logs",
+  managerOrAdmin,
+  resolveEffectiveUserId,
+  getClientOperationLogs,
+);
+router.get(
+  "/me/clients/:investorId/link-history",
+  managerOrAdmin,
+  resolveEffectiveUserId,
+  getClientLinkHistory,
 );
 
 router.use(

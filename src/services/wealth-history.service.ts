@@ -3,10 +3,19 @@ import { NotFoundError, ConflictError } from "../errors/app-error";
 import { WealthHistory } from "../models/wealth-history";
 import { In, Repository } from "typeorm";
 import { normalizeDate } from "../utils/normalize-date";
+import { operationLogService } from "./operation-log.service";
+import { OperationLogAction } from "enums/operation-log-action.enum";
+import { OperationLogActorRole } from "enums/operation-log-actor-role.enum";
 
 function formatDateBR(isoDate: string): string {
   return isoDate.split("-").reverse().join("/");
 }
+
+export type WealthHistoryActor = {
+  userId: number | null;
+  email: string;
+  role: OperationLogActorRole;
+};
 
 export class WealthHistoryService {
   constructor(private wealthHistoryRepo: Repository<WealthHistory>) {}
@@ -43,6 +52,7 @@ export class WealthHistoryService {
     userId: number,
     date: Date | string,
     totalWealthCents: number,
+    actor: WealthHistoryActor,
   ): Promise<WealthHistory> {
     const normalizedDate = normalizeDate(date);
 
@@ -67,13 +77,30 @@ export class WealthHistoryService {
       totalWealthCents,
     });
 
-    return await this.wealthHistoryRepo.save(wealthHistory);
+    const saved = await this.wealthHistoryRepo.save(wealthHistory);
+
+    await operationLogService.log({
+      clientId: userId,
+      actorUserId: actor.userId,
+      actorEmail: actor.email,
+      actorRole: actor.role,
+      action: OperationLogAction.WEALTH_HISTORY_CREATED,
+      entityType: "WealthHistory",
+      entityId: saved.id,
+      afterValue: {
+        date: saved.date,
+        totalWealthCents: Number(saved.totalWealthCents),
+      },
+    });
+
+    return saved;
   }
 
   async updateWealthHistory(
     userId: number,
     id: number,
     updates: { date?: Date | string; totalWealthCents?: number },
+    actor: WealthHistoryActor,
   ): Promise<WealthHistory> {
     const wealthHistory = await this.wealthHistoryRepo.findOne({
       where: { id, userId },
@@ -85,6 +112,11 @@ export class WealthHistoryService {
         "WEALTH_HISTORY_NOT_FOUND",
       );
     }
+
+    const before = {
+      date: wealthHistory.date,
+      totalWealthCents: Number(wealthHistory.totalWealthCents),
+    };
 
     if (updates.date) {
       const normalizedDate = normalizeDate(updates.date);
@@ -110,10 +142,31 @@ export class WealthHistoryService {
       wealthHistory.totalWealthCents = updates.totalWealthCents;
     }
 
-    return await this.wealthHistoryRepo.save(wealthHistory);
+    const saved = await this.wealthHistoryRepo.save(wealthHistory);
+
+    await operationLogService.log({
+      clientId: userId,
+      actorUserId: actor.userId,
+      actorEmail: actor.email,
+      actorRole: actor.role,
+      action: OperationLogAction.WEALTH_HISTORY_UPDATED,
+      entityType: "WealthHistory",
+      entityId: saved.id,
+      beforeValue: before,
+      afterValue: {
+        date: saved.date,
+        totalWealthCents: Number(saved.totalWealthCents),
+      },
+    });
+
+    return saved;
   }
 
-  async deleteWealthHistory(userId: number, id: number): Promise<void> {
+  async deleteWealthHistory(
+    userId: number,
+    id: number,
+    actor: WealthHistoryActor,
+  ): Promise<void> {
     const wealthHistory = await this.wealthHistoryRepo.findOne({
       where: { id, userId },
     });
@@ -126,11 +179,26 @@ export class WealthHistoryService {
     }
 
     await this.wealthHistoryRepo.remove(wealthHistory);
+
+    await operationLogService.log({
+      clientId: userId,
+      actorUserId: actor.userId,
+      actorEmail: actor.email,
+      actorRole: actor.role,
+      action: OperationLogAction.WEALTH_HISTORY_DELETED,
+      entityType: "WealthHistory",
+      entityId: id,
+      beforeValue: {
+        date: wealthHistory.date,
+        totalWealthCents: Number(wealthHistory.totalWealthCents),
+      },
+    });
   }
 
   async saveMonthlyWealthSnapshot(
     userId: number,
     totalWealthCents: number,
+    actor: WealthHistoryActor,
   ): Promise<void> {
     const today = new Date();
     const beginningOfMonth = normalizeDate(
@@ -149,6 +217,7 @@ export class WealthHistoryService {
         userId,
         beginningOfMonth,
         totalWealthCents,
+        actor,
       );
     }
   }

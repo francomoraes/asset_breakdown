@@ -8,6 +8,7 @@ import {
 } from "../dtos/asset-type.dto";
 
 import { getEffectiveUserId } from "../utils/get-effective-user-id";
+import { getAuthenticatedUserId } from "../utils/get-authenticated-user-id";
 import { ConflictError, NotFoundError } from "../errors/app-error";
 
 export const createAssetType = async (
@@ -15,6 +16,9 @@ export const createAssetType = async (
   res: Response,
 ): Promise<void> => {
   const userId = getEffectiveUserId(req);
+  const actorUserId = getAuthenticatedUserId(req);
+  const actorEmail = req.user!.email;
+  const actorRole = req.user!.role;
 
   const dtoData = {
     name: req.body.name,
@@ -35,6 +39,9 @@ export const createAssetType = async (
     name: name.trim(),
     targetPercentage,
     userId,
+    actorUserId,
+    actorEmail,
+    actorRole,
   });
 
   res.status(201).json({
@@ -73,6 +80,9 @@ export const updateAssetType = async (
   res: Response,
 ): Promise<void> => {
   const userId = getEffectiveUserId(req);
+  const actorUserId = getAuthenticatedUserId(req);
+  const actorEmail = req.user!.email;
+  const actorRole = req.user!.role;
 
   const dtoData = {
     id: req.params.id,
@@ -95,6 +105,9 @@ export const updateAssetType = async (
     targetPercentage,
     assetClassId,
     userId,
+    actorUserId,
+    actorEmail,
+    actorRole,
   });
   res.json({ message: "Asset type updated successfully", assetType });
 };
@@ -104,6 +117,9 @@ export const deleteAssetType = async (
   res: Response,
 ): Promise<void> => {
   const userId = getEffectiveUserId(req);
+  const actorUserId = getAuthenticatedUserId(req);
+  const actorEmail = req.user!.email;
+  const actorRole = req.user!.role;
 
   const dtoData = {
     id: req.params.id,
@@ -135,7 +151,13 @@ export const deleteAssetType = async (
     );
   }
 
-  const assetType = await assetTypeService.deleteAssetType({ id, userId });
+  const assetType = await assetTypeService.deleteAssetType({
+    id,
+    userId,
+    actorUserId,
+    actorEmail,
+    actorRole,
+  });
 
   res.json({ message: `Asset type ${assetType.name} deleted successfully` });
 };

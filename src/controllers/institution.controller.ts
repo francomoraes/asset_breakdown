@@ -8,12 +8,16 @@ import { Request, Response } from "express";
 import { institutionService } from "../services/institution.service";
 import { handleZodError } from "../utils/handle-zod-error";
 import { getEffectiveUserId } from "../utils/get-effective-user-id";
+import { getAuthenticatedUserId } from "../utils/get-authenticated-user-id";
 
 export const createInstitution = async (
   req: Request,
   res: Response,
 ): Promise<void> => {
   const userId = getEffectiveUserId(req);
+  const actorUserId = getAuthenticatedUserId(req);
+  const actorEmail = req.user!.email;
+  const actorRole = req.user!.role;
 
   const result = CreateInstitutionDto.safeParse({
     name: req.body.name,
@@ -28,6 +32,9 @@ export const createInstitution = async (
   const institution = await institutionService.createInstitution({
     userId,
     name,
+    actorUserId,
+    actorEmail,
+    actorRole,
   });
   res.status(201).json({
     message: "Institution created successfully",
@@ -66,6 +73,9 @@ export const updateInstitution = async (
   res: Response,
 ): Promise<void> => {
   const userId = getEffectiveUserId(req);
+  const actorUserId = getAuthenticatedUserId(req);
+  const actorEmail = req.user!.email;
+  const actorRole = req.user!.role;
 
   const dtoData = {
     id: req.params.id,
@@ -84,6 +94,9 @@ export const updateInstitution = async (
     id,
     userId,
     name,
+    actorUserId,
+    actorEmail,
+    actorRole,
   });
 
   res.json({ message: "Institution updated successfully", institution });
@@ -94,6 +107,9 @@ export const deleteInstitution = async (
   res: Response,
 ): Promise<void> => {
   const userId = getEffectiveUserId(req);
+  const actorUserId = getAuthenticatedUserId(req);
+  const actorEmail = req.user!.email;
+  const actorRole = req.user!.role;
 
   const parsedParams = DeleteInstitutionDto.safeParse({
     id: req.params.id,
@@ -109,6 +125,9 @@ export const deleteInstitution = async (
   const institution = await institutionService.deleteInstitution({
     id,
     userId,
+    actorUserId,
+    actorEmail,
+    actorRole,
   });
 
   res.json({

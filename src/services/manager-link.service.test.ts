@@ -91,7 +91,9 @@ describe("ManagerLinkService", () => {
       const link = await service.createLink({
         investorId: INVESTOR_ID,
         managerId: MANAGER_ID,
-        requestedByUserId: MANAGER_ID,
+        actorUserId: MANAGER_ID,
+        actorEmail: "manager@test.com",
+        actorRole: UserRole.MANAGER,
       });
 
       expect(link.status).toBe(LinkStatus.ACTIVE);
@@ -103,7 +105,9 @@ describe("ManagerLinkService", () => {
       const link = await service.createLink({
         investorId: INVESTOR_ID,
         managerId: MANAGER_ID,
-        requestedByUserId: ADMIN_ID,
+        actorUserId: ADMIN_ID,
+        actorEmail: "admin@test.com",
+        actorRole: UserRole.ADMIN,
       });
 
       expect(link.managerId).toBe(MANAGER_ID);
@@ -115,7 +119,9 @@ describe("ManagerLinkService", () => {
         service.createLink({
           investorId: INVESTOR_ID,
           managerId: INVESTOR_ID,
-          requestedByUserId: INVESTOR_ID,
+          actorUserId: INVESTOR_ID,
+          actorEmail: "investor@test.com",
+          actorRole: UserRole.INVESTOR,
         }),
       ).rejects.toBeInstanceOf(BadRequestError);
     });
@@ -125,7 +131,9 @@ describe("ManagerLinkService", () => {
         service.createLink({
           investorId: 999,
           managerId: MANAGER_ID,
-          requestedByUserId: MANAGER_ID,
+          actorUserId: MANAGER_ID,
+          actorEmail: "manager@test.com",
+          actorRole: UserRole.MANAGER,
         }),
       ).rejects.toBeInstanceOf(NotFoundError);
     });
@@ -135,7 +143,9 @@ describe("ManagerLinkService", () => {
         service.createLink({
           investorId: INVESTOR_ID,
           managerId: 999,
-          requestedByUserId: 999,
+          actorUserId: 999,
+          actorEmail: "nobody@test.com",
+          actorRole: UserRole.MANAGER,
         }),
       ).rejects.toBeInstanceOf(NotFoundError);
     });
@@ -147,7 +157,9 @@ describe("ManagerLinkService", () => {
         service.createLink({
           investorId: INVESTOR_ID,
           managerId: MANAGER_ID,
-          requestedByUserId: MANAGER_ID,
+          actorUserId: MANAGER_ID,
+          actorEmail: "manager@test.com",
+          actorRole: UserRole.MANAGER,
         }),
       ).rejects.toBeInstanceOf(ConflictError);
     });
@@ -159,7 +171,9 @@ describe("ManagerLinkService", () => {
         service.createLink({
           investorId: INVESTOR_ID,
           managerId: MANAGER_ID,
-          requestedByUserId: MANAGER_ID,
+          actorUserId: MANAGER_ID,
+          actorEmail: "manager@test.com",
+          actorRole: UserRole.MANAGER,
         }),
       ).rejects.toBeInstanceOf(ConflictError);
     });
@@ -172,7 +186,9 @@ describe("ManagerLinkService", () => {
         service.createLink({
           investorId: INVESTOR_ID,
           managerId: MANAGER_ID,
-          requestedByUserId: MANAGER_ID,
+          actorUserId: MANAGER_ID,
+          actorEmail: "manager@test.com",
+          actorRole: UserRole.MANAGER,
         }),
       ).rejects.toBeInstanceOf(ConflictError);
     });
@@ -195,8 +211,9 @@ describe("ManagerLinkService", () => {
 
       const result = await service.revokeLink({
         linkId: 10,
-        callerId: MANAGER_ID,
-        callerRole: UserRole.MANAGER,
+        actorUserId: MANAGER_ID,
+        actorEmail: "manager@test.com",
+        actorRole: UserRole.MANAGER,
       });
 
       expect(result.status).toBe(LinkStatus.REVOKED);
@@ -217,8 +234,9 @@ describe("ManagerLinkService", () => {
       await expect(
         service.revokeLink({
           linkId: 10,
-          callerId: OTHER_MANAGER_ID,
-          callerRole: UserRole.MANAGER,
+          actorUserId: OTHER_MANAGER_ID,
+          actorEmail: "other-manager@test.com",
+          actorRole: UserRole.MANAGER,
         }),
       ).rejects.toBeInstanceOf(ForbiddenError);
     });
@@ -234,8 +252,9 @@ describe("ManagerLinkService", () => {
 
       const result = await service.revokeLink({
         linkId: 10,
-        callerId: ADMIN_ID,
-        callerRole: UserRole.ADMIN,
+        actorUserId: ADMIN_ID,
+        actorEmail: "admin@test.com",
+        actorRole: UserRole.ADMIN,
       });
 
       expect(result.status).toBe(LinkStatus.REVOKED);
@@ -252,8 +271,9 @@ describe("ManagerLinkService", () => {
       await expect(
         service.revokeLink({
           linkId: 10,
-          callerId: MANAGER_ID,
-          callerRole: UserRole.MANAGER,
+          actorUserId: MANAGER_ID,
+          actorEmail: "manager@test.com",
+          actorRole: UserRole.MANAGER,
         }),
       ).rejects.toBeInstanceOf(ConflictError);
     });
@@ -264,8 +284,9 @@ describe("ManagerLinkService", () => {
       await expect(
         service.revokeLink({
           linkId: 999,
-          callerId: MANAGER_ID,
-          callerRole: UserRole.MANAGER,
+          actorUserId: MANAGER_ID,
+          actorEmail: "manager@test.com",
+          actorRole: UserRole.MANAGER,
         }),
       ).rejects.toBeInstanceOf(NotFoundError);
     });

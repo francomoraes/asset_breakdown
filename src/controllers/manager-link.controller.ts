@@ -11,8 +11,9 @@ export const createLink = async (
   req: Request,
   res: Response,
 ): Promise<void> => {
-  const callerId = getAuthenticatedUserId(req);
-  const callerRole = req.user!.role;
+  const actorUserId = getAuthenticatedUserId(req);
+  const actorEmail = req.user!.email;
+  const actorRole = req.user!.role;
 
   const result = CreateLinkDto.safeParse(req.body);
   if (!result.success) {
@@ -22,7 +23,7 @@ export const createLink = async (
   const { investorId, managerId: bodyManagerId } = result.data;
 
   let managerId: number;
-  if (callerRole === UserRole.ADMIN) {
+  if (actorRole === UserRole.ADMIN) {
     if (!bodyManagerId) {
       throw new BadRequestError(
         "managerId is required when caller is admin",
@@ -31,13 +32,15 @@ export const createLink = async (
     }
     managerId = bodyManagerId;
   } else {
-    managerId = callerId;
+    managerId = actorUserId;
   }
 
   const link = await managerLinkService.createLink({
     investorId,
     managerId,
-    requestedByUserId: callerId,
+    actorUserId,
+    actorEmail,
+    actorRole,
   });
 
   res.status(201).json({
@@ -74,14 +77,16 @@ export const revokeLink = async (
   req: Request,
   res: Response,
 ): Promise<void> => {
-  const callerId = getAuthenticatedUserId(req);
-  const callerRole = req.user!.role;
+  const actorUserId = getAuthenticatedUserId(req);
+  const actorEmail = req.user!.email;
+  const actorRole = req.user!.role;
   const linkId = Number(req.params.linkId);
 
   const link = await managerLinkService.revokeLink({
     linkId,
-    callerId,
-    callerRole,
+    actorUserId,
+    actorEmail,
+    actorRole,
   });
 
   res.json({

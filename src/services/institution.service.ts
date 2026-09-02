@@ -3,11 +3,26 @@ import { ConflictError, NotFoundError } from "../errors/app-error";
 import { Institution } from "../models/institution";
 import { Asset } from "../models/asset";
 import { Repository } from "typeorm";
+import { operationLogService } from "./operation-log.service";
+import { OperationLogAction } from "enums/operation-log-action.enum";
+import { OperationLogActorRole } from "enums/operation-log-actor-role.enum";
+
+type Actor = {
+  actorUserId: number;
+  actorEmail: string;
+  actorRole: OperationLogActorRole;
+};
 
 export class InstitutionService {
   constructor(private institutionRepo: Repository<Institution>) {}
 
-  async createInstitution({ userId, name }: { userId: number; name: string }) {
+  async createInstitution({
+    userId,
+    name,
+    actorUserId,
+    actorEmail,
+    actorRole,
+  }: { userId: number; name: string } & Actor) {
     const existingInstitution = await this.institutionRepo.findOne({
       where: { name, userId },
     });
@@ -25,6 +40,17 @@ export class InstitutionService {
     });
 
     await this.institutionRepo.save(institution);
+
+    await operationLogService.log({
+      clientId: userId,
+      actorUserId,
+      actorEmail,
+      actorRole,
+      action: OperationLogAction.INSTITUTION_CREATED,
+      entityType: "Institution",
+      entityId: institution.id,
+      afterValue: { name: institution.name },
+    });
 
     return institution;
   }
@@ -52,11 +78,14 @@ export class InstitutionService {
     id,
     userId,
     name,
+    actorUserId,
+    actorEmail,
+    actorRole,
   }: {
     id: string;
     userId: number;
     name: string;
-  }) {
+  } & Actor) {
     const institution = await this.institutionRepo.findOne({
       where: { id: Number(id), userId },
     });
@@ -65,12 +94,33 @@ export class InstitutionService {
       throw new NotFoundError("Institution not found", "INSTITUTION_NOT_FOUND");
     }
 
+    const before = { name: institution.name };
+
     if (name !== undefined) institution.name = name;
     await this.institutionRepo.save(institution);
+
+    await operationLogService.log({
+      clientId: userId,
+      actorUserId,
+      actorEmail,
+      actorRole,
+      action: OperationLogAction.INSTITUTION_UPDATED,
+      entityType: "Institution",
+      entityId: institution.id,
+      beforeValue: before,
+      afterValue: { name: institution.name },
+    });
+
     return institution;
   }
 
-  async deleteInstitution({ id, userId }: { id: string; userId: number }) {
+  async deleteInstitution({
+    id,
+    userId,
+    actorUserId,
+    actorEmail,
+    actorRole,
+  }: { id: string; userId: number } & Actor) {
     const institution = (await this.institutionRepo.findOne({
       where: { id: Number(id), userId },
     })) as Institution;
@@ -94,6 +144,17 @@ export class InstitutionService {
     await this.institutionRepo.delete({
       id: Number(id),
       userId,
+    });
+
+    await operationLogService.log({
+      clientId: userId,
+      actorUserId,
+      actorEmail,
+      actorRole,
+      action: OperationLogAction.INSTITUTION_DELETED,
+      entityType: "Institution",
+      entityId: institution.id,
+      beforeValue: { name: institution.name },
     });
 
     return institution;

@@ -19,6 +19,9 @@ import { wealthHistoryService } from "./wealth-history.service";
 import { fixedIncomeAssetService } from "./fixed-income-asset.service";
 import { getBRLtoUSDRate } from "utils/get-brl-to-usd-rate";
 import { RiskProfile } from "enums/risk-profile.enum";
+import { operationLogService } from "./operation-log.service";
+import { OperationLogAction } from "enums/operation-log-action.enum";
+import { OperationLogActorRole } from "enums/operation-log-actor-role.enum";
 
 type ClientSortBy =
   | "name"
@@ -58,11 +61,15 @@ export class ManagerLinkService {
   async createLink({
     investorId,
     managerId,
-    requestedByUserId,
+    actorUserId,
+    actorEmail,
+    actorRole,
   }: {
     investorId: number;
     managerId: number;
-    requestedByUserId: number;
+    actorUserId: number;
+    actorEmail: string;
+    actorRole: OperationLogActorRole;
   }) {
     if (investorId === managerId) {
       throw new BadRequestError("Cannot link to yourself", "SELF_LINK_NOT_ALLOWED");
@@ -83,7 +90,7 @@ export class ManagerLinkService {
 
     const limit = manager.managerClientLimit ?? DEFAULT_MANAGER_LIMIT;
 
-    return this.linkRepo.manager.transaction(async (txManager) => {
+    const saved = await this.linkRepo.manager.transaction(async (txManager) => {
       const activeLink = await txManager.findOne(ManagerClientLink, {
         where: { investorId, managerId, status: LinkStatus.ACTIVE },
       });
@@ -103,7 +110,7 @@ export class ManagerLinkService {
         investorId,
         managerId,
         status: LinkStatus.ACTIVE,
-        requestedByUserId,
+        requestedByUserId: actorUserId,
         activatedAt: now,
       });
 
@@ -134,16 +141,31 @@ export class ManagerLinkService {
 
       return saved;
     });
+
+    await operationLogService.log({
+      clientId: investorId,
+      actorUserId,
+      actorEmail,
+      actorRole,
+      action: OperationLogAction.LINK_ADDED,
+      entityType: "ManagerClientLink",
+      entityId: saved.id,
+      afterValue: { managerId },
+    });
+
+    return saved;
   }
 
   async revokeLink({
     linkId,
-    callerId,
-    callerRole,
+    actorUserId,
+    actorEmail,
+    actorRole,
   }: {
     linkId: number;
-    callerId: number;
-    callerRole: UserRole;
+    actorUserId: number;
+    actorEmail: string;
+    actorRole: OperationLogActorRole;
   }) {
     const link = await this.linkRepo.findOne({ where: { id: linkId } });
 
@@ -151,8 +173,8 @@ export class ManagerLinkService {
       throw new NotFoundError("Link not found", "NOT_FOUND");
     }
 
-    const isOwnerManager = link.managerId === callerId;
-    if (callerRole !== UserRole.ADMIN && !isOwnerManager) {
+    const isOwnerManager = link.managerId === actorUserId;
+    if (actorRole !== UserRole.ADMIN && !isOwnerManager) {
       throw new ForbiddenError("Forbidden", "FORBIDDEN");
     }
 
@@ -173,6 +195,17 @@ export class ManagerLinkService {
     if (wasActive) {
       await this.closeHistoryCycle(link.id!, link.investorId);
     }
+
+    await operationLogService.log({
+      clientId: link.investorId,
+      actorUserId,
+      actorEmail,
+      actorRole,
+      action: OperationLogAction.LINK_REVOKED,
+      entityType: "ManagerClientLink",
+      entityId: link.id,
+      beforeValue: { managerId: link.managerId },
+    });
 
     return link;
   }

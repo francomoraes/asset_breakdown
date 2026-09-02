@@ -6,11 +6,20 @@ import {
   UpdateWealthHistoryDto,
 } from "../dtos/wealth-history.dto";
 import { getEffectiveUserId } from "../utils/get-effective-user-id";
+import { getAuthenticatedUserId } from "../utils/get-authenticated-user-id";
 import { BCBService } from "../services/bcb.service";
 import { IndexType } from "../models/index-rate-cache";
 import { marketIndicesService } from "../services/market-indices.service";
 
 const bcbService = new BCBService();
+
+function actorFromRequest(req: Request) {
+  return {
+    userId: getAuthenticatedUserId(req),
+    email: req.user!.email,
+    role: req.user!.role,
+  };
+}
 
 export const getWealthHistory = async (
   req: Request,
@@ -39,6 +48,7 @@ export const createWealthHistory = async (
     userId,
     result.data.date,
     result.data.totalWealthCents,
+    actorFromRequest(req),
   );
 
   res.status(201).json({
@@ -72,6 +82,7 @@ export const updateWealthHistory = async (
     userId,
     Number(id),
     updates,
+    actorFromRequest(req),
   );
 
   res.json({
@@ -87,7 +98,11 @@ export const deleteWealthHistory = async (
   const userId = getEffectiveUserId(req);
   const { id } = req.params;
 
-  await wealthHistoryService.deleteWealthHistory(userId, Number(id));
+  await wealthHistoryService.deleteWealthHistory(
+    userId,
+    Number(id),
+    actorFromRequest(req),
+  );
 
   res.json({
     message: "Patrimônio histórico deletado com sucesso",

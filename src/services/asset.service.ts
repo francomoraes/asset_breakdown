@@ -15,6 +15,9 @@ import { FindOptionsOrder } from "typeorm";
 import { PriceCache } from "models/price-cache";
 import { config } from "config/environment";
 import { In, MoreThan } from "typeorm";
+import { operationLogService } from "./operation-log.service";
+import { OperationLogAction } from "enums/operation-log-action.enum";
+import { OperationLogActorRole } from "enums/operation-log-actor-role.enum";
 
 type UpdateAssetData = {
   id: number;
@@ -112,8 +115,15 @@ export class AssetService {
     return asset;
   }
 
-  async updateAsset(data: UpdateAssetData & { requestUserId: number }) {
-    const { requestUserId, ...updateData } = data;
+  async updateAsset(
+    data: UpdateAssetData & {
+      requestUserId: number;
+      actorUserId: number;
+      actorEmail: string;
+      actorRole: OperationLogActorRole;
+    },
+  ) {
+    const { requestUserId, actorUserId, actorEmail, actorRole, ...updateData } = data;
 
     const existingAsset = await this.assetRepo.findOne({
       where: { id: Number(updateData.id), userId: requestUserId },
@@ -219,6 +229,15 @@ export class AssetService {
       institutionEntity = foundInstitution;
     }
 
+    const before = {
+      type: existingAsset.type?.name,
+      ticker: existingAsset.ticker,
+      quantity: existingAsset.quantity,
+      averagePriceCents: existingAsset.averagePriceCents,
+      institutionId: existingAsset.institution?.id,
+      currency: existingAsset.currency,
+    };
+
     Object.assign(existingAsset, {
       type: assetType,
       ticker,
@@ -238,6 +257,25 @@ export class AssetService {
     await this.assetRepo.save(existingAsset);
 
     await recalculatePortfolio(requestUserId);
+
+    await operationLogService.log({
+      clientId: requestUserId,
+      actorUserId,
+      actorEmail,
+      actorRole,
+      action: OperationLogAction.ASSET_MANUAL_EDIT,
+      entityType: "Asset",
+      entityId: existingAsset.id,
+      beforeValue: before,
+      afterValue: {
+        type: assetType.name,
+        ticker: existingAsset.ticker,
+        quantity: existingAsset.quantity,
+        averagePriceCents: existingAsset.averagePriceCents,
+        institutionId: institutionEntity?.id,
+        currency: existingAsset.currency,
+      },
+    });
 
     return existingAsset;
   }

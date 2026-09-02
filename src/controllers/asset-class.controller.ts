@@ -8,12 +8,16 @@ import { Request, Response } from "express";
 import { assetClassService } from "../services/asset-class.service";
 import { handleZodError } from "../utils/handle-zod-error";
 import { getEffectiveUserId } from "../utils/get-effective-user-id";
+import { getAuthenticatedUserId } from "../utils/get-authenticated-user-id";
 
 export const createAssetClass = async (
   req: Request,
   res: Response,
 ): Promise<void> => {
   const userId = getEffectiveUserId(req);
+  const actorUserId = getAuthenticatedUserId(req);
+  const actorEmail = req.user!.email;
+  const actorRole = req.user!.role;
 
   const result = CreateAssetClassDto.safeParse({
     name: req.body.name,
@@ -28,6 +32,9 @@ export const createAssetClass = async (
   const assetClass = await assetClassService.createAssetClass({
     userId,
     name,
+    actorUserId,
+    actorEmail,
+    actorRole,
   });
   res.status(201).json({
     message: "Asset class created successfully",
@@ -66,6 +73,9 @@ export const updateAssetClass = async (
   res: Response,
 ): Promise<void> => {
   const userId = getEffectiveUserId(req);
+  const actorUserId = getAuthenticatedUserId(req);
+  const actorEmail = req.user!.email;
+  const actorRole = req.user!.role;
 
   const dtoData = {
     id: req.params.id,
@@ -84,6 +94,9 @@ export const updateAssetClass = async (
     id,
     userId,
     name,
+    actorUserId,
+    actorEmail,
+    actorRole,
   });
 
   res.json({ message: "Asset class updated successfully", assetClass });
@@ -94,6 +107,9 @@ export const deleteAssetClass = async (
   res: Response,
 ): Promise<void> => {
   const userId = getEffectiveUserId(req);
+  const actorUserId = getAuthenticatedUserId(req);
+  const actorEmail = req.user!.email;
+  const actorRole = req.user!.role;
 
   const parsedParams = DeleteAssetClassDto.safeParse({
     id: req.params.id,
@@ -109,6 +125,9 @@ export const deleteAssetClass = async (
   const assetClass = await assetClassService.deleteAssetClass({
     id,
     userId,
+    actorUserId,
+    actorEmail,
+    actorRole,
   });
 
   res.json({

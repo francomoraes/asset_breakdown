@@ -4,6 +4,15 @@ import { Asset } from "../models/asset";
 import { AssetClass } from "../models/asset-class";
 import { AssetType } from "../models/asset-type";
 import { Repository } from "typeorm";
+import { operationLogService } from "./operation-log.service";
+import { OperationLogAction } from "enums/operation-log-action.enum";
+import { OperationLogActorRole } from "enums/operation-log-actor-role.enum";
+
+type Actor = {
+  actorUserId: number;
+  actorEmail: string;
+  actorRole: OperationLogActorRole;
+};
 
 export class AssetTypeService {
   constructor(
@@ -17,12 +26,15 @@ export class AssetTypeService {
     name,
     targetPercentage,
     userId,
+    actorUserId,
+    actorEmail,
+    actorRole,
   }: {
     userId: number;
     name: string;
     assetClassId: number;
     targetPercentage: number;
-  }) {
+  } & Actor) {
     const existingAssetType = await this.assetTypeRepo.findOne({
       where: { name, userId },
     });
@@ -50,6 +62,21 @@ export class AssetTypeService {
     });
 
     await this.assetTypeRepo.save(assetType);
+
+    await operationLogService.log({
+      clientId: userId,
+      actorUserId,
+      actorEmail,
+      actorRole,
+      action: OperationLogAction.ASSET_TYPE_CREATED,
+      entityType: "AssetType",
+      entityId: assetType.id,
+      afterValue: {
+        name: assetType.name,
+        targetPercentage: Number(assetType.targetPercentage),
+        assetClassId: assetClass.id,
+      },
+    });
 
     return assetType;
   }
@@ -85,13 +112,16 @@ export class AssetTypeService {
     targetPercentage,
     assetClassId,
     userId,
+    actorUserId,
+    actorEmail,
+    actorRole,
   }: {
     id: string;
     name?: string;
     targetPercentage?: number;
     assetClassId?: number;
     userId: number;
-  }) {
+  } & Actor) {
     const assetType = await this.assetTypeRepo.findOne({
       where: { id: Number(id), userId },
     });
@@ -99,6 +129,12 @@ export class AssetTypeService {
     if (!assetType) {
       throw new NotFoundError("Asset type not found", "ASSET_TYPE_NOT_FOUND");
     }
+
+    const before = {
+      name: assetType.name,
+      targetPercentage: Number(assetType.targetPercentage),
+      assetClassId: assetType.assetClass?.id,
+    };
 
     if (name !== undefined) assetType.name = name;
     if (targetPercentage !== undefined)
@@ -120,10 +156,32 @@ export class AssetTypeService {
 
     await this.assetTypeRepo.save(assetType);
 
+    await operationLogService.log({
+      clientId: userId,
+      actorUserId,
+      actorEmail,
+      actorRole,
+      action: OperationLogAction.ASSET_TYPE_UPDATED,
+      entityType: "AssetType",
+      entityId: assetType.id,
+      beforeValue: before,
+      afterValue: {
+        name: assetType.name,
+        targetPercentage: Number(assetType.targetPercentage),
+        assetClassId: assetType.assetClass?.id,
+      },
+    });
+
     return assetType;
   }
 
-  async deleteAssetType({ id, userId }: { id: string; userId: number }) {
+  async deleteAssetType({
+    id,
+    userId,
+    actorUserId,
+    actorEmail,
+    actorRole,
+  }: { id: string; userId: number } & Actor) {
     const assetType = await this.assetTypeRepo.findOne({
       where: { id: Number(id), userId },
     });
@@ -148,6 +206,17 @@ export class AssetTypeService {
       userId,
     });
 
+    await operationLogService.log({
+      clientId: userId,
+      actorUserId,
+      actorEmail,
+      actorRole,
+      action: OperationLogAction.ASSET_TYPE_DELETED,
+      entityType: "AssetType",
+      entityId: assetType.id,
+      beforeValue: { name: assetType.name },
+    });
+
     return assetType;
   }
 
@@ -155,11 +224,14 @@ export class AssetTypeService {
     userId,
     assetTypeId,
     targetPercentage,
+    actorUserId,
+    actorEmail,
+    actorRole,
   }: {
     userId: number;
     assetTypeId: number;
     targetPercentage: number;
-  }) {
+  } & Actor) {
     const assetType = await this.assetTypeRepo.findOne({
       where: { id: assetTypeId, userId },
     });
@@ -168,8 +240,28 @@ export class AssetTypeService {
       throw new NotFoundError("Asset type not found", "ASSET_TYPE_NOT_FOUND");
     }
 
+    const before = {
+      targetPercentage: Number(assetType.targetPercentage),
+      assetTypeName: assetType.name,
+    };
+
     assetType.targetPercentage = targetPercentage;
     await this.assetTypeRepo.save(assetType);
+
+    await operationLogService.log({
+      clientId: userId,
+      actorUserId,
+      actorEmail,
+      actorRole,
+      action: OperationLogAction.TARGET_PERCENTAGE_CHANGE,
+      entityType: "AssetType",
+      entityId: assetType.id,
+      beforeValue: before,
+      afterValue: {
+        targetPercentage: Number(assetType.targetPercentage),
+        assetTypeName: assetType.name,
+      },
+    });
 
     return assetType;
   }

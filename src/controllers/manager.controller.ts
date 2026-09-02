@@ -11,6 +11,7 @@ import {
   UpdateRiskProfileDto,
   UpdateTargetPercentageDto,
 } from "dtos/manager.dto";
+import { OperationLogListQueryDto } from "dtos/operation-log.dto";
 import { UserRole } from "enums/role.enum";
 import { getAuthenticatedUserId } from "utils/get-authenticated-user-id";
 import { getEffectiveUserId } from "utils/get-effective-user-id";
@@ -20,6 +21,9 @@ import { User } from "models/user";
 import { AssetType } from "models/asset-type";
 import { NotFoundError } from "errors/app-error";
 import { ILike, Not } from "typeorm";
+import { operationLogService } from "services/operation-log.service";
+import { managerHistoryService } from "services/manager-history.service";
+import { OperationLogAction } from "enums/operation-log-action.enum";
 
 export const listManagers = async (
   req: Request,
@@ -150,6 +154,9 @@ export const updateClientAutonomy = async (
   res: Response,
 ): Promise<void> => {
   const investorId = getEffectiveUserId(req);
+  const actorUserId = getAuthenticatedUserId(req);
+  const actorEmail = req.user!.email;
+  const actorRole = req.user!.role;
 
   const result = UpdateAutonomyDto.safeParse(req.body);
   if (!result.success) {
@@ -163,8 +170,24 @@ export const updateClientAutonomy = async (
     throw new NotFoundError("Investor not found", "NOT_FOUND");
   }
 
+  const before = { selfServiceEnabled: user.selfServiceEnabled };
+
   user.selfServiceEnabled = result.data.enabled;
   await userRepo.save(user);
+
+  await operationLogService.log({
+    clientId: investorId,
+    actorUserId,
+    actorEmail,
+    actorRole,
+    action: result.data.enabled
+      ? OperationLogAction.AUTONOMY_GRANTED
+      : OperationLogAction.AUTONOMY_REVOKED,
+    entityType: "User",
+    entityId: investorId,
+    beforeValue: before,
+    afterValue: { selfServiceEnabled: user.selfServiceEnabled },
+  });
 
   res.json({
     user: { id: user.id, selfServiceEnabled: user.selfServiceEnabled },
@@ -176,6 +199,9 @@ export const updateClientRiskProfile = async (
   res: Response,
 ): Promise<void> => {
   const investorId = getEffectiveUserId(req);
+  const actorUserId = getAuthenticatedUserId(req);
+  const actorEmail = req.user!.email;
+  const actorRole = req.user!.role;
 
   const result = UpdateRiskProfileDto.safeParse(req.body);
   if (!result.success) {
@@ -189,10 +215,24 @@ export const updateClientRiskProfile = async (
     throw new NotFoundError("Investor not found", "NOT_FOUND");
   }
 
+  const before = { riskProfile: user.riskProfile };
+
   user.riskProfile = result.data.riskProfile;
   user.riskProfileUpdatedAt = new Date();
-  user.riskProfileSetByUserId = getAuthenticatedUserId(req);
+  user.riskProfileSetByUserId = actorUserId;
   await userRepo.save(user);
+
+  await operationLogService.log({
+    clientId: investorId,
+    actorUserId,
+    actorEmail,
+    actorRole,
+    action: OperationLogAction.RISK_PROFILE_CHANGED,
+    entityType: "User",
+    entityId: investorId,
+    beforeValue: before,
+    afterValue: { riskProfile: user.riskProfile },
+  });
 
   res.json({
     user: {
@@ -208,6 +248,9 @@ export const updateInvestorTargetPercentage = async (
   res: Response,
 ): Promise<void> => {
   const userId = getEffectiveUserId(req);
+  const actorUserId = getAuthenticatedUserId(req);
+  const actorEmail = req.user!.email;
+  const actorRole = req.user!.role;
   const assetTypeId = Number(req.params.assetTypeId);
 
   const result = UpdateTargetPercentageDto.safeParse(req.body);
@@ -219,9 +262,36 @@ export const updateInvestorTargetPercentage = async (
     userId,
     assetTypeId,
     targetPercentage: result.data.targetPercentage,
+    actorUserId,
+    actorEmail,
+    actorRole,
   });
 
   res.json({ assetType: { id: assetType.id, name: assetType.name, targetPercentage: assetType.targetPercentage } });
+};
+
+export const getClientOperationLogs = async (
+  req: Request,
+  res: Response,
+): Promise<void> => {
+  const clientId = getEffectiveUserId(req);
+
+  const result = OperationLogListQueryDto.safeParse(req.query);
+  if (!result.success) {
+    return handleZodError(res, result.error);
+  }
+
+  const logs = await operationLogService.getLogs({ clientId, ...result.data });
+  res.json(logs);
+};
+
+export const getClientLinkHistory = async (
+  req: Request,
+  res: Response,
+): Promise<void> => {
+  const investorId = getEffectiveUserId(req);
+  const data = await managerHistoryService.getInvestorHistory({ investorId });
+  res.json({ data });
 };
 
 export const getDashboard = async (
