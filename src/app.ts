@@ -39,6 +39,7 @@ import managerLinkRoutes from "./routes/manager-link.routes";
 import managerRoutes from "./routes/manager.routes";
 import investorRoutes from "./routes/investor.routes";
 import userRoutes from "./routes/user.routes";
+import exchangeRateRoutes from "./routes/exchange-rate.routes";
 
 const app = express();
 app.set("trust proxy", 1);
@@ -70,6 +71,7 @@ app.use("/api/assets", authMiddleware, assetRoutes);
 app.use("/api/asset-transactions", authMiddleware, assetTransactionRoutes);
 app.use("/api/fixed-income-assets", authMiddleware, fixedIncomeAssetRoutes);
 app.use("/api/summary", authMiddleware, summaryRoutes);
+app.use("/api/exchange-rate", authMiddleware, exchangeRateRoutes);
 app.use("/api/wealth-history", authMiddleware, wealthHistoryRoutes);
 app.use("/api/operation-logs", authMiddleware, operationLogRoutes);
 app.use("/api/asset-class", authMiddleware, assetClassRoutes);

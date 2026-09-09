@@ -3,6 +3,7 @@ import { AppDataSource } from "config/data-source";
 import { ManagerClientLink, LinkStatus } from "models/manager-client-link";
 import { ManagerClientHistory, HistoryCycleStatus } from "models/manager-client-history";
 import { calculateInvestorWealthCents } from "services/manager-dashboard.service";
+import { getBRLtoUSDRate } from "utils/get-brl-to-usd-rate";
 
 export class AdminDashboardService {
   constructor(
@@ -20,10 +21,16 @@ export class AdminDashboardService {
       where: { status: HistoryCycleStatus.ACTIVE },
     });
     const initialWealthByManagerId = new Map<number, number>();
+    const initialWealthByInvestorId = new Map<number, number>();
     for (const history of activeHistories) {
       initialWealthByManagerId.set(
         history.managerId,
         (initialWealthByManagerId.get(history.managerId) ?? 0) +
+          Number(history.initialWealthCents),
+      );
+      initialWealthByInvestorId.set(
+        history.investorId,
+        (initialWealthByInvestorId.get(history.investorId) ?? 0) +
           Number(history.initialWealthCents),
       );
     }
@@ -37,6 +44,19 @@ export class AdminDashboardService {
       (sum, cents) => sum + cents,
       0,
     );
+
+    const totalInitialWealthCents = [...wealthByInvestorId.keys()].reduce(
+      (sum, investorId) => sum + (initialWealthByInvestorId.get(investorId) ?? 0),
+      0,
+    );
+    const absoluteVariationCents =
+      totalWealthUnderManagementCents - totalInitialWealthCents;
+    const percentageVariation =
+      totalInitialWealthCents > 0
+        ? Number(
+            ((absoluteVariationCents / totalInitialWealthCents) * 100).toFixed(2),
+          )
+        : 0;
 
     const linksByManagerId = new Map<number, ManagerClientLink[]>();
     for (const link of activeLinks) {
@@ -73,10 +93,16 @@ export class AdminDashboardService {
       })
       .sort((a, b) => b.totalWealthCents - a.totalWealthCents);
 
+    const brlToUsdRate = await getBRLtoUSDRate();
+
     return {
       managersCount: linksByManagerId.size,
-      totalActiveClientsCount: wealthByInvestorId.size,
+      activeClientsCount: wealthByInvestorId.size,
       totalWealthUnderManagementCents,
+      totalInitialWealthCents,
+      absoluteVariationCents,
+      percentageVariation,
+      exchangeRate: { usdToBrl: Number((1 / brlToUsdRate).toFixed(4)) },
       managerRanking,
     };
   }

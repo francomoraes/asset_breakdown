@@ -3,6 +3,10 @@ import { Asset } from "../models/asset";
 import { FixedIncomeAsset } from "../models/fixed-income-asset";
 import { AssetTransaction } from "../models/asset-transaction";
 import { AssetType } from "../models/asset-type";
+import {
+  ManagerClientHistory,
+  HistoryCycleStatus,
+} from "../models/manager-client-history";
 import { In, Repository } from "typeorm";
 import { getBRLtoUSDRate } from "../utils/get-brl-to-usd-rate";
 import { fixedIncomeAssetService } from "./fixed-income-asset.service";
@@ -37,6 +41,7 @@ export class SummaryService {
     private fixedIncomeRepo: Repository<FixedIncomeAsset>,
     private transactionRepo: Repository<AssetTransaction>,
     private assetTypeRepo: Repository<AssetType>,
+    private managerClientHistoryRepo: Repository<ManagerClientHistory>,
   ) {}
 
   async getCashFlow({
@@ -72,18 +77,62 @@ export class SummaryService {
           return acc + totalBRL;
         }, 0);
 
-    const totalBuys = sumInBRL("buy");
-    const totalSells = sumInBRL("sell");
-    const totalDividends = sumInBRL("dividend");
-
     return {
-      netContributionCents: Math.max(0, totalBuys - totalSells - totalDividends),
-      unreinvestedDividendsCents: Math.max(0, totalDividends - (totalBuys - totalSells)),
-      totalDividendsCents: totalDividends,
+      totalPurchasesCents: sumInBRL("buy"),
+      totalDividendsCents: sumInBRL("dividend"),
     };
   }
 
-  async getSummary({ userId }: { userId: number }) {
+  private async getInitialWealth({
+    userId,
+    actingManagerId,
+    currentTotalCents,
+  }: {
+    userId: number;
+    actingManagerId?: number;
+    currentTotalCents: number;
+  }) {
+    if (!actingManagerId) {
+      return {
+        initialWealthCents: null,
+        absoluteVariationCents: null,
+        percentageVariation: null,
+      };
+    }
+
+    const activeHistory = await this.managerClientHistoryRepo.findOne({
+      where: {
+        investorId: userId,
+        managerId: actingManagerId,
+        status: HistoryCycleStatus.ACTIVE,
+      },
+    });
+
+    if (!activeHistory) {
+      return {
+        initialWealthCents: null,
+        absoluteVariationCents: null,
+        percentageVariation: null,
+      };
+    }
+
+    const initialWealthCents = Number(activeHistory.initialWealthCents);
+    const absoluteVariationCents = currentTotalCents - initialWealthCents;
+    const percentageVariation =
+      initialWealthCents > 0
+        ? Number(((absoluteVariationCents / initialWealthCents) * 100).toFixed(2))
+        : 0;
+
+    return { initialWealthCents, absoluteVariationCents, percentageVariation };
+  }
+
+  async getSummary({
+    userId,
+    actingManagerId,
+  }: {
+    userId: number;
+    actingManagerId?: number;
+  }) {
     await fixedIncomeAssetService.refreshValues(userId);
 
     // Taxa de câmbio buscada antes de agregar — total e actualPercentage
@@ -183,6 +232,11 @@ export class SummaryService {
 
     const cashFlow = await this.getCashFlow({ userId, usdToBrlRate });
     const adherence = await this.getAdherence(userId, usdToBrlRate);
+    const initialWealth = await this.getInitialWealth({
+      userId,
+      actingManagerId,
+      currentTotalCents: total,
+    });
 
     return {
       data: summary,
@@ -193,6 +247,7 @@ export class SummaryService {
       totalPnlCents,
       cashFlow,
       adherence,
+      ...initialWealth,
     };
   }
 
@@ -440,4 +495,5 @@ export const summaryService = new SummaryService(
   AppDataSource.getRepository(FixedIncomeAsset),
   AppDataSource.getRepository(AssetTransaction),
   AppDataSource.getRepository(AssetType),
+  AppDataSource.getRepository(ManagerClientHistory),
 );

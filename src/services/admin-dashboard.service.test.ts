@@ -6,6 +6,10 @@ vi.mock("./manager-dashboard.service", () => ({
   ),
 }));
 
+vi.mock("utils/get-brl-to-usd-rate", () => ({
+  getBRLtoUSDRate: vi.fn(() => Promise.resolve(5)),
+}));
+
 import { AdminDashboardService } from "./admin-dashboard.service";
 import { LinkStatus } from "models/manager-client-link";
 
@@ -35,8 +39,12 @@ describe("AdminDashboardService", () => {
 
     expect(result).toEqual({
       managersCount: 0,
-      totalActiveClientsCount: 0,
+      activeClientsCount: 0,
       totalWealthUnderManagementCents: 0,
+      totalInitialWealthCents: 0,
+      absoluteVariationCents: 0,
+      percentageVariation: 0,
+      exchangeRate: { usdToBrl: 0.2 },
       managerRanking: [],
     });
   });
@@ -55,7 +63,7 @@ describe("AdminDashboardService", () => {
     const result = await service.getGlobalDashboard();
 
     // total da plataforma: só INVESTOR_A (1000) + INVESTOR_B (2000), sem duplicar
-    expect(result.totalActiveClientsCount).toBe(2);
+    expect(result.activeClientsCount).toBe(2);
     expect(result.totalWealthUnderManagementCents).toBe(1_000 + 2_000);
     expect(result.managersCount).toBe(2);
 
@@ -97,7 +105,7 @@ describe("AdminDashboardService", () => {
     } as any;
     const historyRepo = {
       find: vi.fn().mockResolvedValue([
-        { managerId: MANAGER_X, initialWealthCents: 800 },
+        { investorId: INVESTOR_A, managerId: MANAGER_X, initialWealthCents: 800 },
       ]),
     } as any;
     const service = new AdminDashboardService(linkRepo, historyRepo);
@@ -108,6 +116,32 @@ describe("AdminDashboardService", () => {
     expect(managerX.totalInitialWealthCents).toBe(800);
     expect(managerX.absoluteVariationCents).toBe(200);
     expect(managerX.percentageVariation).toBe(25);
+
+    expect(result.totalInitialWealthCents).toBe(800);
+    expect(result.absoluteVariationCents).toBe(200);
+    expect(result.percentageVariation).toBe(25);
+  });
+
+  it("total da plataforma não duplica patrimônio inicial de cliente co-gerido (decisão 4.2 estendida)", async () => {
+    const linkRepo = {
+      find: vi.fn().mockResolvedValue([
+        activeLink(INVESTOR_A, MANAGER_X, "Gestor X"),
+        activeLink(INVESTOR_A, MANAGER_Y, "Gestor Y"),
+      ]),
+    } as any;
+    const historyRepo = {
+      find: vi.fn().mockResolvedValue([
+        { investorId: INVESTOR_A, managerId: MANAGER_X, initialWealthCents: 400 },
+        { investorId: INVESTOR_A, managerId: MANAGER_Y, initialWealthCents: 300 },
+      ]),
+    } as any;
+    const service = new AdminDashboardService(linkRepo, historyRepo);
+
+    const result = await service.getGlobalDashboard();
+
+    expect(result.totalInitialWealthCents).toBe(700);
+    expect(result.totalWealthUnderManagementCents).toBe(1_000);
+    expect(result.absoluteVariationCents).toBe(300);
   });
 
   it("gestor sem nenhum ciclo de histórico ACTIVE entra com patrimônio inicial e variação percentual zerados", async () => {

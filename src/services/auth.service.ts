@@ -1,6 +1,5 @@
 import {
   ConflictError,
-  ForbiddenError,
   NotFoundError,
   UnauthorizedError,
 } from "../errors/app-error";
@@ -133,11 +132,9 @@ export class AuthService {
   async login({
     email,
     password,
-    loginAs,
   }: {
     email: string;
     password: string;
-    loginAs?: "investor" | "manager";
   }) {
     const user = await this.userRepository.findOne({
       where: { email },
@@ -168,20 +165,6 @@ export class AuthService {
         "Invalid email or password",
         "INVALID_CREDENTIALS",
       );
-    }
-
-    if (loginAs) {
-      const roleMatchesTab =
-        loginAs === "investor"
-          ? user.role === UserRole.INVESTOR
-          : user.role === UserRole.MANAGER || user.role === UserRole.ADMIN;
-
-      if (!roleMatchesTab) {
-        throw new ForbiddenError(
-          "This account does not belong to the selected tab",
-          "ROLE_TAB_MISMATCH",
-        );
-      }
     }
 
     const token = this.generateAccessToken(user);

@@ -40,6 +40,7 @@ type ClientBaseRow = {
   linkId: number | null;
   linkStatus: LinkStatus | null;
   riskProfile: RiskProfile | null;
+  managers?: { id: number; name: string; email: string }[];
 };
 
 type ClientListItem = ClientBaseRow & {
@@ -270,9 +271,12 @@ export class ManagerLinkService {
         ? await this.getAllInvestorRows(managerId, search)
         : await this.getMyLinkedInvestorRows(managerId, search);
 
-    const rows = activeOnly
-      ? allRows.filter((row) => row.linkStatus === LinkStatus.ACTIVE)
-      : allRows;
+    const rows =
+      scope === "all"
+        ? allRows
+        : activeOnly
+          ? allRows.filter((row) => row.linkStatus === LinkStatus.ACTIVE)
+          : allRows;
 
     if (rows.length === 0) {
       return {
@@ -378,10 +382,6 @@ export class ManagerLinkService {
     }));
   }
 
-  // scope "all" é admin-only (garantido no controller) — lista todo
-  // investidor da plataforma, com o vínculo do próprio admin (se existir)
-  // pra decidir, no front, entre "Ver carteira"/"Encerrar vínculo" (já
-  // cliente do admin) ou "Adicionar Cliente" (ainda não vinculado).
   private async getAllInvestorRows(
     managerId: number,
     search?: string,
@@ -400,33 +400,54 @@ export class ManagerLinkService {
     const investors = await qb.getMany();
     const investorIds = investors.map((investor) => investor.id!);
 
-    const links = investorIds.length
-      ? await this.linkRepo.find({
-          where: { investorId: In(investorIds), managerId },
-          order: { createdAt: "DESC" },
-        })
-      : [];
+    const [ownLinks, activeLinksAnyManager] = investorIds.length
+      ? await Promise.all([
+          this.linkRepo.find({
+            where: { investorId: In(investorIds), managerId },
+            order: { createdAt: "DESC" },
+          }),
+          this.linkRepo.find({
+            where: { investorId: In(investorIds), status: LinkStatus.ACTIVE },
+            relations: ["manager"],
+          }),
+        ])
+      : [[], []];
 
     // Mesmo caso de múltiplos links históricos por investidor descrito em
     // getMyLinkedInvestorRows — aqui também o mais recente é o que reflete
-    // o vínculo atual com este gestor/admin.
-    const linkByInvestorId = new Map<number, (typeof links)[number]>();
-    for (const link of links) {
-      if (!linkByInvestorId.has(link.investorId)) {
-        linkByInvestorId.set(link.investorId, link);
+    // o vínculo atual do admin com este investidor.
+    const ownLinkByInvestorId = new Map<number, (typeof ownLinks)[number]>();
+    for (const link of ownLinks) {
+      if (!ownLinkByInvestorId.has(link.investorId)) {
+        ownLinkByInvestorId.set(link.investorId, link);
       }
     }
 
+    const managersByInvestorId = new Map<
+      number,
+      { id: number; name: string; email: string }[]
+    >();
+    for (const link of activeLinksAnyManager) {
+      const list = managersByInvestorId.get(link.investorId) ?? [];
+      list.push({
+        id: link.manager.id!,
+        name: link.manager.name,
+        email: link.manager.email,
+      });
+      managersByInvestorId.set(link.investorId, list);
+    }
+
     return investors.map((investor) => {
-      const link = linkByInvestorId.get(investor.id!);
+      const ownLink = ownLinkByInvestorId.get(investor.id!);
       return {
         investorId: investor.id!,
         investorName: investor.name,
         investorEmail: investor.email,
-        activatedAt: link?.activatedAt ?? null,
-        linkId: link?.id ?? null,
-        linkStatus: link?.status ?? null,
+        activatedAt: ownLink?.activatedAt ?? null,
+        linkId: ownLink?.id ?? null,
+        linkStatus: ownLink?.status ?? null,
         riskProfile: investor.riskProfile,
+        managers: managersByInvestorId.get(investor.id!) ?? [],
       };
     });
   }

@@ -520,9 +520,12 @@ describe("ManagerLinkService", () => {
           { id: 1, name: "Linked", email: "linked@test.com", riskProfile: null },
           { id: 2, name: "Unlinked", email: "unlinked@test.com", riskProfile: null },
         ]);
-        fakeLinkRepo.find = vi.fn().mockResolvedValue([
-          { id: 555, investorId: 1, activatedAt: new Date("2026-02-01") },
-        ]);
+        fakeLinkRepo.find = vi
+          .fn()
+          .mockResolvedValueOnce([
+            { id: 555, investorId: 1, activatedAt: new Date("2026-02-01") },
+          ])
+          .mockResolvedValueOnce([]);
 
         (calculateInvestorWealthCentsBulk as any).mockResolvedValue(new Map());
         (summaryService.getAdherenceBulk as any).mockResolvedValue(new Map());
@@ -540,9 +543,13 @@ describe("ManagerLinkService", () => {
         expect(linked.activatedAt).toEqual(new Date("2026-02-01"));
         expect(unlinked.linkId).toBeNull();
         expect(unlinked.activatedAt).toBeNull();
-        expect(fakeLinkRepo.find).toHaveBeenCalledWith({
+        expect(fakeLinkRepo.find).toHaveBeenNthCalledWith(1, {
           where: { investorId: In([1, 2]), managerId: ADMIN_ID },
           order: { createdAt: "DESC" },
+        });
+        expect(fakeLinkRepo.find).toHaveBeenNthCalledWith(2, {
+          where: { investorId: In([1, 2]), status: LinkStatus.ACTIVE },
+          relations: ["manager"],
         });
       });
 
@@ -556,6 +563,61 @@ describe("ManagerLinkService", () => {
 
         expect(result.data).toEqual([]);
         expect(calculateInvestorWealthCentsBulk).not.toHaveBeenCalled();
+      });
+
+      it("ignora activeOnly — a lista da plataforma independe do vínculo do admin com cada investidor", async () => {
+        mockAllInvestors([
+          { id: 1, name: "Sem vínculo com admin", email: "a@test.com", riskProfile: null },
+        ]);
+        fakeLinkRepo.find = vi.fn().mockResolvedValueOnce([]).mockResolvedValueOnce([]);
+
+        (calculateInvestorWealthCentsBulk as any).mockResolvedValue(new Map());
+        (summaryService.getAdherenceBulk as any).mockResolvedValue(new Map());
+        (wealthHistoryService.getMonthlyVariationBulk as any).mockResolvedValue(new Map());
+
+        const result = await service.getActiveClients({
+          managerId: ADMIN_ID,
+          scope: "all",
+          activeOnly: true,
+        });
+
+        expect(result.data).toHaveLength(1);
+        expect(result.data[0].investorId).toBe(1);
+      });
+
+      it("agrega todos os gestores ATIVOS de cada investidor (co-gestão), não só o vínculo com o admin", async () => {
+        mockAllInvestors([
+          { id: 1, name: "Co-gerido", email: "co@test.com", riskProfile: null },
+        ]);
+        fakeLinkRepo.find = vi
+          .fn()
+          .mockResolvedValueOnce([])
+          .mockResolvedValueOnce([
+            {
+              investorId: 1,
+              status: LinkStatus.ACTIVE,
+              manager: { id: 10, name: "Gestor X", email: "x@test.com" },
+            },
+            {
+              investorId: 1,
+              status: LinkStatus.ACTIVE,
+              manager: { id: 11, name: "Gestor Y", email: "y@test.com" },
+            },
+          ]);
+
+        (calculateInvestorWealthCentsBulk as any).mockResolvedValue(new Map());
+        (summaryService.getAdherenceBulk as any).mockResolvedValue(new Map());
+        (wealthHistoryService.getMonthlyVariationBulk as any).mockResolvedValue(new Map());
+
+        const result = await service.getActiveClients({
+          managerId: ADMIN_ID,
+          scope: "all",
+        });
+
+        expect(result.data[0].managers).toEqual([
+          { id: 10, name: "Gestor X", email: "x@test.com" },
+          { id: 11, name: "Gestor Y", email: "y@test.com" },
+        ]);
       });
     });
   });

@@ -137,18 +137,21 @@ export const getMarketIndicesHistory = async (
   const end =
     parsedStart.getTime() <= parsedEnd.getTime() ? parsedEnd : parsedStart;
 
-  const [cdiResult, ipcaResult, sp500Result] = await Promise.allSettled([
+  const [cdiResult, ipcaResult, sp500Result, ifixResult] = await Promise.allSettled([
     bcbService.getIndexData(IndexType.CDI, start, end),
     bcbService.getIndexData(IndexType.IPCA, start, end),
     marketIndicesService.getSP500Historical(start, end),
+    marketIndicesService.getIFIXHistorical(start, end),
   ]);
 
   const cdiData = cdiResult.status === "fulfilled" ? cdiResult.value : [];
   const ipcaData = ipcaResult.status === "fulfilled" ? ipcaResult.value : [];
   const sp500Data = sp500Result.status === "fulfilled" ? sp500Result.value : [];
+  const ifixData = ifixResult.status === "fulfilled" ? ifixResult.value : [];
 
-  // Normalize S&P500 to monthly
+  // Normalize S&P500/IFIX to monthly
   const sp500Monthly = marketIndicesService.normalizeToMonthly(sp500Data);
+  const ifixMonthly = marketIndicesService.normalizeToMonthly(ifixData);
 
   res.json({
     cdi: cdiData.map((item) => ({
@@ -160,5 +163,6 @@ export const getMarketIndicesHistory = async (
       value: item.value,
     })),
     sp500: sp500Monthly,
+    ifix: ifixMonthly,
   });
 };

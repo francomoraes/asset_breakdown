@@ -17,6 +17,8 @@ interface HistoricalDataPoint {
 }
 
 const SP500_SYMBOL = "SP500";
+const SP500_YAHOO_TICKER = "^GSPC";
+const IFIX_SYMBOL = "IFIX";
 
 export class MarketIndicesService {
   private cacheRepo: Repository<MarketIndexCache>;
@@ -45,13 +47,13 @@ export class MarketIndicesService {
     return ageMs < ttlMs;
   }
 
-  private async getCachedRange(startDate: Date, endDate: Date) {
+  private async getCachedRange(symbol: string, startDate: Date, endDate: Date) {
     const startKey = this.toDateKey(startDate);
     const endKey = this.toDateKey(endDate);
 
     const cached = await this.cacheRepo.find({
       where: {
-        symbol: SP500_SYMBOL,
+        symbol,
         date: Between(this.fromDateKey(startKey), this.fromDateKey(endKey)),
       },
       order: { date: "ASC" },
@@ -60,7 +62,12 @@ export class MarketIndicesService {
     return cached;
   }
 
-  private async fetchAndCacheRange(startDate: Date, endDate: Date) {
+  private async fetchAndCacheRange(
+    symbol: string,
+    yahooTicker: string,
+    startDate: Date,
+    endDate: Date,
+  ) {
     const queryOptions = {
       period1: startDate,
       period2: endDate,
@@ -68,7 +75,7 @@ export class MarketIndicesService {
     };
 
     const result = await runYahooTask(() =>
-      yahooFinance.chart("^GSPC", queryOptions),
+      yahooFinance.chart(yahooTicker, queryOptions),
     );
     const quotes = result.quotes ?? [];
     const fetchedAt = new Date();
@@ -78,7 +85,7 @@ export class MarketIndicesService {
       .map((item) => {
         const dateKey = item.date.toISOString().split("T")[0];
         return {
-          symbol: SP500_SYMBOL,
+          symbol,
           date: this.fromDateKey(dateKey),
           value: Number(item.close),
           fetchedAt,
@@ -89,13 +96,13 @@ export class MarketIndicesService {
       await this.cacheRepo.upsert(entries, ["symbol", "date"]);
     }
 
-    return this.getCachedRange(startDate, endDate);
+    return this.getCachedRange(symbol, startDate, endDate);
   }
 
-  /**
-   * Busca dados históricos do S&P500 via Yahoo Finance
-   */
-  async getSP500Historical(
+  private async getHistorical(
+    symbol: string,
+    yahooTicker: string,
+    logLabel: string,
     startDate: Date,
     endDate: Date,
   ): Promise<HistoricalDataPoint[]> {
@@ -104,11 +111,11 @@ export class MarketIndicesService {
     const { start, end } = this.normalizeRange(startDate, endDate);
 
     const lastFetched = await this.cacheRepo.findOne({
-      where: { symbol: SP500_SYMBOL },
+      where: { symbol },
       order: { fetchedAt: "DESC" },
     });
 
-    const cachedInRange = await this.getCachedRange(start, end);
+    const cachedInRange = await this.getCachedRange(symbol, start, end);
 
     if (
       lastFetched?.fetchedAt &&
@@ -116,7 +123,7 @@ export class MarketIndicesService {
       cachedInRange.length > 0
     ) {
       logger.info(
-        `SP500 em cache (TTL ${config.marketIndicesTtlHours}h), sem chamada ao Yahoo.`,
+        `${logLabel} em cache (TTL ${config.marketIndicesTtlHours}h), sem chamada ao Yahoo.`,
       );
 
       return cachedInRange.map((item) => ({
@@ -126,19 +133,24 @@ export class MarketIndicesService {
     }
 
     try {
-      const refreshed = await this.fetchAndCacheRange(start, end);
+      const refreshed = await this.fetchAndCacheRange(
+        symbol,
+        yahooTicker,
+        start,
+        end,
+      );
 
-      logger.info("SP500 atualizado via Yahoo e persistido em cache.");
+      logger.info(`${logLabel} atualizado via Yahoo e persistido em cache.`);
 
       return refreshed.map((item) => ({
         date: this.toDateKey(new Date(item.date)),
         value: Number(item.value),
       }));
     } catch (error) {
-      logger.error("Error fetching S&P500 data from Yahoo Finance", error);
+      logger.error(`Error fetching ${logLabel} data from Yahoo Finance`, error);
 
       if (cachedInRange.length > 0) {
-        logger.warn("Falha no Yahoo. Retornando SP500 em cache (fallback).");
+        logger.warn(`Falha no Yahoo. Retornando ${logLabel} em cache (fallback).`);
         return cachedInRange.map((item) => ({
           date: this.toDateKey(new Date(item.date)),
           value: Number(item.value),
@@ -147,6 +159,37 @@ export class MarketIndicesService {
 
       return [];
     }
+  }
+
+  /**
+   * Busca dados históricos do S&P500 via Yahoo Finance
+   */
+  async getSP500Historical(
+    startDate: Date,
+    endDate: Date,
+  ): Promise<HistoricalDataPoint[]> {
+    return this.getHistorical(
+      SP500_SYMBOL,
+      SP500_YAHOO_TICKER,
+      "SP500",
+      startDate,
+      endDate,
+    );
+  }
+
+  async getIFIXHistorical(
+    startDate: Date,
+    endDate: Date,
+  ): Promise<HistoricalDataPoint[]> {
+    await ensureDataSource();
+
+    const { start, end } = this.normalizeRange(startDate, endDate);
+    const cached = await this.getCachedRange(IFIX_SYMBOL, start, end);
+
+    return cached.map((item) => ({
+      date: this.toDateKey(new Date(item.date)),
+      value: Number(item.value),
+    }));
   }
 
   /**

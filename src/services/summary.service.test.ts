@@ -43,10 +43,11 @@ describe("SummaryService.getCashFlow", () => {
       fakeFixedIncomeRepo as any,
       fakeTransactionRepo as any,
       fakeAssetTypeRepo as any,
+      {} as any,
     );
   }
 
-  it("soma compras/vendas/proventos numa única moeda sem conversão", async () => {
+  it("total de compras é soma bruta, sem subtrair vendas nem proventos", async () => {
     const service = makeService([
       { type: "buy", currency: "BRL", total: "10000" },
       { type: "sell", currency: "BRL", total: "3000" },
@@ -55,8 +56,8 @@ describe("SummaryService.getCashFlow", () => {
 
     const result = await service.getCashFlow({ userId: USER_ID, usdToBrlRate: 5 });
 
-    expect(result.netContributionCents).toBe(10000 - 500 - 3000);
-    expect(result.unreinvestedDividendsCents).toBe(0);
+    expect(result.totalPurchasesCents).toBe(10000);
+    expect(result.totalDividendsCents).toBe(500);
   });
 
   it("converte transações em USD para BRL antes de somar (não mistura moedas cruas)", async () => {
@@ -67,10 +68,10 @@ describe("SummaryService.getCashFlow", () => {
 
     const result = await service.getCashFlow({ userId: USER_ID, usdToBrlRate: 5 });
 
-    expect(result.netContributionCents).toBe(10000 + 5000);
+    expect(result.totalPurchasesCents).toBe(10000 + 5000);
   });
 
-  it("proventos maiores que compras geram proventos não reinvestidos, sem ficar negativo", async () => {
+  it("proventos não afetam o total de compras (informações separadas)", async () => {
     const service = makeService([
       { type: "buy", currency: "BRL", total: "1000" },
       { type: "dividend", currency: "BRL", total: "1500" },
@@ -78,8 +79,7 @@ describe("SummaryService.getCashFlow", () => {
 
     const result = await service.getCashFlow({ userId: USER_ID, usdToBrlRate: 5 });
 
-    expect(result.unreinvestedDividendsCents).toBe(500);
-    expect(result.netContributionCents).toBe(0);
+    expect(result.totalPurchasesCents).toBe(1000);
     expect(result.totalDividendsCents).toBe(1500);
   });
 });
@@ -140,6 +140,7 @@ describe("SummaryService.getSummary — conversão de câmbio no total/actualPer
       fakeFixedIncomeRepo as any,
       fakeTransactionRepo as any,
       fakeAssetTypeRepo as any,
+      {} as any,
     );
 
     const result = await service.getSummary({ userId: USER_ID });
@@ -189,6 +190,7 @@ describe("SummaryService.getAdherence", () => {
       fakeFixedIncomeRepo as any,
       fakeTransactionRepo as any,
       fakeAssetTypeRepo as any,
+      {} as any,
     );
   }
 
@@ -251,5 +253,77 @@ describe("SummaryService.getAdherence", () => {
 
     expect(result.totalPp).toBeNull();
     expect(result.byType).toEqual([]);
+  });
+});
+
+describe("SummaryService.getSummary — patrimônio inicial (decisão 4.5)", () => {
+  const ACTING_MANAGER_ID = 99;
+
+  function makeService(activeHistory: any) {
+    (getBRLtoUSDRate as any).mockResolvedValue(0.2);
+    (fixedIncomeAssetService.refreshValues as any).mockResolvedValue(undefined);
+
+    const emptyChainable = () => ({
+      leftJoin: vi.fn().mockReturnThis(),
+      select: vi.fn().mockReturnThis(),
+      addSelect: vi.fn().mockReturnThis(),
+      innerJoin: vi.fn().mockReturnThis(),
+      where: vi.fn().mockReturnThis(),
+      groupBy: vi.fn().mockReturnThis(),
+      addGroupBy: vi.fn().mockReturnThis(),
+      getRawMany: vi.fn().mockResolvedValue([]),
+    });
+
+    const fakeAssetRepo = { createQueryBuilder: vi.fn().mockReturnValue(emptyChainable()) };
+    const fakeFixedIncomeRepo = { createQueryBuilder: vi.fn().mockReturnValue(emptyChainable()) };
+    const fakeTransactionRepo = { createQueryBuilder: vi.fn().mockReturnValue(emptyChainable()) };
+    const fakeAssetTypeRepo = { find: vi.fn().mockResolvedValue([]) };
+    const fakeManagerClientHistoryRepo = {
+      findOne: vi.fn().mockResolvedValue(activeHistory),
+    };
+
+    return new SummaryService(
+      fakeAssetRepo as any,
+      fakeFixedIncomeRepo as any,
+      fakeTransactionRepo as any,
+      fakeAssetTypeRepo as any,
+      fakeManagerClientHistoryRepo as any,
+    );
+  }
+
+  it("sem actingManagerId (self-view do investidor) → campos ficam null, sem consultar ManagerClientHistory", async () => {
+    const service = makeService(null);
+
+    const result = await service.getSummary({ userId: USER_ID });
+
+    expect(result.initialWealthCents).toBeNull();
+    expect(result.absoluteVariationCents).toBeNull();
+    expect(result.percentageVariation).toBeNull();
+  });
+
+  it("com actingManagerId mas sem ciclo ACTIVE → campos ficam null", async () => {
+    const service = makeService(null);
+
+    const result = await service.getSummary({
+      userId: USER_ID,
+      actingManagerId: ACTING_MANAGER_ID,
+    });
+
+    expect(result.initialWealthCents).toBeNull();
+    expect(result.absoluteVariationCents).toBeNull();
+    expect(result.percentageVariation).toBeNull();
+  });
+
+  it("com actingManagerId e ciclo ACTIVE → variação abs./% calculadas contra o patrimônio atual", async () => {
+    const service = makeService({ initialWealthCents: "8000" });
+
+    const result = await service.getSummary({
+      userId: USER_ID,
+      actingManagerId: ACTING_MANAGER_ID,
+    });
+
+    expect(result.initialWealthCents).toBe(8000);
+    expect(result.absoluteVariationCents).toBe(-8000);
+    expect(result.percentageVariation).toBe(-100);
   });
 });

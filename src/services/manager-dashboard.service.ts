@@ -11,6 +11,11 @@ import { fixedIncomeAssetService } from "./fixed-income-asset.service";
 
 type DashboardScope = "mine" | "all";
 
+async function getExchangeRateField(): Promise<{ usdToBrl: number }> {
+  const brlToUsdRate = await getBRLtoUSDRate();
+  return { usdToBrl: Number((1 / brlToUsdRate).toFixed(4)) };
+}
+
 export async function calculateInvestorWealthCents(userId: number): Promise<number> {
   await fixedIncomeAssetService.refreshValues(userId);
 
@@ -169,6 +174,7 @@ export class ManagerDashboardService {
       absoluteVariationCents,
       percentageVariation,
       topInvestors,
+      exchangeRate: await getExchangeRateField(),
     };
   }
 
@@ -224,6 +230,7 @@ export class ManagerDashboardService {
       absoluteVariationCents,
       percentageVariation,
       topInvestors,
+      exchangeRate: await getExchangeRateField(),
     };
   }
 }

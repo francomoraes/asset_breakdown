@@ -145,7 +145,8 @@ export const getInvestorSummary = async (
   res: Response,
 ): Promise<void> => {
   const userId = getEffectiveUserId(req);
-  const summary = await summaryService.getSummary({ userId });
+  const actingManagerId = getAuthenticatedUserId(req);
+  const summary = await summaryService.getSummary({ userId, actingManagerId });
   res.json(summary);
 };
 
