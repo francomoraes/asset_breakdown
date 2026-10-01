@@ -62,6 +62,9 @@ export const ListActiveClientsQueryDto = z.object({
     (v) => (typeof v === "string" ? v === "true" : v),
     z.boolean().default(false),
   ),
+  // Só tem efeito com scope "all": restringe a lista aos investidores com
+  // vínculo ativo com esse gestor específico.
+  managerFilter: z.coerce.number().int().positive().optional(),
 });
 
 export const GetDashboardQueryDto = z.object({

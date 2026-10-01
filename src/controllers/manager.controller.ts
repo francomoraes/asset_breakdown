@@ -81,7 +81,7 @@ export const listActiveClients = async (
     return handleZodError(res, result.error);
   }
 
-  const { page, itemsPerPage, sortBy, order, search, scope, activeOnly } =
+  const { page, itemsPerPage, sortBy, order, search, scope, activeOnly, managerFilter } =
     result.data;
   const effectiveScope = callerRole === UserRole.ADMIN ? scope : "mine";
 
@@ -94,6 +94,7 @@ export const listActiveClients = async (
     sortBy,
     order,
     search,
+    managerFilter: effectiveScope === "all" ? managerFilter : undefined,
   });
 
   res.json(response);

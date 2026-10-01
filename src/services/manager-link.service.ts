@@ -256,6 +256,7 @@ export class ManagerLinkService {
     sortBy = "name",
     order = "ASC" as "ASC" | "DESC",
     search,
+    managerFilter,
   }: {
     managerId: number;
     scope?: ClientScope;
@@ -265,10 +266,11 @@ export class ManagerLinkService {
     sortBy?: ClientSortBy;
     order?: "ASC" | "DESC";
     search?: string;
+    managerFilter?: number;
   }) {
     const allRows =
       scope === "all"
-        ? await this.getAllInvestorRows(managerId, search)
+        ? await this.getAllInvestorRows(managerId, search, managerFilter)
         : await this.getMyLinkedInvestorRows(managerId, search);
 
     const rows =
@@ -385,6 +387,7 @@ export class ManagerLinkService {
   private async getAllInvestorRows(
     managerId: number,
     search?: string,
+    managerFilter?: number,
   ): Promise<ClientBaseRow[]> {
     const qb = this.userRepo
       .createQueryBuilder("investor")
@@ -437,7 +440,15 @@ export class ManagerLinkService {
       managersByInvestorId.set(link.investorId, list);
     }
 
-    return investors.map((investor) => {
+    const filteredInvestors = managerFilter
+      ? investors.filter((investor) =>
+          (managersByInvestorId.get(investor.id!) ?? []).some(
+            (m) => m.id === managerFilter,
+          ),
+        )
+      : investors;
+
+    return filteredInvestors.map((investor) => {
       const ownLink = ownLinkByInvestorId.get(investor.id!);
       return {
         investorId: investor.id!,
