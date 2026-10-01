@@ -11,6 +11,7 @@ import { User } from "../models/user";
 import { UserRole } from "../enums/role.enum";
 import { ManagerClientLink, LinkStatus, RevokeReason } from "../models/manager-client-link";
 import { ManagerClientHistory, HistoryCycleStatus } from "../models/manager-client-history";
+import { roleManagementService } from "../services/role-management.service";
 import { marketPriceService } from "../services/market-price.service";
 import { calculateDerivedFields } from "../utils/calculate-derived-fields";
 import { recalculatePortfolio } from "../utils/recalculate-portfolio";
@@ -81,7 +82,13 @@ AppDataSource.initialize()
         await userRepository.save(user);
         console.log(`✅ User created: ${userData.email} (${userData.role})`);
       } else {
-        user.role = userData.role;
+        if (user.role !== userData.role) {
+          await roleManagementService.updateRole({
+            targetUserId: user.id!,
+            newRole: userData.role,
+          });
+          user.role = userData.role;
+        }
         user.managerClientLimit = userData.managerClientLimit;
         user.selfServiceEnabled = userData.selfServiceEnabled;
         await userRepository.save(user);
